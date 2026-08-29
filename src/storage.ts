@@ -12,13 +12,13 @@ const DEFAULT_CARDS: CreditCard[] = [
 ];
 
 const DEFAULT_CATEGORIES: Category[] = [
-  { id: 'cat-food', name: '🍔 Food & Dining' },
-  { id: 'cat-groceries', name: '🛒 Groceries' },
-  { id: 'cat-transport', name: '🚗 Transportation' },
-  { id: 'cat-utilities', name: '🏠 Rent & Utilities' },
-  { id: 'cat-shopping', name: '🛍️ Shopping' },
-  { id: 'cat-entertainment', name: '🎬 Entertainment' },
-  { id: 'cat-others', name: '❓ Others' },
+  { id: 'cat-food', name: 'Food & Dining' },
+  { id: 'cat-groceries', name: 'Groceries' },
+  { id: 'cat-transport', name: 'Transportation' },
+  { id: 'cat-utilities', name: 'Rent & Utilities' },
+  { id: 'cat-shopping', name: 'Shopping' },
+  { id: 'cat-entertainment', name: 'Entertainment' },
+  { id: 'cat-others', name: 'Others' },
 ];
 
 export const getExpenses = async (): Promise<Expense[]> => {

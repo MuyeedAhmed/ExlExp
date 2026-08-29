@@ -176,7 +176,7 @@ export default function App() {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#4f46e5" />
+        <ActivityIndicator size="large" color="#000000" />
         <Text style={styles.loadingText}>Loading Spending Tracker...</Text>
       </View>
     );
@@ -188,7 +188,7 @@ export default function App() {
       
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>💳 ExlExp</Text>
+        <Text style={styles.headerTitle}>ExlExp</Text>
         <Text style={styles.headerSubtitle}>Personal Spending Tracker</Text>
       </View>
 
@@ -206,7 +206,6 @@ export default function App() {
             setActiveTab('dashboard');
           }}
         >
-          <Text style={[styles.tabIcon, activeTab === 'dashboard' && styles.activeTabIcon]}>📊</Text>
           <Text style={[styles.tabText, activeTab === 'dashboard' && styles.activeTabText]}>Analytics</Text>
         </TouchableOpacity>
 
@@ -214,9 +213,6 @@ export default function App() {
           style={[styles.tabButton, activeTab === 'add' && styles.activeTabButton]}
           onPress={() => setActiveTab('add')}
         >
-          <Text style={[styles.tabIcon, activeTab === 'add' && styles.activeTabIcon]}>
-            {editingExpense ? '✏️' : '➕'}
-          </Text>
           <Text style={[styles.tabText, activeTab === 'add' && styles.activeTabText]}>
             {editingExpense ? 'Edit Item' : 'Log Spend'}
           </Text>
@@ -229,7 +225,6 @@ export default function App() {
             setActiveTab('history');
           }}
         >
-          <Text style={[styles.tabIcon, activeTab === 'history' && styles.activeTabIcon]}>📜</Text>
           <Text style={[styles.tabText, activeTab === 'history' && styles.activeTabText]}>History</Text>
         </TouchableOpacity>
 
@@ -240,7 +235,6 @@ export default function App() {
             setActiveTab('settings');
           }}
         >
-          <Text style={[styles.tabIcon, activeTab === 'settings' && styles.activeTabIcon]}>⚙️</Text>
           <Text style={[styles.tabText, activeTab === 'settings' && styles.activeTabText]}>Settings</Text>
         </TouchableOpacity>
       </View>
@@ -277,7 +271,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 20,
     fontWeight: '800',
-    color: '#4f46e5',
+    color: '#0f172a',
   },
   headerSubtitle: {
     fontSize: 11,
@@ -292,50 +286,39 @@ const styles = StyleSheet.create({
   },
   tabBar: {
     flexDirection: 'row',
-    height: 64,
+    height: 48,
     borderTopWidth: 1,
-    borderTopColor: '#f1f5f9',
+    borderTopColor: '#e2e8f0',
     backgroundColor: '#ffffff',
-    paddingBottom: Platform.OS === 'ios' ? 8 : 0,
+    paddingBottom: 0,
   },
   tabBarWeb: {
     maxWidth: 600,
     alignSelf: 'center',
     width: '100%',
-    borderRadius: 16,
+    borderRadius: 4,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.02,
-    shadowRadius: 8,
-    elevation: 4,
+    borderColor: '#cbd5e1',
     marginBottom: 16,
-    height: 60,
+    height: 44,
   },
   tabButton: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: 8,
   },
   activeTabButton: {
-    backgroundColor: '#f8fafc',
-  },
-  tabIcon: {
-    fontSize: 20,
-    marginBottom: 2,
-  },
-  activeTabIcon: {
-    transform: [{ scale: 1.1 }],
+    backgroundColor: '#f1f5f9',
+    borderBottomWidth: 2,
+    borderBottomColor: '#0f172a',
   },
   tabText: {
-    fontSize: 11,
+    fontSize: 12,
     color: '#64748b',
     fontWeight: '500',
   },
   activeTabText: {
-    color: '#4f46e5',
+    color: '#0f172a',
     fontWeight: '700',
   },
 });

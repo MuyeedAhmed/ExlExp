@@ -136,11 +136,11 @@ export const Settings: React.FC<SettingsProps> = ({
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
       <Text style={styles.title}>Settings & Customization</Text>
-
+ 
       {/* Credit Cards Management */}
       <View style={styles.sectionCard}>
-        <Text style={styles.sectionTitle}>💳 Manage Credit Cards</Text>
-
+        <Text style={styles.sectionTitle}>Manage Credit Cards</Text>
+ 
         {/* Add Card Form */}
         <View style={styles.formContainer}>
           <TextInput
@@ -163,7 +163,7 @@ export const Settings: React.FC<SettingsProps> = ({
             <Text style={styles.addButtonText}>Add Card</Text>
           </TouchableOpacity>
         </View>
-
+ 
         {/* Cards List */}
         <View style={styles.listContainer}>
           {cards.map(card => (
@@ -182,25 +182,25 @@ export const Settings: React.FC<SettingsProps> = ({
           ))}
         </View>
       </View>
-
+ 
       {/* Categories Management */}
       <View style={styles.sectionCard}>
-        <Text style={styles.sectionTitle}>🏷️ Manage Categories</Text>
-
+        <Text style={styles.sectionTitle}>Manage Categories</Text>
+ 
         {/* Add Category Form */}
         <View style={styles.formContainer}>
           <TextInput
             style={[styles.input, { flex: 1 }]}
             value={categoryName}
             onChangeText={setCategoryName}
-            placeholder="New Category Name (e.g. ☕ Coffee)"
+            placeholder="New Category Name (e.g. Coffee)"
             placeholderTextColor="#94a3b8"
           />
           <TouchableOpacity style={styles.addButton} onPress={handleAddCategory}>
             <Text style={styles.addButtonText}>Add Category</Text>
           </TouchableOpacity>
         </View>
-
+ 
         {/* Categories List */}
         <View style={styles.listContainer}>
           {categories.map(cat => (
@@ -223,7 +223,7 @@ export const Settings: React.FC<SettingsProps> = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8fafc',
+    backgroundColor: '#ffffff',
   },
   contentContainer: {
     padding: 16,
@@ -233,26 +233,23 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#1e293b',
+    color: '#0f172a',
     marginBottom: 8,
   },
   sectionCard: {
     backgroundColor: '#ffffff',
-    borderRadius: 12,
+    borderRadius: 4,
     padding: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
   },
   sectionTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#334155',
+    color: '#0f172a',
     marginBottom: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#f1f5f9',
+    borderBottomColor: '#e2e8f0',
     paddingBottom: 8,
   },
   formContainer: {
@@ -265,12 +262,12 @@ const styles = StyleSheet.create({
     flex: 2,
     borderWidth: 1,
     borderColor: '#cbd5e1',
-    borderRadius: 8,
+    borderRadius: 4,
     paddingHorizontal: 12,
     paddingVertical: 10,
     fontSize: 15,
     color: '#0f172a',
-    backgroundColor: '#f8fafc',
+    backgroundColor: '#ffffff',
     minWidth: 160,
   },
   shortInput: {
@@ -278,8 +275,8 @@ const styles = StyleSheet.create({
     minWidth: 80,
   },
   addButton: {
-    backgroundColor: '#4f46e5',
-    borderRadius: 8,
+    backgroundColor: '#0f172a',
+    borderRadius: 4,
     paddingHorizontal: 16,
     paddingVertical: 10,
     alignItems: 'center',
@@ -299,10 +296,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 10,
     paddingHorizontal: 12,
-    backgroundColor: '#f8fafc',
-    borderRadius: 8,
+    backgroundColor: '#ffffff',
+    borderRadius: 4,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: '#cbd5e1',
   },
   listItemTextContainer: {
     flexDirection: 'column',
@@ -310,7 +307,7 @@ const styles = StyleSheet.create({
   listItemTitle: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#334155',
+    color: '#0f172a',
   },
   listItemSub: {
     fontSize: 12,

@@ -73,21 +73,21 @@ export const Dashboard: React.FC<DashboardProps> = ({ expenses, cards, categorie
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
       <Text style={styles.title}>Spending Analytics</Text>
-
+ 
       {/* Summary Cards */}
       <View style={[styles.summaryRow, isWeb && styles.summaryRowWeb]}>
-        <View style={[styles.summaryCard, isWeb && styles.summaryCardWeb, { backgroundColor: '#4f46e5' }]}>
+        <View style={[styles.summaryCard, isWeb && styles.summaryCardWeb]}>
           <Text style={styles.cardLabel}>Total Spending</Text>
           <Text style={styles.cardValue}>${stats.total.toFixed(2)}</Text>
         </View>
-
-        <View style={[styles.summaryCard, isWeb && styles.summaryCardWeb, { backgroundColor: '#0ea5e9' }]}>
+ 
+        <View style={[styles.summaryCard, isWeb && styles.summaryCardWeb]}>
           <Text style={styles.cardLabel}>This Month's Spending</Text>
           <Text style={styles.cardValue}>${stats.thisMonthTotal.toFixed(2)}</Text>
           <Text style={styles.cardSubtext}>{new Date().toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}</Text>
         </View>
       </View>
-
+ 
       {/* Breakdowns */}
       <View style={[styles.breakdownRow, isWeb && styles.breakdownRowWeb]}>
         {/* Category Breakdown */}
@@ -108,14 +108,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ expenses, cards, categorie
                     </Text>
                   </View>
                   <View style={styles.barTrack}>
-                    <View style={[styles.barFill, { width: fillWidth, backgroundColor: '#3b82f6' }]} />
+                    <View style={[styles.barFill, { width: fillWidth, backgroundColor: '#0f172a' }]} />
                   </View>
                 </View>
               );
             })
           )}
         </View>
-
+ 
         {/* Credit Card Breakdown */}
         <View style={[styles.sectionCard, isWeb && styles.sectionCardWeb]}>
           <Text style={styles.sectionTitle}>Spending by Credit Card</Text>
@@ -134,7 +134,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ expenses, cards, categorie
                     </Text>
                   </View>
                   <View style={styles.barTrack}>
-                    <View style={[styles.barFill, { width: fillWidth, backgroundColor: '#10b981' }]} />
+                    <View style={[styles.barFill, { width: fillWidth, backgroundColor: '#475569' }]} />
                   </View>
                 </View>
               );
@@ -149,7 +149,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ expenses, cards, categorie
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8fafc',
+    backgroundColor: '#ffffff',
   },
   contentContainer: {
     padding: 16,
@@ -158,7 +158,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#1e293b',
+    color: '#0f172a',
     marginBottom: 20,
   },
   summaryRow: {
@@ -172,19 +172,17 @@ const styles = StyleSheet.create({
   summaryCard: {
     flex: 1,
     padding: 20,
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
+    borderRadius: 4,
   },
   summaryCardWeb: {
     maxWidth: '50%',
   },
   cardLabel: {
     fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.8)',
+    color: '#64748b',
     fontWeight: '600',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
@@ -192,12 +190,12 @@ const styles = StyleSheet.create({
   cardValue: {
     fontSize: 32,
     fontWeight: 'bold',
-    color: '#ffffff',
+    color: '#0f172a',
     marginTop: 8,
   },
   cardSubtext: {
     fontSize: 12,
-    color: 'rgba(255, 255, 255, 0.6)',
+    color: '#94a3b8',
     marginTop: 4,
   },
   breakdownRow: {
@@ -210,13 +208,10 @@ const styles = StyleSheet.create({
   sectionCard: {
     flex: 1,
     backgroundColor: '#ffffff',
-    borderRadius: 12,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
     padding: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
   },
   sectionCardWeb: {
     maxWidth: '50%',
@@ -224,10 +219,10 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#334155',
+    color: '#0f172a',
     marginBottom: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#f1f5f9',
+    borderBottomColor: '#e2e8f0',
     paddingBottom: 8,
   },
   emptyText: {
@@ -255,16 +250,16 @@ const styles = StyleSheet.create({
   barValue: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#1e293b',
+    color: '#0f172a',
   },
   barTrack: {
     height: 8,
     backgroundColor: '#e2e8f0',
-    borderRadius: 4,
+    borderRadius: 2,
     overflow: 'hidden',
   },
   barFill: {
     height: '100%',
-    borderRadius: 4,
+    borderRadius: 2,
   },
 });

@@ -110,7 +110,7 @@ export const History: React.FC<HistoryProps> = ({
           style={styles.searchInput}
           value={searchQuery}
           onChangeText={setSearchQuery}
-          placeholder="🔍 Search by merchant/item..."
+          placeholder="Search by merchant/item..."
           placeholderTextColor="#94a3b8"
         />
         {(searchQuery || selectedCategoryFilter || selectedCardFilter) && (
@@ -126,7 +126,7 @@ export const History: React.FC<HistoryProps> = ({
           </TouchableOpacity>
         )}
       </View>
-
+ 
       {/* Filter Horizontal Scroll */}
       <View style={styles.filtersSection}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterScroll}>
@@ -150,7 +150,7 @@ export const History: React.FC<HistoryProps> = ({
             </TouchableOpacity>
           ))}
         </ScrollView>
-
+ 
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterScroll}>
           {/* Card Filters */}
           <Text style={styles.filterGroupLabel}>Card:</Text>
@@ -173,7 +173,7 @@ export const History: React.FC<HistoryProps> = ({
           ))}
         </ScrollView>
       </View>
-
+ 
       {/* Transactions List */}
       {groupedExpenses.length === 0 ? (
         <View style={styles.emptyContainer}>
@@ -199,7 +199,7 @@ export const History: React.FC<HistoryProps> = ({
                       <View style={styles.subInfoRow}>
                         <Text style={styles.expenseMetaBadge}>{expense.category}</Text>
                         <Text style={styles.expenseCardName}>
-                          💳 {card ? `${card.name} (*${card.lastFour || '----'})` : 'Unknown Card'}
+                          {card ? `${card.name} (*${card.lastFour || '----'})` : 'Unknown Card'}
                         </Text>
                       </View>
                     </View>
@@ -234,7 +234,7 @@ export const History: React.FC<HistoryProps> = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8fafc',
+    backgroundColor: '#ffffff',
   },
   searchContainer: {
     flexDirection: 'row',
@@ -242,23 +242,25 @@ const styles = StyleSheet.create({
     gap: 8,
     backgroundColor: '#ffffff',
     borderBottomWidth: 1,
-    borderBottomColor: '#f1f5f9',
+    borderBottomColor: '#cbd5e1',
   },
   searchInput: {
     flex: 1,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
-    borderRadius: 8,
+    borderColor: '#cbd5e1',
+    borderRadius: 4,
     paddingHorizontal: 12,
     paddingVertical: 8,
     fontSize: 16,
-    backgroundColor: '#f8fafc',
+    backgroundColor: '#ffffff',
   },
   clearFiltersButton: {
     justifyContent: 'center',
     paddingHorizontal: 12,
     backgroundColor: '#f1f5f9',
-    borderRadius: 8,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
   },
   clearFiltersText: {
     color: '#475569',
@@ -268,7 +270,7 @@ const styles = StyleSheet.create({
   filtersSection: {
     backgroundColor: '#ffffff',
     borderBottomWidth: 1,
-    borderBottomColor: '#e2e8f0',
+    borderBottomColor: '#cbd5e1',
     paddingBottom: 8,
   },
   filterScroll: {
@@ -287,14 +289,14 @@ const styles = StyleSheet.create({
   filterTag: {
     paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: 16,
+    borderRadius: 4,
     backgroundColor: '#f1f5f9',
     borderWidth: 1,
     borderColor: '#cbd5e1',
   },
   activeFilterTag: {
-    backgroundColor: '#4f46e5',
-    borderColor: '#4f46e5',
+    backgroundColor: '#0f172a',
+    borderColor: '#0f172a',
   },
   filterTagText: {
     fontSize: 12,
@@ -333,16 +335,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     backgroundColor: '#ffffff',
-    borderRadius: 8,
+    borderRadius: 4,
     padding: 12,
     marginBottom: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.02,
-    shadowRadius: 4,
-    elevation: 1,
     borderWidth: 1,
-    borderColor: '#f1f5f9',
+    borderColor: '#cbd5e1',
   },
   expenseInfo: {
     flex: 2,
@@ -364,10 +361,12 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '600',
     color: '#475569',
-    backgroundColor: '#f1f5f9',
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
     paddingHorizontal: 8,
     paddingVertical: 3,
-    borderRadius: 4,
+    borderRadius: 2,
     overflow: 'hidden',
   },
   expenseCardName: {
@@ -383,7 +382,7 @@ const styles = StyleSheet.create({
   expenseAmount: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#e11d48',
+    color: '#0f172a',
   },
   actionButtons: {
     flexDirection: 'row',
@@ -393,7 +392,7 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   editButtonText: {
-    color: '#2563eb',
+    color: '#475569',
     fontSize: 13,
     fontWeight: '600',
   },

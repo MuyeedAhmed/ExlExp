@@ -132,7 +132,7 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
     <ScrollView style={styles.container} keyboardShouldPersistTaps="handled">
       <View style={styles.formCard}>
         <Text style={styles.formTitle}>
-          {editingExpense ? '✏️ Edit Expense' : '💰 Log New Expense'}
+          {editingExpense ? 'Edit Expense' : 'Log New Expense'}
         </Text>
 
         {/* Description */}
@@ -303,23 +303,20 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8fafc',
+    backgroundColor: '#ffffff',
   },
   formCard: {
     backgroundColor: '#ffffff',
-    borderRadius: 12,
+    borderRadius: 4,
     padding: 20,
     margin: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
   },
   formTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#1e293b',
+    color: '#0f172a',
     marginBottom: 20,
     textAlign: 'center',
   },
@@ -335,12 +332,12 @@ const styles = StyleSheet.create({
   input: {
     borderWidth: 1,
     borderColor: '#cbd5e1',
-    borderRadius: 8,
+    borderRadius: 4,
     paddingHorizontal: 12,
     paddingVertical: 10,
     fontSize: 16,
     color: '#0f172a',
-    backgroundColor: '#f8fafc',
+    backgroundColor: '#ffffff',
   },
   selectorButton: {
     flexDirection: 'row',
@@ -348,10 +345,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 1,
     borderColor: '#cbd5e1',
-    borderRadius: 8,
+    borderRadius: 4,
     paddingHorizontal: 12,
     paddingVertical: 12,
-    backgroundColor: '#f8fafc',
+    backgroundColor: '#ffffff',
   },
   selectorButtonText: {
     fontSize: 16,
@@ -375,10 +372,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     height: 44,
     backgroundColor: '#e2e8f0',
-    borderRadius: 8,
+    borderRadius: 4,
   },
   activeQuickDate: {
-    backgroundColor: '#3b82f6',
+    backgroundColor: '#0f172a',
   },
   quickDateText: {
     fontSize: 12,
@@ -395,11 +392,13 @@ const styles = StyleSheet.create({
   },
   cancelButton: {
     flex: 1,
-    backgroundColor: '#e2e8f0',
-    borderRadius: 8,
+    backgroundColor: '#f1f5f9',
+    borderRadius: 4,
     paddingVertical: 12,
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
   },
   cancelButtonText: {
     color: '#475569',
@@ -408,8 +407,8 @@ const styles = StyleSheet.create({
   },
   submitButton: {
     flex: 2,
-    backgroundColor: '#4f46e5',
-    borderRadius: 8,
+    backgroundColor: '#0f172a',
+    borderRadius: 4,
     paddingVertical: 12,
     alignItems: 'center',
     justifyContent: 'center',
@@ -426,15 +425,17 @@ const styles = StyleSheet.create({
   },
   modalContent: {
     backgroundColor: '#ffffff',
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
+    borderTopLeftRadius: 4,
+    borderTopRightRadius: 4,
     padding: 20,
     maxHeight: '70%',
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
   },
   modalTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#1e293b',
+    color: '#0f172a',
     marginBottom: 16,
     textAlign: 'center',
   },
@@ -445,22 +446,24 @@ const styles = StyleSheet.create({
     borderBottomColor: '#f1f5f9',
   },
   modalItemSelected: {
-    backgroundColor: '#eff6ff',
+    backgroundColor: '#f1f5f9',
   },
   modalItemText: {
     fontSize: 16,
     color: '#334155',
   },
   modalItemTextSelected: {
-    color: '#2563eb',
-    fontWeight: '600',
+    color: '#0f172a',
+    fontWeight: '700',
   },
   modalCloseButton: {
     marginTop: 16,
     backgroundColor: '#f1f5f9',
-    borderRadius: 8,
+    borderRadius: 4,
     paddingVertical: 12,
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
   },
   modalCloseButtonText: {
     color: '#475569',
