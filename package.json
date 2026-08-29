@@ -4,14 +4,18 @@
   "main": "index.ts",
   "dependencies": {
     "@react-native-async-storage/async-storage": "2.2.0",
+    "cors": "^2.8.6",
     "expo": "~57.0.18",
     "expo-status-bar": "~57.0.1",
+    "express": "^4.22.2",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "react-native": "0.86.3",
     "react-native-web": "^0.21.2"
   },
   "devDependencies": {
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
     "@types/react": "~19.2.2",
     "typescript": "~6.0.3"
   },
@@ -19,7 +23,8 @@
     "start": "expo start",
     "android": "expo start --android",
     "ios": "expo start --ios",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "server": "node server.js"
   },
   "private": true
 }

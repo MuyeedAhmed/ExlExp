@@ -18,3 +18,10 @@ export interface Category {
   name: string;
   icon?: string; // Optional icon name from expo vector icons
 }
+
+export interface FutureExpense {
+  id: string;
+  description: string;
+  amount: number;
+  dueDate?: string; // YYYY-MM-DD (optional)
+}

@@ -11,7 +11,7 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { Expense, CreditCard, Category } from './src/types';
+import { Expense, CreditCard, Category, FutureExpense } from './src/types';
 import {
   getExpenses,
   saveExpenses,
@@ -19,13 +19,16 @@ import {
   saveCreditCards,
   getCategories,
   saveCategories,
+  getFutureExpenses,
+  saveFutureExpenses,
 } from './src/storage';
 import { Dashboard } from './src/components/Dashboard';
 import { ExpenseForm } from './src/components/ExpenseForm';
-import { History } from './src/components/History';
+import { CheckingTab } from './src/components/CheckingTab';
+import { CreditCardsTab } from './src/components/CreditCardsTab';
 import { Settings } from './src/components/Settings';
 
-type TabType = 'dashboard' | 'add' | 'history' | 'settings';
+type TabType = 'dashboard' | 'checking' | 'credit_cards' | 'add' | 'settings';
 
 export default function App() {
   const { width } = useWindowDimensions();
@@ -35,6 +38,7 @@ export default function App() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [cards, setCards] = useState<CreditCard[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [futureExpenses, setFutureExpenses] = useState<FutureExpense[]>([]);
   const [activeTab, setActiveTab] = useState<TabType>('dashboard');
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
 
@@ -45,10 +49,12 @@ export default function App() {
         const loadedExpenses = await getExpenses();
         const loadedCards = await getCreditCards();
         const loadedCategories = await getCategories();
+        const loadedFutureExpenses = await getFutureExpenses();
         
         setExpenses(loadedExpenses);
         setCards(loadedCards);
         setCategories(loadedCategories);
+        setFutureExpenses(loadedFutureExpenses);
       } catch (error) {
         console.error('Failed to load initial data:', error);
       } finally {
@@ -79,7 +85,11 @@ export default function App() {
 
     setExpenses(updatedExpenses);
     await saveExpenses(updatedExpenses);
-    setActiveTab('history'); // Navigate to history to see the entry
+    if (expenseData.creditCardId === 'card-chase') {
+      setActiveTab('checking');
+    } else {
+      setActiveTab('credit_cards');
+    }
   };
 
   const handleExpenseDelete = async (id: string) => {
@@ -94,8 +104,13 @@ export default function App() {
   };
 
   const handleCancelEditing = () => {
+    const isChecking = editingExpense && editingExpense.creditCardId === 'card-chase';
     setEditingExpense(null);
-    setActiveTab('history');
+    if (isChecking) {
+      setActiveTab('checking');
+    } else {
+      setActiveTab('credit_cards');
+    }
   };
 
   // Credit Card Handlers
@@ -132,11 +147,38 @@ export default function App() {
     await saveCategories(updatedCategories);
   };
 
+  const handleFutureExpenseAdd = async (newFuture: Omit<FutureExpense, 'id'>) => {
+    const updated = [
+      {
+        ...newFuture,
+        id: 'future-' + Math.random().toString(36).substr(2, 9) + Date.now().toString(36),
+      },
+      ...futureExpenses,
+    ];
+    setFutureExpenses(updated);
+    await saveFutureExpenses(updated);
+  };
+
+  const handleFutureExpenseDelete = async (id: string) => {
+    const updated = futureExpenses.filter(f => f.id !== id);
+    setFutureExpenses(updated);
+    await saveFutureExpenses(updated);
+  };
+
   // Render correct screen component based on active tab
   const renderContent = () => {
     switch (activeTab) {
       case 'dashboard':
-        return <Dashboard expenses={expenses} cards={cards} categories={categories} />;
+        return (
+          <Dashboard
+            expenses={expenses}
+            cards={cards}
+            categories={categories}
+            futureExpenses={futureExpenses}
+            onAddFutureExpense={handleFutureExpenseAdd}
+            onDeleteFutureExpense={handleFutureExpenseDelete}
+          />
+        );
       case 'add':
         return (
           <ExpenseForm
@@ -147,12 +189,20 @@ export default function App() {
             onCancelEditing={handleCancelEditing}
           />
         );
-      case 'history':
+      case 'checking':
         return (
-          <History
+          <CheckingTab
             expenses={expenses}
             cards={cards}
-            categories={categories}
+            onDelete={handleExpenseDelete}
+            onEdit={handleExpenseEditRequest}
+          />
+        );
+      case 'credit_cards':
+        return (
+          <CreditCardsTab
+            expenses={expenses}
+            cards={cards}
             onDelete={handleExpenseDelete}
             onEdit={handleExpenseEditRequest}
           />
@@ -169,7 +219,16 @@ export default function App() {
           />
         );
       default:
-        return <Dashboard expenses={expenses} cards={cards} categories={categories} />;
+        return (
+          <Dashboard
+            expenses={expenses}
+            cards={cards}
+            categories={categories}
+            futureExpenses={futureExpenses}
+            onAddFutureExpense={handleFutureExpenseAdd}
+            onDeleteFutureExpense={handleFutureExpenseDelete}
+          />
+        );
     }
   };
 
@@ -210,22 +269,32 @@ export default function App() {
         </TouchableOpacity>
 
         <TouchableOpacity
+          style={[styles.tabButton, activeTab === 'checking' && styles.activeTabButton]}
+          onPress={() => {
+            setEditingExpense(null);
+            setActiveTab('checking');
+          }}
+        >
+          <Text style={[styles.tabText, activeTab === 'checking' && styles.activeTabText]}>Checking</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.tabButton, activeTab === 'credit_cards' && styles.activeTabButton]}
+          onPress={() => {
+            setEditingExpense(null);
+            setActiveTab('credit_cards');
+          }}
+        >
+          <Text style={[styles.tabText, activeTab === 'credit_cards' && styles.activeTabText]}>Credit Cards</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
           style={[styles.tabButton, activeTab === 'add' && styles.activeTabButton]}
           onPress={() => setActiveTab('add')}
         >
           <Text style={[styles.tabText, activeTab === 'add' && styles.activeTabText]}>
             {editingExpense ? 'Edit Item' : 'Log Spend'}
           </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.tabButton, activeTab === 'history' && styles.activeTabButton]}
-          onPress={() => {
-            setEditingExpense(null);
-            setActiveTab('history');
-          }}
-        >
-          <Text style={[styles.tabText, activeTab === 'history' && styles.activeTabText]}>History</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
