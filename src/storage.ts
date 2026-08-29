@@ -1,16 +1,17 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Expense, CreditCard, Category, FutureExpense } from './types';
-
-const API_BASE = 'http://localhost:3000/api';
+import { supabase } from './supabaseClient';
 
 const EXPENSES_KEY = '@ExlExp:expenses';
 const CARDS_KEY = '@ExlExp:credit_cards';
 const CATEGORIES_KEY = '@ExlExp:categories';
+const FUTURE_EXPENSES_KEY = '@ExlExp:future_expenses';
 
 const DEFAULT_CARDS: CreditCard[] = [
-  { id: '1', name: 'Chase Freedom', lastFour: '1234' },
-  { id: '2', name: 'Amex Gold', lastFour: '9876' },
-  { id: '3', name: 'Citi Double Cash', lastFour: '5555' },
+  { id: 'card-citidb', name: 'Citi Double Cash', lastFour: '5555' },
+  { id: 'card-citistrata', name: 'Citi Strata', lastFour: '1234' },
+  { id: 'card-bofa', name: 'BofA Premium', lastFour: '9876' },
+  { id: 'card-chase', name: 'Chase Checking', lastFour: '----' }
 ];
 
 const DEFAULT_CATEGORIES: Category[] = [
@@ -23,37 +24,16 @@ const DEFAULT_CATEGORIES: Category[] = [
   { id: 'cat-others', name: 'Others' },
 ];
 
-// Helper to make API requests with a short timeout
-const requestApi = async (endpoint: string, options?: RequestInit) => {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 1000); // 1-second timeout
-
-  try {
-    const res = await fetch(`${API_BASE}${endpoint}`, {
-      ...options,
-      signal: controller.signal,
-      headers: {
-        'Content-Type': 'application/json',
-        ...(options?.headers || {}),
-      },
-    });
-    clearTimeout(timeoutId);
-    if (!res.ok) {
-      throw new Error(`Server returned ${res.status}`);
-    }
-    return await res.json();
-  } catch (err) {
-    clearTimeout(timeoutId);
-    throw err;
-  }
-};
-
 export const getExpenses = async (): Promise<Expense[]> => {
   try {
-    const data = await requestApi('/data');
-    return data.expenses || [];
+    const { data, error } = await supabase
+      .from('expenses')
+      .select('*');
+    
+    if (error) throw error;
+    return data || [];
   } catch (error) {
-    console.log('API Server offline, using local AsyncStorage for expenses');
+    console.log('Supabase offline or error, using local AsyncStorage for expenses:', error);
     try {
       const data = await AsyncStorage.getItem(EXPENSES_KEY);
       return data ? JSON.parse(data) : [];
@@ -66,12 +46,16 @@ export const getExpenses = async (): Promise<Expense[]> => {
 
 export const saveExpenses = async (expenses: Expense[]): Promise<void> => {
   try {
-    await requestApi('/expenses/sync', {
-      method: 'POST',
-      body: JSON.stringify(expenses),
-    });
+    // Delete all then insert in bulk to sync client state
+    const { error: delError } = await supabase.from('expenses').delete().neq('id', '');
+    if (delError) throw delError;
+
+    if (expenses.length > 0) {
+      const { error: insError } = await supabase.from('expenses').insert(expenses);
+      if (insError) throw insError;
+    }
   } catch (error) {
-    console.log('API Server offline, saving expenses to local AsyncStorage');
+    console.log('Supabase offline or error, saving expenses to local AsyncStorage:', error);
     try {
       await AsyncStorage.setItem(EXPENSES_KEY, JSON.stringify(expenses));
     } catch (e) {
@@ -82,14 +66,18 @@ export const saveExpenses = async (expenses: Expense[]): Promise<void> => {
 
 export const getCreditCards = async (): Promise<CreditCard[]> => {
   try {
-    const data = await requestApi('/data');
-    if (!data.cards || data.cards.length === 0) {
+    const { data, error } = await supabase
+      .from('cards')
+      .select('*');
+
+    if (error) throw error;
+    if (!data || data.length === 0) {
       await saveCreditCards(DEFAULT_CARDS);
       return DEFAULT_CARDS;
     }
-    return data.cards;
+    return data;
   } catch (error) {
-    console.log('API Server offline, using local AsyncStorage for credit cards');
+    console.log('Supabase offline or error, using local AsyncStorage for credit cards:', error);
     try {
       const data = await AsyncStorage.getItem(CARDS_KEY);
       if (!data) {
@@ -106,12 +94,15 @@ export const getCreditCards = async (): Promise<CreditCard[]> => {
 
 export const saveCreditCards = async (cards: CreditCard[]): Promise<void> => {
   try {
-    await requestApi('/cards/sync', {
-      method: 'POST',
-      body: JSON.stringify(cards),
-    });
+    const { error: delError } = await supabase.from('cards').delete().neq('id', '');
+    if (delError) throw delError;
+
+    if (cards.length > 0) {
+      const { error: insError } = await supabase.from('cards').insert(cards);
+      if (insError) throw insError;
+    }
   } catch (error) {
-    console.log('API Server offline, saving credit cards to local AsyncStorage');
+    console.log('Supabase offline or error, saving credit cards to local AsyncStorage:', error);
     try {
       await AsyncStorage.setItem(CARDS_KEY, JSON.stringify(cards));
     } catch (e) {
@@ -122,14 +113,18 @@ export const saveCreditCards = async (cards: CreditCard[]): Promise<void> => {
 
 export const getCategories = async (): Promise<Category[]> => {
   try {
-    const data = await requestApi('/data');
-    if (!data.categories || data.categories.length === 0) {
+    const { data, error } = await supabase
+      .from('categories')
+      .select('*');
+
+    if (error) throw error;
+    if (!data || data.length === 0) {
       await saveCategories(DEFAULT_CATEGORIES);
       return DEFAULT_CATEGORIES;
     }
-    return data.categories;
+    return data;
   } catch (error) {
-    console.log('API Server offline, using local AsyncStorage for categories');
+    console.log('Supabase offline or error, using local AsyncStorage for categories:', error);
     try {
       const data = await AsyncStorage.getItem(CATEGORIES_KEY);
       if (!data) {
@@ -146,12 +141,15 @@ export const getCategories = async (): Promise<Category[]> => {
 
 export const saveCategories = async (categories: Category[]): Promise<void> => {
   try {
-    await requestApi('/categories/sync', {
-      method: 'POST',
-      body: JSON.stringify(categories),
-    });
+    const { error: delError } = await supabase.from('categories').delete().neq('id', '');
+    if (delError) throw delError;
+
+    if (categories.length > 0) {
+      const { error: insError } = await supabase.from('categories').insert(categories);
+      if (insError) throw insError;
+    }
   } catch (error) {
-    console.log('API Server offline, saving categories to local AsyncStorage');
+    console.log('Supabase offline or error, saving categories to local AsyncStorage:', error);
     try {
       await AsyncStorage.setItem(CATEGORIES_KEY, JSON.stringify(categories));
     } catch (e) {
@@ -160,14 +158,16 @@ export const saveCategories = async (categories: Category[]): Promise<void> => {
   }
 };
 
-const FUTURE_EXPENSES_KEY = '@ExlExp:future_expenses';
-
 export const getFutureExpenses = async (): Promise<FutureExpense[]> => {
   try {
-    const data = await requestApi('/data');
-    return data.futureExpenses || [];
+    const { data, error } = await supabase
+      .from('future_expenses')
+      .select('*');
+
+    if (error) throw error;
+    return data || [];
   } catch (error) {
-    console.log('API Server offline, using local AsyncStorage for future expenses');
+    console.log('Supabase offline or error, using local AsyncStorage for future expenses:', error);
     try {
       const data = await AsyncStorage.getItem(FUTURE_EXPENSES_KEY);
       return data ? JSON.parse(data) : [];
@@ -180,12 +180,15 @@ export const getFutureExpenses = async (): Promise<FutureExpense[]> => {
 
 export const saveFutureExpenses = async (futureExpenses: FutureExpense[]): Promise<void> => {
   try {
-    await requestApi('/future-expenses/sync', {
-      method: 'POST',
-      body: JSON.stringify(futureExpenses),
-    });
+    const { error: delError } = await supabase.from('future_expenses').delete().neq('id', '');
+    if (delError) throw delError;
+
+    if (futureExpenses.length > 0) {
+      const { error: insError } = await supabase.from('future_expenses').insert(futureExpenses);
+      if (insError) throw insError;
+    }
   } catch (error) {
-    console.log('API Server offline, saving future expenses to local AsyncStorage');
+    console.log('Supabase offline or error, saving future expenses to local AsyncStorage:', error);
     try {
       await AsyncStorage.setItem(FUTURE_EXPENSES_KEY, JSON.stringify(futureExpenses));
     } catch (e) {

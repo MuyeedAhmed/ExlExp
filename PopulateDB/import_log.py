@@ -5,7 +5,7 @@ import datetime
 import random
 
 # File paths
-EXCEL_PATH = '/Users/muyeedahmed/Desktop/Gitcode/ExlExp/Bank Log.xlsx'
+EXCEL_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'Bank Log.xlsx')
 DB_JSON_PATH = '/Users/muyeedahmed/Desktop/Gitcode/ExlExp/db.json'
 
 # Default Categories
@@ -389,6 +389,19 @@ def main():
         json.dump(db_data, f, indent=2)
         
     print(f"Migration complete! Generated {len(cards)} cards, {len(CATEGORIES)} categories, and {len(expenses)} expenses.")
+
+    # 5. Automatically trigger Supabase migration script
+    import subprocess
+    migrate_script_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'migrate.js')
+    if os.path.exists(migrate_script_path):
+        print(f"\nTriggering cloud sync to Supabase: {migrate_script_path}...")
+        try:
+            result = subprocess.run(['node', migrate_script_path], capture_output=True, text=True, check=True)
+            print(result.stdout)
+        except subprocess.CalledProcessError as e:
+            print(f"Error running cloud sync migration:\n{e.stderr}")
+    else:
+        print(f"\nCloud sync script not found at: {migrate_script_path}")
 
 if __name__ == '__main__':
     main()
