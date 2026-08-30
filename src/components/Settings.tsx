@@ -16,6 +16,8 @@ interface SettingsProps {
   onAddCard: (card: Omit<CreditCard, 'id'>) => void;
   onDeleteCard: (id: string) => void;
   onRenameCard: (id: string, name: string) => void;
+  onMoveCard: (id: string, direction: 'up' | 'down') => void;
+  onToggleCardVisibility: (id: string) => void;
 }
 
 export const Settings: React.FC<SettingsProps> = ({
@@ -23,6 +25,8 @@ export const Settings: React.FC<SettingsProps> = ({
   onAddCard,
   onDeleteCard,
   onRenameCard,
+  onMoveCard,
+  onToggleCardVisibility,
 }) => {
   // New Card Form State
   const [cardName, setCardName] = useState('');
@@ -173,6 +177,16 @@ export const Settings: React.FC<SettingsProps> = ({
           ) : (
             checkingAccountsOnly.map(card => (
               <View key={card.id} style={styles.listItem}>
+                {/* Reorder arrows */}
+                <View style={styles.reorderCol}>
+                  <TouchableOpacity style={styles.reorderArrow} onPress={() => onMoveCard(card.id, 'up')}>
+                    <Text style={styles.reorderArrowText}>▲</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.reorderArrow} onPress={() => onMoveCard(card.id, 'down')}>
+                    <Text style={styles.reorderArrowText}>▼</Text>
+                  </TouchableOpacity>
+                </View>
+
                 <View style={[styles.listItemTextContainer, { flex: 1 }]}>
                   {editingCardId === card.id ? (
                     <TextInput
@@ -192,8 +206,9 @@ export const Settings: React.FC<SettingsProps> = ({
                       autoFocus
                     />
                   ) : (
-                    <Text style={styles.listItemTitle}>
+                    <Text style={[styles.listItemTitle, card.isHidden && styles.hiddenCardTitle]}>
                       {card.name} ({card.isSaving ? 'Saving' : card.isBrokerage ? 'Brokerage' : 'Checking'})
+                      {card.isHidden && ' (Hidden)'}
                     </Text>
                   )}
                 </View>
@@ -215,6 +230,14 @@ export const Settings: React.FC<SettingsProps> = ({
                     </>
                   ) : (
                     <>
+                      <TouchableOpacity
+                        style={styles.hideButton}
+                        onPress={() => onToggleCardVisibility(card.id)}
+                      >
+                        <Text style={styles.hideButtonText}>
+                          {card.isHidden ? 'Show' : 'Hide'}
+                        </Text>
+                      </TouchableOpacity>
                       <TouchableOpacity
                         style={styles.editButton}
                         onPress={() => handleStartRename(card.id, card.name)}
@@ -261,6 +284,16 @@ export const Settings: React.FC<SettingsProps> = ({
           ) : (
             creditCardsOnly.map(card => (
               <View key={card.id} style={styles.listItem}>
+                {/* Reorder arrows */}
+                <View style={styles.reorderCol}>
+                  <TouchableOpacity style={styles.reorderArrow} onPress={() => onMoveCard(card.id, 'up')}>
+                    <Text style={styles.reorderArrowText}>▲</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.reorderArrow} onPress={() => onMoveCard(card.id, 'down')}>
+                    <Text style={styles.reorderArrowText}>▼</Text>
+                  </TouchableOpacity>
+                </View>
+
                 <View style={[styles.listItemTextContainer, { flex: 1 }]}>
                   {editingCardId === card.id ? (
                     <TextInput
@@ -280,7 +313,10 @@ export const Settings: React.FC<SettingsProps> = ({
                       autoFocus
                     />
                   ) : (
-                    <Text style={styles.listItemTitle}>{card.name}</Text>
+                    <Text style={[styles.listItemTitle, card.isHidden && styles.hiddenCardTitle]}>
+                      {card.name}
+                      {card.isHidden && ' (Hidden)'}
+                    </Text>
                   )}
                 </View>
                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
@@ -301,6 +337,14 @@ export const Settings: React.FC<SettingsProps> = ({
                     </>
                   ) : (
                     <>
+                      <TouchableOpacity
+                        style={styles.hideButton}
+                        onPress={() => onToggleCardVisibility(card.id)}
+                      >
+                        <Text style={styles.hideButtonText}>
+                          {card.isHidden ? 'Show' : 'Hide'}
+                        </Text>
+                      </TouchableOpacity>
                       <TouchableOpacity
                         style={styles.editButton}
                         onPress={() => handleStartRename(card.id, card.name)}
@@ -473,7 +517,35 @@ const styles = StyleSheet.create({
   emptyText: {
     padding: 12,
     color: '#64748b',
-    textAlign: 'center',
     fontSize: 13,
+  },
+  reorderCol: {
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+    gap: 2,
+    width: 20,
+  },
+  reorderArrow: {
+    padding: 2,
+  },
+  reorderArrowText: {
+    fontSize: 10,
+    color: '#94a3b8',
+    fontWeight: 'bold',
+  },
+  hiddenCardTitle: {
+    color: '#94a3b8',
+  },
+  hideButton: {
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    marginRight: 8,
+  },
+  hideButtonText: {
+    color: '#64748b',
+    fontWeight: '600',
+    fontSize: 12,
   },
 });
