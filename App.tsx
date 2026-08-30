@@ -197,6 +197,44 @@ export default function App() {
     await saveCreditCards(updatedCards);
   };
 
+  const handleMoveCard = async (id: string, direction: 'up' | 'down') => {
+    const card = cards.find(c => c.id === id);
+    if (!card) return;
+
+    // Filter cards of the same group to find the correct swap target
+    const isDepositGroup = !!(card.isChecking || card.isSaving || card.isBrokerage);
+    const sameGroupCards = cards.filter(c => 
+      isDepositGroup === !!(c.isChecking || c.isSaving || c.isBrokerage)
+    );
+
+    const indexInGroup = sameGroupCards.findIndex(c => c.id === id);
+    if (indexInGroup === -1) return;
+
+    const newIndexInGroup = direction === 'up' ? indexInGroup - 1 : indexInGroup + 1;
+    if (newIndexInGroup < 0 || newIndexInGroup >= sameGroupCards.length) return;
+
+    const targetCard = sameGroupCards[newIndexInGroup];
+
+    // Swap in the original array
+    const originalIndex = cards.findIndex(c => c.id === id);
+    const targetOriginalIndex = cards.findIndex(c => c.id === targetCard.id);
+
+    const updatedCards = [...cards];
+    updatedCards[originalIndex] = targetCard;
+    updatedCards[targetOriginalIndex] = card;
+
+    setCards(updatedCards);
+    await saveCreditCards(updatedCards);
+  };
+
+  const handleToggleCardVisibility = async (id: string) => {
+    const updatedCards = cards.map(c =>
+      c.id === id ? { ...c, isHidden: !c.isHidden } : c
+    );
+    setCards(updatedCards);
+    await saveCreditCards(updatedCards);
+  };
+
   const handleFutureExpenseAdd = async (newFuture: Omit<FutureExpense, 'id'>) => {
     const updated = [
       {
@@ -291,6 +329,8 @@ export default function App() {
             onAddCard={handleCardAdd}
             onDeleteCard={handleCardDelete}
             onRenameCard={handleCardRename}
+            onMoveCard={handleMoveCard}
+            onToggleCardVisibility={handleToggleCardVisibility}
           />
         );
       default:

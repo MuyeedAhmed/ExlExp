@@ -249,12 +249,11 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
     setAmount('');
     setDate(getTodayString());
 
-    const activeCards = cards.filter(c => !isClosedCard(c));
+    const activeCards = cards.filter(c => !isClosedCard(c) && !c.isHidden);
     const standardCards = activeCards.filter(c => !c.isBrokerage);
     
-    // Default to Robinhood Gold if available, otherwise first active standard card
-    const defaultCard = standardCards.find(c => c.name.toLowerCase() === 'robinhood gold');
-    const initialCardId = defaultCard?.id || standardCards[0]?.id || '';
+    // Default to the first active standard card (highest priority from Settings)
+    const initialCardId = standardCards[0]?.id || '';
     setSelectedCardId(initialCardId);
 
     // Transaction resets
@@ -459,13 +458,13 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
 
   // Transfers support checking, saving, and brokerage
   const depositAccounts = cards.filter(
-    c => (c.isChecking || c.isSaving || c.isBrokerage) && !isClosedCard(c)
+    c => (c.isChecking || c.isSaving || c.isBrokerage) && !isClosedCard(c) && !c.isHidden
   );
 
   // Filter Target accounts list
   const targetAccountsList = useMemo(() => {
     const sourceCard = cards.find(c => c.id === selectedSourceCardId);
-    const activeCards = cards.filter(c => !isClosedCard(c));
+    const activeCards = cards.filter(c => !isClosedCard(c) && !c.isHidden);
     if (sourceCard?.isBrokerage) {
       // If source is brokerage, target can only be Checking or Saving
       return activeCards.filter(c => c.id !== selectedSourceCardId && (c.isChecking || c.isSaving));
@@ -877,7 +876,7 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Select Account/Card</Text>
             <FlatList
-              data={cards.filter(c => !c.isBrokerage && !isClosedCard(c))}
+              data={cards.filter(c => !c.isBrokerage && !isClosedCard(c) && !c.isHidden)}
               keyExtractor={item => item.id}
               renderItem={({ item }) => (
                 <TouchableOpacity
