@@ -13,6 +13,14 @@ def generate_id(prefix=""):
     rand = "".join(random.choice(chars) for _ in range(9))
     return f"{prefix}{rand}"
 
+def clean_float(val):
+    if val is None:
+        return 0.0
+    try:
+        return float(val)
+    except:
+        return 0.0
+
 def main():
     if not os.path.exists(EXCEL_PATH):
         print(f"Error: {EXCEL_PATH} not found.")
@@ -21,82 +29,114 @@ def main():
     print("Loading workbook (reading evaluated data)...")
     wb = openpyxl.load_workbook(EXCEL_PATH, data_only=True)
     
-    # 1. Parse Cards from CredCard sheet
-    cards = []
-    card_name_to_id = {}
-    
-    # Add default cards
-    default_cards_map = {
-        'Citi DB': { 'id': 'card-citidb', 'name': 'Citi Double Cash', 'sheet': 'CitiDb' },
-        'Citi Strata': { 'id': 'card-citistrata', 'name': 'Citi Strata', 'sheet': 'CitiSrt' },
-        'BofA - Premium': { 'id': 'card-bofa', 'name': 'BofA Premium', 'sheet': 'BoA' },
-        'Chase Bank': { 'id': 'card-chase', 'name': 'Chase Checking', 'sheet': 'Chase' }
+    # Define metadata mapping for sheets
+    SHEETS_METADATA = {
+        # Credit Cards
+        'CitiSrt': {'id': 'card-citistrata', 'name': 'Citi Strata', 'type': 'cc'},
+        'CitiDb': {'id': 'card-citidb', 'name': 'Citi Double Cash', 'type': 'cc'},
+        'BoA': {'id': 'card-bofa', 'name': 'BofA Premium', 'type': 'cc'},
+        'BoA-T': {'id': 'card-bofat', 'name': 'BofA Travel', 'type': 'cc'},
+        'Hood-G': {'id': 'card-hoodg', 'name': 'Robinhood Gold', 'type': 'cc'},
+        'Delta-G': {'id': 'card-deltag', 'name': 'Delta Gold', 'type': 'cc'},
+        'AmEx-B': {'id': 'card-amexb', 'name': 'AmEx Blue', 'type': 'cc'},
+        'AmEx-G': {'id': 'card-amexg', 'name': 'AmEx Gold', 'type': 'cc'},
+        'ChSdt': {'id': 'card-chsdt', 'name': 'Chase Slate', 'type': 'cc'},
+        'ChUltd': {'id': 'card-chultd', 'name': 'Chase Freedom Unlimited', 'type': 'cc'},
+        'ChSaP': {'id': 'card-chsap', 'name': 'Chase Sapphire', 'type': 'cc'},
+        'ChFlx': {'id': 'card-chflx', 'name': 'Chase Freedom Flex', 'type': 'cc'},
+        'Closed-Dsrv': {'id': 'card-closeddsrv', 'name': 'Closed-Dsrv', 'type': 'cc'},
+        'Closed-WF-AJ': {'id': 'card-closedwfaj', 'name': 'Closed-WF-AJ', 'type': 'cc'},
+        
+        # Checking Accounts
+        'Chase': {'id': 'card-chase', 'name': 'Chase Checking', 'type': 'checking'},
+        'Santander': {'id': 'card-santander', 'name': 'Santander', 'type': 'checking'},
+        'SoFi': {'id': 'card-sofi', 'name': 'SoFi', 'type': 'checking'},
+        'Upgrade': {'id': 'card-upgrade', 'name': 'Upgrade', 'type': 'checking'},
+        'Citizens': {'id': 'card-citizens', 'name': 'Citizens', 'type': 'checking'},
+        
+        # Savings Accounts
+        'MSPBNA': {'id': 'card-mspbna', 'name': 'MSPBNA', 'type': 'saving'},
+        'Closed-ChaseSav': {'id': 'card-closedchasesav', 'name': 'Closed-ChaseSav', 'type': 'saving'},
+        'AmEx-HYSA': {'id': 'card-amexhysa', 'name': 'AmEx-HYSA', 'type': 'saving'},
     }
     
-    # Let's inspect CredCard sheet
-    if 'CredCard' in wb.sheetnames:
-        cred_card_sheet = wb['CredCard']
-        rows = list(cred_card_sheet.iter_rows(values_only=True))
-        
-        # Row 2 contains headers
-        for row in rows[2:]:
-            if len(row) > 1 and row[1] is not None:
-                card_key = row[1].strip()
-                if card_key in default_cards_map:
-                    card_def = default_cards_map[card_key]
-                    cards.append({
-                        "id": card_def['id'],
-                        "name": card_def['name'],
-                        "isChecking": card_def['sheet'] == 'Chase'
-                    })
-                    card_name_to_id[card_key] = card_def['id']
-                    print(f"Registered card from Excel: {card_def['name']} (ID: {card_def['id']})")
-                else:
-                    # Dynamically register card if not in defaults
-                    c_id = f"card-{card_key.lower().replace(' ', '')}"
-                    is_chk = "checking" in card_key.lower()
-                    is_sav = "saving" in card_key.lower()
-                    cards.append({
-                        "id": c_id,
-                        "name": card_key,
-                        "isChecking": is_chk,
-                        "isSaving": is_sav
-                    })
-                    card_name_to_id[card_key] = c_id
-                    print(f"Registered dynamic card: {card_key} (ID: {c_id})")
-
-    # Add Chase card if not already added
-    if 'Chase Bank' not in card_name_to_id:
-        card_def = default_cards_map['Chase Bank']
-        cards.append({
-            "id": card_def['id'],
-            "name": card_def['name'],
-            "isChecking": True
-        })
-        card_name_to_id['Chase Bank'] = card_def['id']
-        print(f"Registered default Chase Checking (ID: {card_def['id']})")
-
+    # Brokerage accounts to register and calculate
+    BROKERAGES = {
+        'Robinhood': {'id': 'card-robinhood', 'name': 'Robinhood'},
+        'Schwab': {'id': 'card-schwab', 'name': 'Schwab'},
+        'Webull': {'id': 'card-webull', 'name': 'Webull'},
+        'Gemini': {'id': 'card-gemini', 'name': 'Gemini'},
+        'Etoro': {'id': 'card-etoro', 'name': 'Etoro'},
+    }
+    
+    # Tracks net balance for brokerages based on checking/savings transfers
+    brokerage_balances = {name: 0.0 for name in BROKERAGES}
+    
+    cards = []
     expenses = []
     
-    # 2. Helper to parse credit card sheet rows
-    def parse_card_sheet(sheet_name, card_id):
+    # Register credit card, checking, and savings accounts in the db
+    for sheet_name, meta in SHEETS_METADATA.items():
         if sheet_name not in wb.sheetnames:
-            print(f"Sheet {sheet_name} not found in workbook. Skipping.")
-            return
+            print(f"Warning: Sheet {sheet_name} not found in workbook.")
+            continue
             
+        card_obj = {
+            "id": meta['id'],
+            "name": meta['name']
+        }
+        if meta['type'] == 'checking':
+            card_obj["isChecking"] = True
+        elif meta['type'] == 'saving':
+            card_obj["isSaving"] = True
+            
+        cards.append(card_obj)
+        
+    # Register brokerage accounts
+    for b_name, meta in BROKERAGES.items():
+        cards.append({
+            "id": meta['id'],
+            "name": meta['name'],
+            "isBrokerage": True
+        })
+        
+    # Helper to check for brokerage transfers
+    def track_brokerage_transfer(from_val, details_val, amount, is_deposit):
+        from_val_lower = str(from_val or '').lower()
+        details_val_lower = str(details_val or '').lower()
+        
+        for b_name in BROKERAGES:
+            # Match brokerage name
+            if b_name == 'Robinhood':
+                # Exclude Robinhood Gold CC transfers
+                if 'robinhood gold' in from_val_lower or 'robinhood gold' in details_val_lower:
+                    continue
+                if 'robinhood' not in from_val_lower and 'robinhood' not in details_val_lower:
+                    continue
+            else:
+                if b_name.lower() not in from_val_lower and b_name.lower() not in details_val_lower:
+                    continue
+            
+            # If it's a deposit into checking/saving, it was a withdrawal from brokerage
+            # If it's a withdrawal from checking/saving, it was a deposit into brokerage
+            if is_deposit:
+                brokerage_balances[b_name] -= amount
+            else:
+                brokerage_balances[b_name] += amount
+                
+    # 1. Parse Credit Card sheets
+    def parse_card_sheet(sheet_name, card_id):
         sheet = wb[sheet_name]
-        print(f"Parsing sheet: {sheet_name} for card {card_id}...")
+        print(f"Parsing CC sheet: {sheet_name}...")
         
-        # Scan for header row containing 'Date', 'To', 'Spend'
-        header_row_idx = -1
         rows = list(sheet.iter_rows(values_only=True))
-        
+        header_row_idx = -1
         col_indices = {}
+        
         for r_idx, row in enumerate(rows):
             row_str = [str(x).lower().strip() if x is not None else "" for x in row]
             if 'date' in row_str and ('to' in row_str or 'from' in row_str) and ('spend' in row_str or 'withdraw' in row_str):
                 header_row_idx = r_idx
-                # map columns
                 for c_idx, val in enumerate(row_str):
                     if val == 'date' and 'date' not in col_indices:
                         col_indices['date'] = c_idx
@@ -113,16 +153,13 @@ def main():
                 break
                 
         if header_row_idx == -1:
-            print(f"Warning: Could not find header row for sheet {sheet_name}. Skipping.")
+            print(f"Warning: Could not find header row for CC sheet {sheet_name}.")
             return
             
-        print(f"Found headers at row {header_row_idx + 1}: {col_indices}")
-        
         current_date = None
         count = 0
         
-        for r_idx, row in enumerate(rows[header_row_idx + 1:]):
-            # 1. Date extraction
+        for row in rows[header_row_idx + 1:]:
             date_cell = row[col_indices['date']] if 'date' in col_indices and col_indices['date'] < len(row) else None
             if date_cell is not None:
                 if isinstance(date_cell, (datetime.datetime, datetime.date)):
@@ -134,19 +171,15 @@ def main():
                         current_date = dt.strftime('%Y-%m-%d')
                     except ValueError:
                         pass
-            
+                        
             if current_date is None:
                 continue
                 
-            # 2. Merchant description
             to_cell = row[col_indices['to']] if 'to' in col_indices and col_indices['to'] < len(row) else None
-            if to_cell is None:
-                continue
-            merchant = str(to_cell).strip()
+            merchant = str(to_cell).strip() if to_cell is not None else ''
             if not merchant or merchant.isdigit():
                 continue
                 
-            # 3. Amount parsing
             spend_cell = row[col_indices['spend']] if 'spend' in col_indices and col_indices['spend'] < len(row) else None
             return_cell = row[col_indices['return']] if 'return' in col_indices and col_indices['return'] < len(row) else None
             fee_cell = row[col_indices['fee']] if 'fee' in col_indices and col_indices['fee'] < len(row) else None
@@ -193,7 +226,6 @@ def main():
                     if val > 0:
                         reward_val = val
                         is_reward = True
-                        # If cashback and it maps to a refund amount, or if we have amount
                         if amount < 0 or return_cell is not None:
                             reward_type = 'cashback'
                         else:
@@ -219,22 +251,16 @@ def main():
             count += 1
             
         print(f"Imported {count} transactions from sheet {sheet_name}.")
-
-    # 3. Helper to parse bank accounts sheet (Chase)
-    def parse_chase_sheet(sheet_name, card_id):
-        if sheet_name not in wb.sheetnames:
-            print(f"Sheet {sheet_name} not found. Skipping.")
-            return
-            
+        
+    # 2. Parse Checking sheets
+    def parse_checking_sheet(sheet_name, card_id):
         sheet = wb[sheet_name]
-        print(f"Parsing Chase sheet: {sheet_name}...")
+        print(f"Parsing checking sheet: {sheet_name}...")
         
-        # Chase header mapping
-        # Row 5 contains: Date, From, Salary, Deposit, Withdraw, Details
         rows = list(sheet.iter_rows(values_only=True))
-        
         header_row_idx = -1
         col_indices = {}
+        
         for r_idx, row in enumerate(rows):
             row_str = [str(x).lower().strip() if x is not None else "" for x in row]
             if 'date' in row_str and 'from' in row_str and ('withdraw' in row_str or 'withdraws' in row_str):
@@ -248,22 +274,30 @@ def main():
                         col_indices['salary'] = c_idx
                     elif val == 'deposit' and 'deposit' not in col_indices:
                         col_indices['deposit'] = c_idx
-                    elif val == 'withdraw' and 'withdraw' not in col_indices:
+                    elif val in ['withdraw', 'withdraws'] and 'withdraw' not in col_indices:
                         col_indices['withdraw'] = c_idx
                     elif val == 'details' and 'details' not in col_indices:
                         col_indices['details'] = c_idx
                 break
                 
         if header_row_idx == -1:
-            print(f"Warning: Could not find header row for Chase. Skipping.")
+            print(f"Warning: Could not find header row for checking sheet {sheet_name}.")
             return
             
-        print(f"Chase headers found at row {header_row_idx + 1}: {col_indices}")
-        
         current_date = None
         count = 0
         
-        for r_idx, row in enumerate(rows[header_row_idx + 1:]):
+        for row in rows[header_row_idx + 1:]:
+            # check if row is empty/only year indicator
+            from_cell = row[col_indices.get('from')] if 'from' in col_indices else None
+            details_cell = row[col_indices.get('details')] if 'details' in col_indices else None
+            sal = row[col_indices.get('salary')] if 'salary' in col_indices else None
+            dep = row[col_indices.get('deposit')] if 'deposit' in col_indices else None
+            wd = row[col_indices.get('withdraw')] if 'withdraw' in col_indices else None
+            
+            if from_cell is None and details_cell is None and sal is None and dep is None and wd is None:
+                continue
+                
             date_cell = row[col_indices['date']] if 'date' in col_indices and col_indices['date'] < len(row) else None
             if date_cell is not None:
                 if isinstance(date_cell, (datetime.datetime, datetime.date)):
@@ -275,54 +309,48 @@ def main():
                         current_date = dt.strftime('%Y-%m-%d')
                     except ValueError:
                         pass
-            
+                        
             if current_date is None:
                 continue
                 
-            from_cell = row[col_indices['from']] if 'from' in col_indices and col_indices['from'] < len(row) else None
-            if from_cell is None:
-                continue
-                
             from_to_val = str(from_cell).strip() if from_cell is not None else ''
-            if not from_to_val or from_to_val.isdigit():
-                continue
-                
-            details_cell = row[col_indices['details']] if 'details' in col_indices and col_indices['details'] < len(row) else None
             details_val = str(details_cell).strip() if details_cell is not None else ''
-            
-            withdraw_cell = row[col_indices['withdraw']] if 'withdraw' in col_indices and col_indices['withdraw'] < len(row) else None
-            salary_cell = row[col_indices['salary']] if 'salary' in col_indices and col_indices['salary'] < len(row) else None
-            deposit_cell = row[col_indices['deposit']] if 'deposit' in col_indices and col_indices['deposit'] < len(row) else None
             
             amount = 0.0
             is_valid = False
             
             # Withdraw represents spending (negative expense)
-            if withdraw_cell is not None:
+            if wd is not None:
                 try:
-                    val = float(withdraw_cell)
+                    val = float(wd)
                     if val > 0:
                         amount = -val
                         is_valid = True
+                        # Track brokerage transfer
+                        track_brokerage_transfer(from_to_val, details_val, val, is_deposit=False)
                 except ValueError:
                     pass
             
             # Salary/Deposit represents income (positive expense)
-            if not is_valid and salary_cell is not None:
+            if not is_valid and sal is not None:
                 try:
-                    val = float(salary_cell)
+                    val = float(sal)
                     if val > 0:
                         amount = val
                         is_valid = True
+                        # Track brokerage transfer
+                        track_brokerage_transfer(from_to_val, details_val, val, is_deposit=True)
                 except ValueError:
                     pass
                     
-            if not is_valid and deposit_cell is not None:
+            if not is_valid and dep is not None:
                 try:
-                    val = float(deposit_cell)
+                    val = float(dep)
                     if val > 0:
                         amount = val
                         is_valid = True
+                        # Track brokerage transfer
+                        track_brokerage_transfer(from_to_val, details_val, val, is_deposit=True)
                 except ValueError:
                     pass
                     
@@ -340,18 +368,155 @@ def main():
             })
             count += 1
             
-        print(f"Imported {count} transactions from Chase sheet.")
+        print(f"Imported {count} transactions from checking sheet {sheet_name}.")
 
-    # Parse each sheet
-    for card_name, card_id in card_name_to_id.items():
-        if card_name in default_cards_map:
-            sheet_name = default_cards_map[card_name]['sheet']
-            if sheet_name == 'Chase':
-                parse_chase_sheet(sheet_name, card_id)
-            else:
-                parse_card_sheet(sheet_name, card_id)
+    # 3. Parse Savings sheets
+    def parse_savings_sheet(sheet_name, card_id):
+        sheet = wb[sheet_name]
+        print(f"Parsing savings sheet: {sheet_name}...")
+        
+        rows = list(sheet.iter_rows(values_only=True))
+        header_row_idx = -1
+        col_indices = {}
+        
+        for r_idx, row in enumerate(rows):
+            row_str = [str(x).lower().strip() if x is not None else "" for x in row]
+            if 'date' in row_str and ('deposit' in row_str or 'withdraw' in row_str):
+                header_row_idx = r_idx
+                for c_idx, val in enumerate(row_str):
+                    if val == 'date' and 'date' not in col_indices:
+                        col_indices['date'] = c_idx
+                    elif val == 'deposit' and 'deposit' not in col_indices:
+                        col_indices['deposit'] = c_idx
+                    elif val == 'withdraw' and 'withdraw' not in col_indices:
+                        col_indices['withdraw'] = c_idx
+                    elif val == 'interest' and 'interest' not in col_indices:
+                        col_indices['interest'] = c_idx
+                    elif val == 'details' and 'details' not in col_indices:
+                        col_indices['details'] = c_idx
+                break
+                
+        if header_row_idx == -1:
+            print(f"Warning: Could not find header row for savings sheet {sheet_name}.")
+            return
+            
+        current_date = None
+        count = 0
+        
+        for row in rows[header_row_idx + 1:]:
+            date_cell = row[col_indices['date']] if 'date' in col_indices and col_indices['date'] < len(row) else None
+            if date_cell == 'Total':
+                continue
+                
+            dep = row[col_indices.get('deposit')] if 'deposit' in col_indices else None
+            wd = row[col_indices.get('withdraw')] if 'withdraw' in col_indices else None
+            inte = row[col_indices.get('interest')] if 'interest' in col_indices else None
+            details_cell = row[col_indices.get('details')] if 'details' in col_indices else None
+            
+            if dep is None and wd is None and inte is None and details_cell is None:
+                continue
+                
+            if date_cell is not None:
+                if isinstance(date_cell, (datetime.datetime, datetime.date)):
+                    current_date = date_cell.strftime('%Y-%m-%d')
+                else:
+                    date_str = str(date_cell).strip()
+                    try:
+                        dt = datetime.datetime.strptime(date_str, '%Y-%m-%d')
+                        current_date = dt.strftime('%Y-%m-%d')
+                    except ValueError:
+                        pass
+                        
+            if current_date is None:
+                continue
+                
+            details_val = str(details_cell).strip() if details_cell is not None else ''
+            
+            amount = 0.0
+            is_valid = False
+            is_interest = False
+            
+            # Withdraw is negative expense
+            if wd is not None:
+                try:
+                    val = float(wd)
+                    if val > 0:
+                        amount = -val
+                        is_valid = True
+                        # Track brokerage transfer
+                        track_brokerage_transfer(None, details_val, val, is_deposit=False)
+                except ValueError:
+                    pass
+                    
+            # Deposit is positive expense
+            if not is_valid and dep is not None:
+                try:
+                    val = float(dep)
+                    if val > 0:
+                        amount = val
+                        is_valid = True
+                        # Track brokerage transfer
+                        track_brokerage_transfer(None, details_val, val, is_deposit=True)
+                except ValueError:
+                    pass
+                    
+            # Interest is positive expense
+            if not is_valid and inte is not None:
+                try:
+                    val = float(inte)
+                    if val > 0:
+                        amount = val
+                        is_valid = True
+                        is_interest = True
+                except ValueError:
+                    pass
+                    
+            if not is_valid:
+                continue
+                
+            expenses.append({
+                "id": generate_id("exp-"),
+                "description": "Interest" if is_interest else details_val,
+                "amount": amount,
+                "creditCardId": card_id,
+                "date": current_date,
+                "fromTo": "Interest" if is_interest else details_val,
+                "details": details_val,
+                "isInterest": is_interest
+            })
+            count += 1
+            
+        print(f"Imported {count} transactions from savings sheet {sheet_name}.")
 
-    # 4. Construct final db.json
+    # Execute parsing
+    for sheet_name, meta in SHEETS_METADATA.items():
+        if sheet_name not in wb.sheetnames:
+            continue
+        if meta['type'] == 'cc':
+            parse_card_sheet(sheet_name, meta['id'])
+        elif meta['type'] == 'checking':
+            parse_checking_sheet(sheet_name, meta['id'])
+        elif meta['type'] == 'saving':
+            parse_savings_sheet(sheet_name, meta['id'])
+            
+    # Write initial balance transactions for brokerage accounts
+    print("\nCalculated Brokerage Balances:")
+    for b_name, balance in brokerage_balances.items():
+        print(f"  {b_name}: {balance:.2f}")
+        meta = BROKERAGES[b_name]
+        
+        # Log a single transaction representing the current balance
+        expenses.append({
+            "id": generate_id("exp-"),
+            "description": "Current Balance",
+            "amount": balance,
+            "creditCardId": meta['id'],
+            "date": "2026-08-30",  # current date
+            "fromTo": "Imported Balance",
+            "details": "Calculated from transfer logs"
+        })
+
+    # Construct final db.json
     db_data = {
         "cards": cards,
         "expenses": expenses

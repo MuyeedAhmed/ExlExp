@@ -20,7 +20,19 @@ export const getExpenses = async (): Promise<Expense[]> => {
       .select('*');
     
     if (error) throw error;
-    return data || [];
+    const loaded = data || [];
+    return loaded.map(e => {
+      if (e.description && e.description.includes(' // ')) {
+        const parts = e.description.split(' // ');
+        return {
+          ...e,
+          description: parts[0],
+          fromTo: parts[0],
+          details: parts[1] || ''
+        };
+      }
+      return e;
+    });
   } catch (error) {
     console.log('Supabase offline or error, using local AsyncStorage for expenses:', error);
     try {
@@ -40,7 +52,18 @@ export const saveExpenses = async (expenses: Expense[]): Promise<void> => {
     if (delError) throw delError;
 
     if (expenses.length > 0) {
-      const { error: insError } = await supabase.from('expenses').insert(expenses);
+      const expensesToInsert = expenses.map(e => {
+        const { fromTo, details, ...rest } = e;
+        let desc = e.description;
+        if (fromTo || details) {
+          desc = `${fromTo || ''} // ${details || ''}`;
+        }
+        return {
+          ...rest,
+          description: desc
+        };
+      });
+      const { error: insError } = await supabase.from('expenses').insert(expensesToInsert);
       if (insError) throw insError;
     }
   } catch (error) {
@@ -64,7 +87,15 @@ export const getCreditCards = async (): Promise<CreditCard[]> => {
       await saveCreditCards(DEFAULT_CARDS);
       return DEFAULT_CARDS;
     }
-    return data;
+    return data.map(c => ({
+      ...c,
+      isChecking: !c.isSaving && !c.isBrokerage && (
+        c.id === 'card-chase' ||
+        c.name.toLowerCase().includes('checking') ||
+        c.id.toLowerCase().includes('checking') ||
+        ['chase', 'santander', 'sofi', 'upgrade', 'citizens'].some(name => c.name.toLowerCase().includes(name))
+      )
+    }));
   } catch (error) {
     console.log('Supabase offline or error, using local AsyncStorage for credit cards:', error);
     try {
@@ -87,7 +118,8 @@ export const saveCreditCards = async (cards: CreditCard[]): Promise<void> => {
     if (delError) throw delError;
 
     if (cards.length > 0) {
-      const { error: insError } = await supabase.from('cards').insert(cards);
+      const cardsToInsert = cards.map(({ isChecking, ...rest }) => rest);
+      const { error: insError } = await supabase.from('cards').insert(cardsToInsert);
       if (insError) throw insError;
     }
   } catch (error) {
