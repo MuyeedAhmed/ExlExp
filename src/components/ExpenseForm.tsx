@@ -214,6 +214,13 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
     }
   }, [isZelle]);
 
+  const handleCreditChange = (val: string) => {
+    setAmount(val);
+    if (rewardValue === '' || rewardValue === amount) {
+      setRewardValue(val);
+    }
+  };
+
   const resetForm = () => {
     setAmount('');
     setDate(getTodayString());
@@ -337,12 +344,11 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
           return;
         }
 
-        const isPointsReward = isReward && rewardType === 'other';
-        if (isPointsReward) {
-          // Points reward can have 0 amount but must have rewards points count
-          const pts = parseInt(rewardValue);
-          if (isNaN(pts) || pts <= 0) {
-            showAlert('Error', 'Please enter a valid points/miles reward value.');
+        if (isReward) {
+          const rewardVal = parseFloat(rewardValue) || 0;
+          const creditVal = parseFloat(amount) || 0;
+          if (rewardVal <= 0 && creditVal <= 0) {
+            showAlert('Error', 'Please enter a valid Reward or Credit value.');
             return;
           }
         } else {
@@ -379,11 +385,8 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
         // Credit Card Spends/Fees/Rewards
         if (isReward) {
           finalRewardValue = parseFloat(rewardValue) || 0;
-          if (rewardType === 'cashback') {
-            finalAmount = -parsedAmount; // reduces CC statement owed balance
-          } else {
-            finalAmount = 0; // miles/points doesn't affect CC cash owed balance
-          }
+          const creditVal = parseFloat(amount) || 0;
+          finalAmount = -creditVal; // Negative represents credit reducing CC owed balance
         } else if (isFee) {
           finalAmount = parsedAmount;
         } else {
@@ -604,29 +607,25 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
             {/* Reward Sub-options */}
             {!isCheckingSelected && isReward && (
               <View style={styles.zelleDetailsContainer}>
-                <Text style={styles.label}>Reward Type</Text>
-                <View style={styles.zelleTypeRow}>
-                  <TouchableOpacity
-                    style={[styles.zelleTypeBtn, rewardType === 'cashback' && styles.activeZelleTypeBtn]}
-                    onPress={() => setRewardType('cashback')}
-                  >
-                    <Text style={[styles.zelleTypeText, rewardType === 'cashback' && styles.activeZelleTypeText]}>Cashback Credit</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[styles.zelleTypeBtn, rewardType === 'other' && styles.activeZelleTypeBtn]}
-                    onPress={() => setRewardType('other')}
-                  >
-                    <Text style={[styles.zelleTypeText, rewardType === 'other' && styles.activeZelleTypeText]}>Miles / Points</Text>
-                  </TouchableOpacity>
+                <View style={styles.inputGroup}>
+                  <Text style={styles.label}>Credit ($) - Reduces statement balance</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={amount}
+                    onChangeText={handleCreditChange}
+                    placeholder="0.00"
+                    placeholderTextColor="#94a3b8"
+                    keyboardType="decimal-pad"
+                  />
                 </View>
 
                 <View style={[styles.inputGroup, { marginTop: 8 }]}>
-                  <Text style={styles.label}>{rewardType === 'cashback' ? 'Cashback Amount (USD)' : 'Miles/Points Earned'}</Text>
+                  <Text style={styles.label}>Reward ($) - Cash reward value earned</Text>
                   <TextInput
                     style={styles.input}
                     value={rewardValue}
                     onChangeText={setRewardValue}
-                    placeholder={rewardType === 'cashback' ? "0.00" : "e.g. 5000"}
+                    placeholder="0.00"
                     placeholderTextColor="#94a3b8"
                     keyboardType="decimal-pad"
                   />
@@ -677,11 +676,9 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
             )}
 
             {/* Amount input (Hidden only for non-cashback rewards, since amount is 0) */}
-            {!(logType === 'transaction' && !isCheckingSelected && isReward && rewardType === 'other') && (
+            {!(logType === 'transaction' && !isCheckingSelected && isReward) && (
               <View style={styles.inputGroup}>
-                <Text style={styles.label}>
-                  {rewardType === 'cashback' && isReward ? 'Cashback Amount to Credit (USD)' : 'Amount (USD)'}
-                </Text>
+                <Text style={styles.label}>Amount (USD)</Text>
                 <TextInput
                   style={styles.input}
                   value={amount}

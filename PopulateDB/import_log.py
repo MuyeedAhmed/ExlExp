@@ -7,7 +7,7 @@ from openpyxl.styles import Font, Alignment, PatternFill
 
 # File paths
 EXCEL_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'Bank Log.xlsx')
-VERIFICATION_EXCEL_PATH = '/Users/muyeedahmed/Desktop/Gitcode/ExlExp/Imported_Data_For_Verification.xlsx'
+VERIFICATION_EXCEL_PATH = '/Users/muyeedahmed/Desktop/Gitcode/ExlExp/PopulateDB/Imported_Data_For_Verification.xlsx'
 DB_JSON_PATH = '/Users/muyeedahmed/Desktop/Gitcode/ExlExp/db.json'
 
 def generate_id(prefix=""):
@@ -126,7 +126,7 @@ def main():
             else:
                 brokerage_balances[b_name] += amount
                 
-    # 1. Parse Credit Card sheets
+    # 1. Parse Credit Card sheets (Fee column is completely ignored)
     def parse_card_sheet(sheet_name, card_id):
         sheet = wb[sheet_name]
         print(f"Parsing CC sheet: {sheet_name}...")
@@ -150,8 +150,6 @@ def main():
                         col_indices['spend'] = c_idx
                     elif val in ['reward', 'rewards'] and 'rewards' not in col_indices:
                         col_indices['rewards'] = c_idx
-                    elif val in ['fee', 'fees'] and 'fee' not in col_indices:
-                        col_indices['fee'] = c_idx
                 break
                 
         if header_row_idx == -1:
@@ -184,73 +182,79 @@ def main():
                 
             spend_cell = row[col_indices['spend']] if 'spend' in col_indices and col_indices['spend'] < len(row) else None
             return_cell = row[col_indices['return']] if 'return' in col_indices and col_indices['return'] < len(row) else None
-            fee_cell = row[col_indices['fee']] if 'fee' in col_indices and col_indices['fee'] < len(row) else None
             rewards_cell = row[col_indices['rewards']] if 'rewards' in col_indices and col_indices['rewards'] < len(row) else None
             
-            amount = 0.0
-            is_valid = False
-            is_fee = False
-            is_reward = False
-            reward_val = None
-            reward_type = None
-            
+            spend_val = 0.0
             if spend_cell is not None:
                 try:
-                    val = float(spend_cell)
-                    if val > 0:
-                        amount = val
-                        is_valid = True
+                    spend_val = float(spend_cell)
                 except ValueError:
                     pass
                     
-            if not is_valid and return_cell is not None:
+            return_val = 0.0
+            if return_cell is not None:
                 try:
-                    val = float(return_cell)
-                    if val > 0:
-                        amount = -val
-                        is_valid = True
+                    return_val = float(return_cell)
                 except ValueError:
                     pass
-
-            if fee_cell is not None:
-                try:
-                    val = float(fee_cell)
-                    if val > 0:
-                        amount = val
-                        is_fee = True
-                        is_valid = True
-                except ValueError:
-                    pass
-
+                    
+            reward_val = None
+            is_reward = False
+            reward_type = None
             if rewards_cell is not None:
                 try:
                     val = float(rewards_cell)
-                    if val > 0:
+                    if val > 0.0:
                         reward_val = val
                         is_reward = True
-                        if amount < 0 or return_cell is not None:
-                            reward_type = 'cashback'
-                        else:
-                            reward_type = 'other'
-                        is_valid = True
+                        reward_type = 'cashback'
                 except ValueError:
                     pass
             
-            if not is_valid:
+            if spend_val == 0.0 and return_val == 0.0 and not is_reward:
                 continue
                 
-            expenses.append({
-                "id": generate_id("exp-"),
-                "description": merchant,
-                "amount": amount,
-                "creditCardId": card_id,
-                "date": current_date,
-                "isFee": is_fee,
-                "isReward": is_reward,
-                "rewardType": reward_type,
-                "rewardValue": reward_val
-            })
-            count += 1
+            # Log separate spend transaction if spend is present
+            if spend_val != 0.0:
+                expenses.append({
+                    "id": generate_id("exp-"),
+                    "description": merchant,
+                    "amount": round(spend_val, 2),
+                    "creditCardId": card_id,
+                    "date": current_date,
+                    "isReward": False,
+                    "rewardType": None,
+                    "rewardValue": None
+                })
+                count += 1
+                
+            # Log separate return transaction if return is present
+            if return_val != 0.0:
+                expenses.append({
+                    "id": generate_id("exp-"),
+                    "description": f"Refund: {merchant}" if spend_val != 0.0 else merchant,
+                    "amount": round(-return_val if return_val > 0 else return_val, 2),
+                    "creditCardId": card_id,
+                    "date": current_date,
+                    "isReward": False,
+                    "rewardType": None,
+                    "rewardValue": None
+                })
+                count += 1
+                
+            # Log separate reward transaction if rewards are present
+            if is_reward:
+                expenses.append({
+                    "id": generate_id("exp-"),
+                    "description": f"Reward Credit: {merchant}" if spend_val == 0.0 and return_val == 0.0 else f"Reward Earned: {merchant}",
+                    "amount": 0.0,  # reward transactions always have 0 amount (statement credits are handled in return column)
+                    "creditCardId": card_id,
+                    "date": current_date,
+                    "isReward": True,
+                    "rewardType": reward_type,
+                    "rewardValue": round(reward_val, 2)
+                })
+                count += 1
             
         print(f"Imported {count} transactions from sheet {sheet_name}.")
         
@@ -362,7 +366,7 @@ def main():
             expenses.append({
                 "id": generate_id("exp-"),
                 "description": from_to_val,
-                "amount": amount,
+                "amount": round(amount, 2),
                 "creditCardId": card_id,
                 "date": current_date,
                 "fromTo": from_to_val,
@@ -479,7 +483,7 @@ def main():
             expenses.append({
                 "id": generate_id("exp-"),
                 "description": "Interest" if is_interest else details_val,
-                "amount": amount,
+                "amount": round(amount, 2),
                 "creditCardId": card_id,
                 "date": current_date,
                 "fromTo": "Interest" if is_interest else details_val,
@@ -511,7 +515,7 @@ def main():
         expenses.append({
             "id": generate_id("exp-"),
             "description": "Current Balance",
-            "amount": balance,
+            "amount": round(balance, 2),
             "creditCardId": meta['id'],
             "date": "2026-08-30",  # current date
             "fromTo": "Imported Balance",
@@ -567,10 +571,10 @@ def main():
         col_letter = openpyxl.utils.get_column_letter(col[0].column)
         ws_accounts.column_dimensions[col_letter].width = max(max_len + 3, 10)
         
-    # Write Transactions sheet
+    # Write Transactions sheet (Fee column is excluded)
     tx_headers = [
         "ID", "Date", "Account Name", "Account ID", "Description/FromTo", "Details",
-        "Amount", "Is Fee", "Is Reward", "Reward Type", "Reward Value", "Is Interest"
+        "Amount", "Is Reward", "Reward Value", "Is Interest"
     ]
     ws_tx.append(tx_headers)
     for col_idx in range(1, len(tx_headers) + 1):
@@ -589,11 +593,9 @@ def main():
             exp.get("creditCardId"),
             exp.get("fromTo") or exp.get("description") or "",
             exp.get("details") or "",
-            exp.get("amount", 0.0),
-            "TRUE" if exp.get("isFee") else "FALSE",
+            round(exp.get("amount", 0.0), 2),
             "TRUE" if exp.get("isReward") else "FALSE",
-            exp.get("rewardType") or "",
-            exp.get("rewardValue") if exp.get("rewardValue") is not None else "",
+            round(exp.get("rewardValue"), 2) if exp.get("rewardValue") is not None else "",
             "TRUE" if exp.get("isInterest") else "FALSE"
         ])
         

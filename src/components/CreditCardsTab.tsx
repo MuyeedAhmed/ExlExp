@@ -2,6 +2,11 @@ import React, { useMemo, useState, useEffect } from 'react';
 import { StyleSheet, Text, View, ScrollView, TouchableOpacity, Alert, Platform } from 'react-native';
 import { Expense, CreditCard } from '../types';
 
+const formatCurrency = (val: number): string => {
+  if (Math.abs(val) < 0.005) return '0.00';
+  return val.toFixed(2);
+};
+
 interface CreditCardsTabProps {
   expenses: Expense[];
   cards: CreditCard[];
@@ -47,20 +52,14 @@ export const CreditCardsTab: React.FC<CreditCardsTabProps> = ({
     let spent = 0;
     let paid = 0;
     let rewards = 0;
-    let fees = 0;
 
     cardExpenses.forEach(e => {
       const amt = Number(e.amount) || 0;
 
-      if (e.isFee) {
-        fees += amt;
-      } else if (e.isReward) {
-        if (e.rewardType === 'cashback') {
-          const cashbackValue = Number(e.rewardValue) || Math.abs(amt);
-          rewards += cashbackValue;
-          paid += Math.abs(amt); // Cashback statement credit reduces what is owed
-        } else {
-          rewards += Number(e.rewardValue) || 0;
+      if (e.isReward) {
+        rewards += Number(e.rewardValue) || 0;
+        if (amt < 0) {
+          paid += Math.abs(amt); // statement credit reduces what is owed
         }
       } else if (amt > 0) {
         spent += amt;
@@ -69,9 +68,9 @@ export const CreditCardsTab: React.FC<CreditCardsTabProps> = ({
       }
     });
 
-    const owed = spent + fees - paid;
+    const owed = spent - paid;
 
-    return { spent, paid, rewards, fees, owed };
+    return { spent, paid, rewards, owed };
   }, [cardExpenses]);
 
   const confirmDelete = (id: string) => {
@@ -129,19 +128,16 @@ export const CreditCardsTab: React.FC<CreditCardsTabProps> = ({
           </Text>
           <View style={styles.statsContainer}>
             <Text style={styles.bannerStat}>
-              Spent: <Text style={styles.monoStat}>${totals.spent.toFixed(2)}</Text>
+              Spent: <Text style={styles.monoStat}>${formatCurrency(totals.spent)}</Text>
             </Text>
             <Text style={styles.bannerStat}>
-              Paid: <Text style={[styles.monoStat, { color: '#16a34a' }]}>${totals.paid.toFixed(2)}</Text>
+              Paid: <Text style={[styles.monoStat, { color: '#16a34a' }]}>${formatCurrency(totals.paid)}</Text>
             </Text>
             <Text style={styles.bannerStat}>
-              Rewards: <Text style={[styles.monoStat, { color: '#16a34a' }]}>${totals.rewards.toFixed(2)}</Text>
+              Rewards: <Text style={[styles.monoStat, { color: '#16a34a' }]}>${formatCurrency(totals.rewards)}</Text>
             </Text>
             <Text style={styles.bannerStat}>
-              Fees: <Text style={styles.monoStat}>${totals.fees.toFixed(2)}</Text>
-            </Text>
-            <Text style={styles.bannerStat}>
-              Owed: <Text style={[styles.monoStat, styles.boldMono, totals.owed > 0 && { color: '#dc2626' }]}>${totals.owed.toFixed(2)}</Text>
+              Owed: <Text style={[styles.monoStat, styles.boldMono, totals.owed > 0.005 && { color: '#dc2626' }]}>${formatCurrency(totals.owed)}</Text>
             </Text>
           </View>
         </View>
@@ -157,7 +153,6 @@ export const CreditCardsTab: React.FC<CreditCardsTabProps> = ({
             <Text style={[styles.headerCell, { width: 90, textAlign: 'right' }]}>Spend</Text>
             <Text style={[styles.headerCell, { width: 90, textAlign: 'right' }]}>Paid</Text>
             <Text style={[styles.headerCell, { width: 100, textAlign: 'right' }]}>Rewards</Text>
-            <Text style={[styles.headerCell, { width: 90, textAlign: 'right' }]}>Fee</Text>
             <Text style={[styles.headerCell, { width: 100, textAlign: 'center' }]}>Actions</Text>
           </View>
 
@@ -172,21 +167,16 @@ export const CreditCardsTab: React.FC<CreditCardsTabProps> = ({
                 let spendVal = '-';
                 let paidVal = '-';
                 let rewardsVal = '-';
-                let feeVal = '-';
 
-                if (item.isFee) {
-                  feeVal = `$${amt.toFixed(2)}`;
-                } else if (item.isReward) {
-                  if (item.rewardType === 'cashback') {
-                    paidVal = `$${Math.abs(amt).toFixed(2)}`;
-                    rewardsVal = `$${(item.rewardValue || Math.abs(amt)).toFixed(2)}`;
-                  } else {
-                    rewardsVal = `${item.rewardValue || 0} pts`;
+                if (item.isReward) {
+                  if (amt < 0) {
+                    paidVal = `$${formatCurrency(Math.abs(amt))}`;
                   }
+                  rewardsVal = `$${formatCurrency(item.rewardValue || 0)}`;
                 } else if (amt > 0) {
-                  spendVal = `$${amt.toFixed(2)}`;
+                  spendVal = `$${formatCurrency(amt)}`;
                 } else if (amt < 0) {
-                  paidVal = `$${Math.abs(amt).toFixed(2)}`;
+                  paidVal = `$${formatCurrency(Math.abs(amt))}`;
                 }
 
                 return (
@@ -205,9 +195,6 @@ export const CreditCardsTab: React.FC<CreditCardsTabProps> = ({
                     </Text>
                     <Text style={[styles.cell, { width: 100, textAlign: 'right' }, styles.monoText, rewardsVal !== '-' && { color: '#16a34a' }]}>
                       {rewardsVal}
-                    </Text>
-                    <Text style={[styles.cell, { width: 90, textAlign: 'right' }, styles.monoText, feeVal !== '-' && { color: '#dc2626' }]}>
-                      {feeVal}
                     </Text>
                     
                     <View style={[styles.cellActions, { width: 100 }]}>

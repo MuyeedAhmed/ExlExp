@@ -18,8 +18,12 @@ export const CheckingTab: React.FC<CheckingTabProps> = ({
   onBrokerageBalanceUpdate,
 }) => {
   // Filter cards to get checking, saving, and brokerage accounts
-  const regularAccounts = useMemo(() => {
-    return cards.filter(c => c.isChecking || c.isSaving);
+  const checkingOnly = useMemo(() => {
+    return cards.filter(c => c.isChecking);
+  }, [cards]);
+
+  const savingsOnly = useMemo(() => {
+    return cards.filter(c => c.isSaving);
   }, [cards]);
 
   const hasBrokerage = useMemo(() => {
@@ -37,18 +41,18 @@ export const CheckingTab: React.FC<CheckingTabProps> = ({
   const [editingBrokerageId, setEditingBrokerageId] = useState<string | null>(null);
   const [editingBrokerageValue, setEditingBrokerageValue] = useState<string>('');
 
-  // Sync state if checking accounts load or change
+  // Sync state if checking/savings accounts load or change
   useEffect(() => {
-    const allTabIds = [...regularAccounts.map(a => a.id), ...(hasBrokerage ? ['brokerage'] : [])];
+    const allTabIds = [...checkingOnly.map(a => a.id), ...savingsOnly.map(a => a.id), ...(hasBrokerage ? ['brokerage'] : [])];
     if (allTabIds.length > 0 && (!selectedAccountId || !allTabIds.includes(selectedAccountId))) {
       setSelectedAccountId(allTabIds[0]);
     }
-  }, [regularAccounts, hasBrokerage, selectedAccountId]);
+  }, [checkingOnly, savingsOnly, hasBrokerage, selectedAccountId]);
 
   const activeAccount = useMemo(() => {
     if (selectedAccountId === 'brokerage') return null;
-    return regularAccounts.find(c => c.id === selectedAccountId) || null;
-  }, [regularAccounts, selectedAccountId]);
+    return [...checkingOnly, ...savingsOnly].find(c => c.id === selectedAccountId) || null;
+  }, [checkingOnly, savingsOnly, selectedAccountId]);
 
   // Filter checking transactions for the selected account
   const checkingExpenses = useMemo(() => {
@@ -116,7 +120,7 @@ export const CheckingTab: React.FC<CheckingTabProps> = ({
     }
   };
 
-  if (regularAccounts.length === 0 && !hasBrokerage) {
+  if (checkingOnly.length === 0 && savingsOnly.length === 0 && !hasBrokerage) {
     return (
       <View style={styles.container}>
         <View style={styles.emptyCenterContainer}>
@@ -131,44 +135,79 @@ export const CheckingTab: React.FC<CheckingTabProps> = ({
     <View style={styles.container}>
       {/* Excel Sheet style Account Toggles */}
       <View style={styles.sheetTabsContainer}>
-        <Text style={styles.sheetSelectorLabel}>Sheets:</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.sheetTabsScroll}>
-          {regularAccounts.map(account => (
-            <TouchableOpacity
-              key={account.id}
-              style={[
-                styles.sheetTab,
-                selectedAccountId === account.id && styles.activeSheetTab,
-              ]}
-              onPress={() => setSelectedAccountId(account.id)}
-            >
-              <Text
-                style={[
-                  styles.sheetTabText,
-                  selectedAccountId === account.id && styles.activeSheetTabText,
-                ]}
-              >
-                {account.name}
-              </Text>
-            </TouchableOpacity>
-          ))}
+          {checkingOnly.length > 0 && (
+            <>
+              <Text style={styles.sheetGroupLabel}>Checking</Text>
+              {checkingOnly.map(account => (
+                <TouchableOpacity
+                  key={account.id}
+                  style={[
+                    styles.sheetTab,
+                    selectedAccountId === account.id && styles.activeSheetTab,
+                  ]}
+                  onPress={() => setSelectedAccountId(account.id)}
+                >
+                  <Text
+                    style={[
+                      styles.sheetTabText,
+                      selectedAccountId === account.id && styles.activeSheetTabText,
+                    ]}
+                  >
+                    {account.name}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </>
+          )}
+
+          {savingsOnly.length > 0 && (
+            <>
+              <View style={styles.groupSeparator} />
+              <Text style={styles.sheetGroupLabel}>Savings</Text>
+              {savingsOnly.map(account => (
+                <TouchableOpacity
+                  key={account.id}
+                  style={[
+                    styles.sheetTab,
+                    selectedAccountId === account.id && styles.activeSheetTab,
+                  ]}
+                  onPress={() => setSelectedAccountId(account.id)}
+                >
+                  <Text
+                    style={[
+                      styles.sheetTabText,
+                      selectedAccountId === account.id && styles.activeSheetTabText,
+                    ]}
+                  >
+                    {account.name}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </>
+          )}
+
           {hasBrokerage && (
-            <TouchableOpacity
-              style={[
-                styles.sheetTab,
-                selectedAccountId === 'brokerage' && styles.activeSheetTab,
-              ]}
-              onPress={() => setSelectedAccountId('brokerage')}
-            >
-              <Text
+            <>
+              <View style={styles.groupSeparator} />
+              <Text style={styles.sheetGroupLabel}>Brokerage</Text>
+              <TouchableOpacity
                 style={[
-                  styles.sheetTabText,
-                  selectedAccountId === 'brokerage' && styles.activeSheetTabText,
+                  styles.sheetTab,
+                  selectedAccountId === 'brokerage' && styles.activeSheetTab,
                 ]}
+                onPress={() => setSelectedAccountId('brokerage')}
               >
-                Brokerage
-              </Text>
-            </TouchableOpacity>
+                <Text
+                  style={[
+                    styles.sheetTabText,
+                    selectedAccountId === 'brokerage' && styles.activeSheetTabText,
+                  ]}
+                >
+                  Portfolio List
+                </Text>
+              </TouchableOpacity>
+            </>
           )}
         </ScrollView>
       </View>
@@ -382,6 +421,24 @@ const styles = StyleSheet.create({
     color: '#64748b',
     marginRight: 8,
     textTransform: 'uppercase',
+  },
+  sheetGroupLabel: {
+    fontSize: 10,
+    fontWeight: 'bold',
+    color: '#64748b',
+    marginRight: 8,
+    marginLeft: 8,
+    textTransform: 'uppercase',
+    alignSelf: 'center',
+    marginBottom: 8,
+  },
+  groupSeparator: {
+    width: 1,
+    height: 18,
+    backgroundColor: '#cbd5e1',
+    marginHorizontal: 8,
+    alignSelf: 'center',
+    marginBottom: 8,
   },
   sheetTabsScroll: {
     alignItems: 'flex-end',

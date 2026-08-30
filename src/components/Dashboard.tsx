@@ -2,6 +2,11 @@ import React, { useMemo, useState } from 'react';
 import { StyleSheet, Text, View, ScrollView, TextInput, TouchableOpacity, useWindowDimensions, DimensionValue, Platform } from 'react-native';
 import { Expense, CreditCard, FutureExpense } from '../types';
 
+const formatCurrency = (val: number): string => {
+  if (Math.abs(val) < 0.005) return '0.00';
+  return val.toFixed(2);
+};
+
 interface DashboardProps {
   expenses: Expense[];
   cards: CreditCard[];
@@ -42,9 +47,12 @@ export const Dashboard: React.FC<DashboardProps> = ({
     return balances;
   }, [expenses, cards]);
 
-  const checkingAccounts = useMemo(() => {
-    return cards.filter(c => c.isChecking);
-  }, [cards]);
+  const activeCheckingAccounts = useMemo(() => {
+    return cards.filter(c => c.isChecking).filter(c => {
+      const bal = cardBalances[c.id] || 0.0;
+      return Math.abs(bal) >= 0.005;
+    });
+  }, [cards, cardBalances]);
 
   const creditCardsOnly = useMemo(() => {
     return cards.filter(c => !c.isChecking && !c.isSaving && !c.isBrokerage);
@@ -53,16 +61,16 @@ export const Dashboard: React.FC<DashboardProps> = ({
   const activeCreditCards = useMemo(() => {
     return creditCardsOnly.filter(c => {
       const bal = cardBalances[c.id] || 0.0;
-      return bal !== 0;
+      return Math.abs(bal) >= 0.005;
     });
   }, [creditCardsOnly, cardBalances]);
 
   const checkingBalance = useMemo(() => {
-    return checkingAccounts.reduce((sum, account) => {
+    return cards.filter(c => c.isChecking).reduce((sum, account) => {
       const bal = cardBalances[account.id] || 0;
       return sum + bal;
     }, 0);
-  }, [cardBalances, checkingAccounts]);
+  }, [cardBalances, cards]);
 
   const creditCardDebt = useMemo(() => {
     return creditCardsOnly.reduce((sum, card) => {
@@ -109,28 +117,28 @@ export const Dashboard: React.FC<DashboardProps> = ({
         <View style={styles.sheetRow}>
           <Text style={[styles.sheetCell, { flex: 2 }]}>Total Checking Balance</Text>
           <Text style={[styles.sheetCell, { flex: 1, textAlign: 'right' }, styles.monoText, { color: '#16a34a' }]}>
-            ${checkingBalance.toFixed(2)}
+            ${formatCurrency(checkingBalance)}
           </Text>
         </View>
 
         <View style={styles.sheetRow}>
           <Text style={[styles.sheetCell, { flex: 2 }]}>Total Credit Card Debt</Text>
-          <Text style={[styles.sheetCell, { flex: 1, textAlign: 'right' }, styles.monoText, creditCardDebt > 0 && { color: '#dc2626' }]}>
-            ${creditCardDebt.toFixed(2)}
+          <Text style={[styles.sheetCell, { flex: 1, textAlign: 'right' }, styles.monoText, creditCardDebt > 0.005 && { color: '#dc2626' }]}>
+            ${formatCurrency(creditCardDebt)}
           </Text>
         </View>
 
         <View style={styles.sheetRow}>
           <Text style={[styles.sheetCell, { flex: 2 }]}>Upcoming Scheduled Bills</Text>
-          <Text style={[styles.sheetCell, { flex: 1, textAlign: 'right' }, styles.monoText, futureExpensesTotal > 0 && { color: '#dc2626' }]}>
-            ${futureExpensesTotal.toFixed(2)}
+          <Text style={[styles.sheetCell, { flex: 1, textAlign: 'right' }, styles.monoText, futureExpensesTotal > 0.005 && { color: '#dc2626' }]}>
+            ${formatCurrency(futureExpensesTotal)}
           </Text>
         </View>
 
         <View style={[styles.sheetRow, { backgroundColor: '#f8fafc' }]}>
           <Text style={[styles.sheetCell, { flex: 2, fontWeight: 'bold' }]}>Net Financial Position</Text>
           <Text style={[styles.sheetCell, { flex: 1, textAlign: 'right', fontWeight: 'bold' }, styles.monoText]}>
-            ${netBalance.toFixed(2)}
+            ${formatCurrency(netBalance)}
           </Text>
         </View>
       </View>
@@ -138,23 +146,23 @@ export const Dashboard: React.FC<DashboardProps> = ({
       {/* Checking Accounts List - Spreadsheet Grid Style */}
       <View style={[styles.sheetGrid, { marginTop: 12 }]}>
         <View style={styles.sheetHeaderRow}>
-          <Text style={[styles.sheetHeaderCell, { flex: 2 }]}>Checking Accounts Registry</Text>
+          <Text style={[styles.sheetHeaderCell, { flex: 2 }]}>Checking Accounts Registry (Active)</Text>
           <Text style={[styles.sheetHeaderCell, { flex: 1, textAlign: 'right' }]}>Current Balance</Text>
         </View>
-        {checkingAccounts.length === 0 ? (
+        {activeCheckingAccounts.length === 0 ? (
           <View style={styles.sheetRow}>
             <Text style={[styles.sheetCell, { flex: 3, textAlign: 'center', color: '#64748b' }]}>
-              No checking accounts configured.
+              No checking accounts with active balance.
             </Text>
           </View>
         ) : (
-          checkingAccounts.map(account => {
+          activeCheckingAccounts.map(account => {
             const bal = cardBalances[account.id] || 0.0;
             return (
               <View key={account.id} style={styles.sheetRow}>
                 <Text style={[styles.sheetCell, { flex: 2 }]}>{account.name}</Text>
-                <Text style={[styles.sheetCell, { flex: 1, textAlign: 'right' }, styles.monoText, bal >= 0 ? { color: '#16a34a' } : { color: '#dc2626' }]}>
-                  ${bal.toFixed(2)}
+                <Text style={[styles.sheetCell, { flex: 1, textAlign: 'right' }, styles.monoText, bal >= 0.005 ? { color: '#16a34a' } : (bal < -0.005 ? { color: '#dc2626' } : { color: '#334155' })]}>
+                  ${formatCurrency(bal)}
                 </Text>
               </View>
             );
@@ -180,8 +188,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
             return (
               <View key={card.id} style={styles.sheetRow}>
                 <Text style={[styles.sheetCell, { flex: 2 }]}>{card.name}</Text>
-                <Text style={[styles.sheetCell, { flex: 1, textAlign: 'right' }, styles.monoText, bal > 0 && { color: '#dc2626' }]}>
-                  {bal >= 0 ? `$${bal.toFixed(2)}` : `-$${Math.abs(bal).toFixed(2)}`}
+                <Text style={[styles.sheetCell, { flex: 1, textAlign: 'right' }, styles.monoText, bal > 0.005 && { color: '#dc2626' }]}>
+                  {bal >= 0.005 ? `$${formatCurrency(bal)}` : (bal < -0.005 ? `-$${formatCurrency(Math.abs(bal))}` : `$${formatCurrency(bal)}`)}
                 </Text>
               </View>
             );
