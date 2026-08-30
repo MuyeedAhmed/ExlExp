@@ -3,9 +3,11 @@ import json
 import os
 import datetime
 import random
+from openpyxl.styles import Font, Alignment, PatternFill
 
 # File paths
 EXCEL_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'Bank Log.xlsx')
+VERIFICATION_EXCEL_PATH = '/Users/muyeedahmed/Desktop/Gitcode/ExlExp/Imported_Data_For_Verification.xlsx'
 DB_JSON_PATH = '/Users/muyeedahmed/Desktop/Gitcode/ExlExp/db.json'
 
 def generate_id(prefix=""):
@@ -522,24 +524,90 @@ def main():
         "expenses": expenses
     }
     
-    print(f"\nWriting database to {DB_JSON_PATH}...")
+    print(f"\nWriting local backup database to {DB_JSON_PATH}...")
     with open(DB_JSON_PATH, 'w') as f:
         json.dump(db_data, f, indent=2)
-        
-    print(f"Migration complete! Generated {len(cards)} cards and {len(expenses)} expenses.")
 
-    # 5. Automatically trigger Supabase migration script
-    import subprocess
-    migrate_script_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'migrate.js')
-    if os.path.exists(migrate_script_path):
-        print(f"\nTriggering cloud sync to Supabase: {migrate_script_path}...")
-        try:
-            result = subprocess.run(['node', migrate_script_path], capture_output=True, text=True, check=True)
-            print(result.stdout)
-        except subprocess.CalledProcessError as e:
-            print(f"Error running cloud sync migration:\n{e.stderr}")
-    else:
-        print(f"\nCloud sync script not found at: {migrate_script_path}")
+    # 4. Create Verification Excel Workbook
+    print(f"Generating verification Excel file at {VERIFICATION_EXCEL_PATH}...")
+    v_wb = openpyxl.Workbook()
+    
+    # Setup Sheets
+    ws_accounts = v_wb.active
+    ws_accounts.title = "Accounts"
+    ws_tx = v_wb.create_sheet(title="Transactions")
+    
+    # Styles
+    header_font = Font(name="Arial", size=11, bold=True, color="FFFFFF")
+    header_fill = PatternFill(start_color="1F497D", end_color="1F497D", fill_type="solid")
+    center_align = Alignment(horizontal="center")
+    
+    # Write Accounts sheet
+    accounts_headers = ["ID", "Name", "Type"]
+    ws_accounts.append(accounts_headers)
+    for col_idx in range(1, 4):
+        cell = ws_accounts.cell(row=1, column=col_idx)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = center_align
+        
+    for card in cards:
+        c_type = "Credit Card"
+        if card.get("isChecking"):
+            c_type = "Checking"
+        elif card.get("isSaving"):
+            c_type = "Saving"
+        elif card.get("isBrokerage"):
+            c_type = "Brokerage"
+        ws_accounts.append([card["id"], card["name"], c_type])
+        
+    # Autofit columns for Accounts
+    for col in ws_accounts.columns:
+        max_len = max(len(str(cell.value or '')) for cell in col)
+        col_letter = openpyxl.utils.get_column_letter(col[0].column)
+        ws_accounts.column_dimensions[col_letter].width = max(max_len + 3, 10)
+        
+    # Write Transactions sheet
+    tx_headers = [
+        "ID", "Date", "Account Name", "Account ID", "Description/FromTo", "Details",
+        "Amount", "Is Fee", "Is Reward", "Reward Type", "Reward Value", "Is Interest"
+    ]
+    ws_tx.append(tx_headers)
+    for col_idx in range(1, len(tx_headers) + 1):
+        cell = ws_tx.cell(row=1, column=col_idx)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = center_align
+        
+    card_id_to_name = {c["id"]: c["name"] for c in cards}
+    
+    for exp in expenses:
+        ws_tx.append([
+            exp.get("id"),
+            exp.get("date"),
+            card_id_to_name.get(exp.get("creditCardId"), "Unknown Account"),
+            exp.get("creditCardId"),
+            exp.get("fromTo") or exp.get("description") or "",
+            exp.get("details") or "",
+            exp.get("amount", 0.0),
+            "TRUE" if exp.get("isFee") else "FALSE",
+            "TRUE" if exp.get("isReward") else "FALSE",
+            exp.get("rewardType") or "",
+            exp.get("rewardValue") if exp.get("rewardValue") is not None else "",
+            "TRUE" if exp.get("isInterest") else "FALSE"
+        ])
+        
+    # Autofit columns for Transactions
+    for col in ws_tx.columns:
+        max_len = max(len(str(cell.value or '')) for cell in col)
+        col_letter = openpyxl.utils.get_column_letter(col[0].column)
+        ws_tx.column_dimensions[col_letter].width = max(min(max_len + 3, 40), 10)
+        
+    v_wb.save(VERIFICATION_EXCEL_PATH)
+    
+    print(f"\nSuccess! Please inspect and verify the spreadsheet at: \n  {VERIFICATION_EXCEL_PATH}")
+    print("When you're ready, run the following command to sync it to Supabase:")
+    print("  python3 PopulateDB/upload_log.py")
 
 if __name__ == '__main__':
     main()

@@ -15,9 +15,9 @@ export const CreditCardsTab: React.FC<CreditCardsTabProps> = ({
   onDelete,
   onEdit,
 }) => {
-  // Filter out the Checking & Saving accounts
+  // Filter out the Checking, Saving & Brokerage accounts
   const creditCardsOnly = useMemo(() => {
-    return cards.filter(c => !c.isChecking && !c.isSaving);
+    return cards.filter(c => !c.isChecking && !c.isSaving && !c.isBrokerage);
   }, [cards]);
 
   // Active card tab state

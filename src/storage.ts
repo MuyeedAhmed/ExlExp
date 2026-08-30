@@ -15,13 +15,31 @@ const DEFAULT_CARDS: CreditCard[] = [
 
 export const getExpenses = async (): Promise<Expense[]> => {
   try {
-    const { data, error } = await supabase
-      .from('expenses')
-      .select('*');
-    
-    if (error) throw error;
-    const loaded = data || [];
-    return loaded.map(e => {
+    let allExpenses: any[] = [];
+    let from = 0;
+    const limit = 1000;
+    let hasMore = true;
+
+    while (hasMore) {
+      const { data, error } = await supabase
+        .from('expenses')
+        .select('*')
+        .range(from, from + limit - 1);
+      
+      if (error) throw error;
+      
+      if (data && data.length > 0) {
+        allExpenses = [...allExpenses, ...data];
+        from += limit;
+        if (data.length < limit) {
+          hasMore = false;
+        }
+      } else {
+        hasMore = false;
+      }
+    }
+
+    return allExpenses.map(e => {
       if (e.description && e.description.includes(' // ')) {
         const parts = e.description.split(' // ');
         return {
@@ -87,14 +105,10 @@ export const getCreditCards = async (): Promise<CreditCard[]> => {
       await saveCreditCards(DEFAULT_CARDS);
       return DEFAULT_CARDS;
     }
+    const CHECKING_IDS = ['card-chase', 'card-santander', 'card-sofi', 'card-upgrade', 'card-citizens'];
     return data.map(c => ({
       ...c,
-      isChecking: !c.isSaving && !c.isBrokerage && (
-        c.id === 'card-chase' ||
-        c.name.toLowerCase().includes('checking') ||
-        c.id.toLowerCase().includes('checking') ||
-        ['chase', 'santander', 'sofi', 'upgrade', 'citizens'].some(name => c.name.toLowerCase().includes(name))
-      )
+      isChecking: CHECKING_IDS.includes(c.id) || c.id.startsWith('card-checking-')
     }));
   } catch (error) {
     console.log('Supabase offline or error, using local AsyncStorage for credit cards:', error);
