@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useEffect } from 'react';
-import { StyleSheet, Text, View, ScrollView, TouchableOpacity, Alert, Platform } from 'react-native';
+import { StyleSheet, Text, View, ScrollView, TouchableOpacity, Alert, Platform, TextInput } from 'react-native';
 import { Expense, CreditCard } from '../types';
 
 interface CheckingTabProps {
@@ -7,6 +7,7 @@ interface CheckingTabProps {
   cards: CreditCard[];
   onDelete: (id: string) => void;
   onEdit: (expense: Expense) => void;
+  onBrokerageBalanceUpdate?: (brokerageCardId: string, newBalance: number) => void;
 }
 
 export const CheckingTab: React.FC<CheckingTabProps> = ({
@@ -14,29 +15,44 @@ export const CheckingTab: React.FC<CheckingTabProps> = ({
   cards,
   onDelete,
   onEdit,
+  onBrokerageBalanceUpdate,
 }) => {
   // Filter cards to get checking, saving, and brokerage accounts
-  const checkingAccounts = useMemo(() => {
-    return cards.filter(c => c.isChecking || c.isSaving || c.isBrokerage);
+  const regularAccounts = useMemo(() => {
+    return cards.filter(c => c.isChecking || c.isSaving);
+  }, [cards]);
+
+  const hasBrokerage = useMemo(() => {
+    return cards.some(c => c.isBrokerage);
+  }, [cards]);
+
+  const brokerageAccounts = useMemo(() => {
+    return cards.filter(c => c.isBrokerage);
   }, [cards]);
 
   // Active checking account sheet state
   const [selectedAccountId, setSelectedAccountId] = useState<string>('');
 
+  // Editing state for Brokerage inline balance updates
+  const [editingBrokerageId, setEditingBrokerageId] = useState<string | null>(null);
+  const [editingBrokerageValue, setEditingBrokerageValue] = useState<string>('');
+
   // Sync state if checking accounts load or change
   useEffect(() => {
-    if (checkingAccounts.length > 0 && (!selectedAccountId || !checkingAccounts.some(c => c.id === selectedAccountId))) {
-      setSelectedAccountId(checkingAccounts[0].id);
+    const allTabIds = [...regularAccounts.map(a => a.id), ...(hasBrokerage ? ['brokerage'] : [])];
+    if (allTabIds.length > 0 && (!selectedAccountId || !allTabIds.includes(selectedAccountId))) {
+      setSelectedAccountId(allTabIds[0]);
     }
-  }, [checkingAccounts, selectedAccountId]);
+  }, [regularAccounts, hasBrokerage, selectedAccountId]);
 
   const activeAccount = useMemo(() => {
-    return checkingAccounts.find(c => c.id === selectedAccountId) || null;
-  }, [checkingAccounts, selectedAccountId]);
+    if (selectedAccountId === 'brokerage') return null;
+    return regularAccounts.find(c => c.id === selectedAccountId) || null;
+  }, [regularAccounts, selectedAccountId]);
 
   // Filter checking transactions for the selected account
   const checkingExpenses = useMemo(() => {
-    if (!selectedAccountId) return [];
+    if (!selectedAccountId || selectedAccountId === 'brokerage') return [];
     return expenses
       .filter(e => e.creditCardId === selectedAccountId)
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
@@ -47,6 +63,39 @@ export const CheckingTab: React.FC<CheckingTabProps> = ({
     const sum = checkingExpenses.reduce((s, e) => s + (Number(e.amount) || 0), 0);
     return sum;
   }, [checkingExpenses]);
+
+  // Calculate total brokerage balance
+  const totalBrokerageBalance = useMemo(() => {
+    return brokerageAccounts.reduce((sum, account) => {
+      const bal = expenses
+        .filter(e => e.creditCardId === account.id)
+        .reduce((s, e) => s + (Number(e.amount) || 0), 0);
+      return sum + bal;
+    }, 0);
+  }, [brokerageAccounts, expenses]);
+
+  const getAccountBalance = (accountId: string) => {
+    return expenses
+      .filter(e => e.creditCardId === accountId)
+      .reduce((s, e) => s + (Number(e.amount) || 0), 0);
+  };
+
+  const handleStartEditBrokerage = (accountId: string, currentVal: number) => {
+    setEditingBrokerageId(accountId);
+    setEditingBrokerageValue(currentVal.toString());
+  };
+
+  const handleSaveBrokerage = (accountId: string) => {
+    const val = parseFloat(editingBrokerageValue);
+    if (isNaN(val)) {
+      Alert.alert('Error', 'Please enter a valid numeric balance.');
+      return;
+    }
+    if (onBrokerageBalanceUpdate) {
+      onBrokerageBalanceUpdate(accountId, val);
+    }
+    setEditingBrokerageId(null);
+  };
 
   const confirmDelete = (id: string) => {
     const performDelete = () => onDelete(id);
@@ -67,7 +116,7 @@ export const CheckingTab: React.FC<CheckingTabProps> = ({
     }
   };
 
-  if (checkingAccounts.length === 0) {
+  if (regularAccounts.length === 0 && !hasBrokerage) {
     return (
       <View style={styles.container}>
         <View style={styles.emptyCenterContainer}>
@@ -84,7 +133,7 @@ export const CheckingTab: React.FC<CheckingTabProps> = ({
       <View style={styles.sheetTabsContainer}>
         <Text style={styles.sheetSelectorLabel}>Sheets:</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.sheetTabsScroll}>
-          {checkingAccounts.map(account => (
+          {regularAccounts.map(account => (
             <TouchableOpacity
               key={account.id}
               style={[
@@ -103,6 +152,24 @@ export const CheckingTab: React.FC<CheckingTabProps> = ({
               </Text>
             </TouchableOpacity>
           ))}
+          {hasBrokerage && (
+            <TouchableOpacity
+              style={[
+                styles.sheetTab,
+                selectedAccountId === 'brokerage' && styles.activeSheetTab,
+              ]}
+              onPress={() => setSelectedAccountId('brokerage')}
+            >
+              <Text
+                style={[
+                  styles.sheetTabText,
+                  selectedAccountId === 'brokerage' && styles.activeSheetTabText,
+                ]}
+              >
+                Brokerage
+              </Text>
+            </TouchableOpacity>
+          )}
         </ScrollView>
       </View>
 
@@ -117,102 +184,178 @@ export const CheckingTab: React.FC<CheckingTabProps> = ({
           </Text>
         </View>
       )}
+      {selectedAccountId === 'brokerage' && (
+        <View style={styles.headerBanner}>
+          <Text style={styles.headerLabel}>
+            Account: Brokerage Portfolio
+          </Text>
+          <Text style={styles.headerBalance}>
+            Current Balance: <Text style={styles.monoBalance}>${totalBrokerageBalance.toFixed(2)}</Text>
+          </Text>
+        </View>
+      )}
 
       {/* Spreadsheet grid */}
       <ScrollView horizontal showsHorizontalScrollIndicator={true} style={styles.tableScroll}>
         <View style={styles.tableContainer}>
-          {/* Table Headers */}
-          <View style={styles.tableRowHeader}>
-            <Text style={[styles.headerCell, { width: 90 }]}>Date</Text>
-            <Text style={[styles.headerCell, { width: 180 }]}>From/To</Text>
-            {activeAccount?.isSaving ? (
-              <>
-                <Text style={[styles.headerCell, { width: 110, textAlign: 'right' }]}>Amount</Text>
-                <Text style={[styles.headerCell, { width: 110, textAlign: 'right' }]}>Interest</Text>
-                <Text style={[styles.headerCell, { width: 200 }]}>Details</Text>
-              </>
-            ) : (
-              <>
-                <Text style={[styles.headerCell, { width: 110, textAlign: 'right' }]}>Amount</Text>
-                <Text style={[styles.headerCell, { width: 310 }]}>Details</Text>
-              </>
-            )}
-            <Text style={[styles.headerCell, { width: 100, textAlign: 'center' }]}>Actions</Text>
-          </View>
-
-          {/* Table Rows */}
-          <ScrollView style={styles.rowsScroll}>
-            {checkingExpenses.length === 0 ? (
-              <Text style={styles.emptyText}>No transactions recorded.</Text>
-            ) : (
-              checkingExpenses.map(item => {
-                const isDeposit = item.amount >= 0;
-                const formattedAmount = isDeposit
-                  ? `+$${item.amount.toFixed(2)}`
-                  : `-$${Math.abs(item.amount).toFixed(2)}`;
-
-                return (
-                  <View key={item.id} style={styles.tableRow}>
-                    <Text style={[styles.cell, { width: 90 }, styles.monoText]}>{item.date}</Text>
-                    <Text style={[styles.cell, { width: 180 }]} numberOfLines={1}>
-                      {item.fromTo || item.description || ''}
-                    </Text>
-                    {activeAccount?.isSaving ? (
-                      <>
-                        <Text
+          {selectedAccountId === 'brokerage' ? (
+            <>
+              {/* Brokerage Table Headers */}
+              <View style={styles.tableRowHeader}>
+                <Text style={[styles.headerCell, { width: 250 }]}>Account Name</Text>
+                <Text style={[styles.headerCell, { width: 150, textAlign: 'right' }]}>Current Balance</Text>
+                <Text style={[styles.headerCell, { width: 150, textAlign: 'center' }]}>Actions</Text>
+              </View>
+              {/* Brokerage Table Rows */}
+              <ScrollView style={styles.rowsScroll}>
+                {brokerageAccounts.length === 0 ? (
+                  <Text style={styles.emptyText}>No brokerage accounts configured.</Text>
+                ) : (
+                  brokerageAccounts.map(item => (
+                    <View key={item.id} style={styles.tableRow}>
+                      <Text style={[styles.cell, { width: 250 }]}>{item.name}</Text>
+                      {editingBrokerageId === item.id ? (
+                        <TextInput
                           style={[
                             styles.cell,
-                            { width: 110, textAlign: 'right' },
-                            styles.monoText,
-                            item.isInterest ? { color: '#94a3b8' } : (isDeposit ? styles.depositText : styles.withdrawText),
+                            {
+                              width: 150,
+                              textAlign: 'right',
+                              fontFamily: Platform.OS === 'ios' ? 'Courier New' : 'monospace',
+                              borderWidth: 1,
+                              borderColor: '#3b82f6',
+                              backgroundColor: '#eff6ff',
+                              paddingVertical: 2,
+                              paddingHorizontal: 4,
+                            }
                           ]}
-                        >
-                          {item.isInterest ? '-' : formattedAmount}
+                          value={editingBrokerageValue}
+                          onChangeText={setEditingBrokerageValue}
+                          keyboardType="decimal-pad"
+                          autoFocus
+                        />
+                      ) : (
+                        <Text style={[styles.cell, { width: 150, textAlign: 'right' }, styles.monoText]}>
+                          ${getAccountBalance(item.id).toFixed(2)}
                         </Text>
-                        <Text
-                          style={[
-                            styles.cell,
-                            { width: 110, textAlign: 'right' },
-                            styles.monoText,
-                            item.isInterest ? styles.depositText : { color: '#94a3b8' },
-                          ]}
-                        >
-                          {item.isInterest ? formattedAmount : '-'}
-                        </Text>
-                        <Text style={[styles.cell, { width: 200 }]} numberOfLines={1}>
-                          {item.details || ''}
-                        </Text>
-                      </>
-                    ) : (
-                      <>
-                        <Text
-                          style={[
-                            styles.cell,
-                            { width: 110, textAlign: 'right' },
-                            styles.monoText,
-                            isDeposit ? styles.depositText : styles.withdrawText,
-                          ]}
-                        >
-                          {formattedAmount}
-                        </Text>
-                        <Text style={[styles.cell, { width: 310 }]} numberOfLines={1}>
-                          {item.details || ''}
-                        </Text>
-                      </>
-                    )}
-                    <View style={[styles.cellActions, { width: 100 }]}>
-                      <TouchableOpacity style={styles.actionBtn} onPress={() => onEdit(item)}>
-                        <Text style={styles.editBtnText}>Edit</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity style={styles.actionBtn} onPress={() => confirmDelete(item.id)}>
-                        <Text style={styles.deleteBtnText}>Del</Text>
-                      </TouchableOpacity>
+                      )}
+                      <View style={[styles.cellActions, { width: 150 }]}>
+                        {editingBrokerageId === item.id ? (
+                          <>
+                            <TouchableOpacity style={styles.actionBtn} onPress={() => handleSaveBrokerage(item.id)}>
+                              <Text style={styles.editBtnText}>Save</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity style={styles.actionBtn} onPress={() => setEditingBrokerageId(null)}>
+                              <Text style={styles.deleteBtnText}>Cancel</Text>
+                            </TouchableOpacity>
+                          </>
+                        ) : (
+                          <TouchableOpacity style={styles.actionBtn} onPress={() => handleStartEditBrokerage(item.id, getAccountBalance(item.id))}>
+                            <Text style={styles.editBtnText}>Edit</Text>
+                          </TouchableOpacity>
+                        )}
+                      </View>
                     </View>
-                  </View>
-                );
-              })
-            )}
-          </ScrollView>
+                  ))
+                )}
+              </ScrollView>
+            </>
+          ) : (
+            <>
+              {/* Table Headers */}
+              <View style={styles.tableRowHeader}>
+                <Text style={[styles.headerCell, { width: 90 }]}>Date</Text>
+                <Text style={[styles.headerCell, { width: 180 }]}>From/To</Text>
+                {activeAccount?.isSaving ? (
+                  <>
+                    <Text style={[styles.headerCell, { width: 110, textAlign: 'right' }]}>Amount</Text>
+                    <Text style={[styles.headerCell, { width: 110, textAlign: 'right' }]}>Interest</Text>
+                    <Text style={[styles.headerCell, { width: 200 }]}>Details</Text>
+                  </>
+                ) : (
+                  <>
+                    <Text style={[styles.headerCell, { width: 110, textAlign: 'right' }]}>Amount</Text>
+                    <Text style={[styles.headerCell, { width: 310 }]}>Details</Text>
+                  </>
+                )}
+                <Text style={[styles.headerCell, { width: 100, textAlign: 'center' }]}>Actions</Text>
+              </View>
+
+              {/* Table Rows */}
+              <ScrollView style={styles.rowsScroll}>
+                {checkingExpenses.length === 0 ? (
+                  <Text style={styles.emptyText}>No transactions recorded.</Text>
+                ) : (
+                  checkingExpenses.map(item => {
+                    const isDeposit = item.amount >= 0;
+                    const formattedAmount = isDeposit
+                      ? `+$${item.amount.toFixed(2)}`
+                      : `-$${Math.abs(item.amount).toFixed(2)}`;
+
+                    return (
+                      <View key={item.id} style={styles.tableRow}>
+                        <Text style={[styles.cell, { width: 90 }, styles.monoText]}>{item.date}</Text>
+                        <Text style={[styles.cell, { width: 180 }]} numberOfLines={1}>
+                          {item.fromTo || item.description || ''}
+                        </Text>
+                        {activeAccount?.isSaving ? (
+                          <>
+                            <Text
+                              style={[
+                                styles.cell,
+                                { width: 110, textAlign: 'right' },
+                                styles.monoText,
+                                item.isInterest ? { color: '#94a3b8' } : (isDeposit ? styles.depositText : styles.withdrawText),
+                              ]}
+                            >
+                              {item.isInterest ? '-' : formattedAmount}
+                            </Text>
+                            <Text
+                              style={[
+                                styles.cell,
+                                { width: 110, textAlign: 'right' },
+                                styles.monoText,
+                                item.isInterest ? styles.depositText : { color: '#94a3b8' },
+                              ]}
+                            >
+                              {item.isInterest ? formattedAmount : '-'}
+                            </Text>
+                            <Text style={[styles.cell, { width: 200 }]} numberOfLines={1}>
+                              {item.details || ''}
+                            </Text>
+                          </>
+                        ) : (
+                          <>
+                            <Text
+                              style={[
+                                styles.cell,
+                                { width: 110, textAlign: 'right' },
+                                styles.monoText,
+                                isDeposit ? styles.depositText : styles.withdrawText,
+                              ]}
+                            >
+                              {formattedAmount}
+                            </Text>
+                            <Text style={[styles.cell, { width: 310 }]} numberOfLines={1}>
+                              {item.details || ''}
+                            </Text>
+                          </>
+                        )}
+                        <View style={[styles.cellActions, { width: 100 }]}>
+                          <TouchableOpacity style={styles.actionBtn} onPress={() => onEdit(item)}>
+                            <Text style={styles.editBtnText}>Edit</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity style={styles.actionBtn} onPress={() => confirmDelete(item.id)}>
+                            <Text style={styles.deleteBtnText}>Del</Text>
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+                    );
+                  })
+                )}
+              </ScrollView>
+            </>
+          )}
         </View>
       </ScrollView>
     </View>

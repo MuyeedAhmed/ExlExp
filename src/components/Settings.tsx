@@ -15,12 +15,14 @@ interface SettingsProps {
   cards: CreditCard[];
   onAddCard: (card: Omit<CreditCard, 'id'>) => void;
   onDeleteCard: (id: string) => void;
+  onRenameCard: (id: string, name: string) => void;
 }
 
 export const Settings: React.FC<SettingsProps> = ({
   cards,
   onAddCard,
   onDeleteCard,
+  onRenameCard,
 }) => {
   // New Card Form State
   const [cardName, setCardName] = useState('');
@@ -28,6 +30,24 @@ export const Settings: React.FC<SettingsProps> = ({
   // New Checking/Saving Account Form State
   const [checkingName, setCheckingName] = useState('');
   const [checkingAccountType, setCheckingAccountType] = useState<'checking' | 'saving' | 'brokerage'>('checking');
+
+  // Renaming Card State
+  const [editingCardId, setEditingCardId] = useState<string | null>(null);
+  const [editingCardName, setEditingCardName] = useState<string>('');
+
+  const handleStartRename = (id: string, currentName: string) => {
+    setEditingCardId(id);
+    setEditingCardName(currentName);
+  };
+
+  const handleSaveRename = (id: string) => {
+    if (!editingCardName.trim()) {
+      showAlert('Error', 'Card/account name cannot be empty.');
+      return;
+    }
+    onRenameCard(id, editingCardName.trim());
+    setEditingCardId(null);
+  };
 
   const handleAddCard = () => {
     if (!cardName.trim()) {
@@ -153,17 +173,63 @@ export const Settings: React.FC<SettingsProps> = ({
           ) : (
             checkingAccountsOnly.map(card => (
               <View key={card.id} style={styles.listItem}>
-                <View style={styles.listItemTextContainer}>
-                  <Text style={styles.listItemTitle}>
-                    {card.name} ({card.isSaving ? 'Saving' : card.isBrokerage ? 'Brokerage' : 'Checking'})
-                  </Text>
+                <View style={[styles.listItemTextContainer, { flex: 1 }]}>
+                  {editingCardId === card.id ? (
+                    <TextInput
+                      style={[
+                        styles.input,
+                        {
+                          flex: 1,
+                          height: 30,
+                          fontSize: 14,
+                          paddingVertical: 2,
+                          paddingHorizontal: 8,
+                          marginRight: 12
+                        }
+                      ]}
+                      value={editingCardName}
+                      onChangeText={setEditingCardName}
+                      autoFocus
+                    />
+                  ) : (
+                    <Text style={styles.listItemTitle}>
+                      {card.name} ({card.isSaving ? 'Saving' : card.isBrokerage ? 'Brokerage' : 'Checking'})
+                    </Text>
+                  )}
                 </View>
-                <TouchableOpacity
-                  style={styles.deleteButton}
-                  onPress={() => confirmDeleteCard(card.id, card.name)}
-                >
-                  <Text style={styles.deleteButtonText}>Remove</Text>
-                </TouchableOpacity>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  {editingCardId === card.id ? (
+                    <>
+                      <TouchableOpacity
+                        style={styles.editButton}
+                        onPress={() => handleSaveRename(card.id)}
+                      >
+                        <Text style={styles.editButtonText}>Save</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={styles.deleteButton}
+                        onPress={() => setEditingCardId(null)}
+                      >
+                        <Text style={styles.deleteButtonText}>Cancel</Text>
+                      </TouchableOpacity>
+                    </>
+                  ) : (
+                    <>
+                      <TouchableOpacity
+                        style={styles.editButton}
+                        onPress={() => handleStartRename(card.id, card.name)}
+                      >
+                        <Text style={styles.editButtonText}>Rename</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={styles.deleteButton}
+                        onPress={() => confirmDeleteCard(card.id, card.name)}
+                      >
+                        <Text style={styles.deleteButtonText}>Remove</Text>
+                      </TouchableOpacity>
+                    </>
+                  )}
+                </View>
               </View>
             ))
           )}
@@ -195,15 +261,61 @@ export const Settings: React.FC<SettingsProps> = ({
           ) : (
             creditCardsOnly.map(card => (
               <View key={card.id} style={styles.listItem}>
-                <View style={styles.listItemTextContainer}>
-                  <Text style={styles.listItemTitle}>{card.name}</Text>
+                <View style={[styles.listItemTextContainer, { flex: 1 }]}>
+                  {editingCardId === card.id ? (
+                    <TextInput
+                      style={[
+                        styles.input,
+                        {
+                          flex: 1,
+                          height: 30,
+                          fontSize: 14,
+                          paddingVertical: 2,
+                          paddingHorizontal: 8,
+                          marginRight: 12
+                        }
+                      ]}
+                      value={editingCardName}
+                      onChangeText={setEditingCardName}
+                      autoFocus
+                    />
+                  ) : (
+                    <Text style={styles.listItemTitle}>{card.name}</Text>
+                  )}
                 </View>
-                <TouchableOpacity
-                  style={styles.deleteButton}
-                  onPress={() => confirmDeleteCard(card.id, card.name)}
-                >
-                  <Text style={styles.deleteButtonText}>Remove</Text>
-                </TouchableOpacity>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  {editingCardId === card.id ? (
+                    <>
+                      <TouchableOpacity
+                        style={styles.editButton}
+                        onPress={() => handleSaveRename(card.id)}
+                      >
+                        <Text style={styles.editButtonText}>Save</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={styles.deleteButton}
+                        onPress={() => setEditingCardId(null)}
+                      >
+                        <Text style={styles.deleteButtonText}>Cancel</Text>
+                      </TouchableOpacity>
+                    </>
+                  ) : (
+                    <>
+                      <TouchableOpacity
+                        style={styles.editButton}
+                        onPress={() => handleStartRename(card.id, card.name)}
+                      >
+                        <Text style={styles.editButtonText}>Rename</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={styles.deleteButton}
+                        onPress={() => confirmDeleteCard(card.id, card.name)}
+                      >
+                        <Text style={styles.deleteButtonText}>Remove</Text>
+                      </TouchableOpacity>
+                    </>
+                  )}
+                </View>
               </View>
             ))
           )}
@@ -345,6 +457,16 @@ const styles = StyleSheet.create({
   },
   deleteButtonText: {
     color: '#dc2626',
+    fontWeight: '600',
+    fontSize: 12,
+  },
+  editButton: {
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    marginRight: 8,
+  },
+  editButtonText: {
+    color: '#3b82f6',
     fontWeight: '600',
     fontSize: 12,
   },

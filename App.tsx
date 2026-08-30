@@ -181,6 +181,14 @@ export default function App() {
     await saveCreditCards(updatedCards);
   };
 
+  const handleCardRename = async (id: string, newName: string) => {
+    const updatedCards = cards.map(c => 
+      c.id === id ? { ...c, name: newName } : c
+    );
+    setCards(updatedCards);
+    await saveCreditCards(updatedCards);
+  };
+
   const handleFutureExpenseAdd = async (newFuture: Omit<FutureExpense, 'id'>) => {
     const updated = [
       {
@@ -198,6 +206,32 @@ export default function App() {
     setExpenses(expenses); // force reload dependencies if needed
     setFutureExpenses(updated);
     await saveFutureExpenses(updated);
+  };
+
+  const handleBrokerageBalanceUpdate = async (brokerageCardId: string, newBalance: number) => {
+    // Check if there is an existing transaction for this brokerage card
+    const existingIdx = expenses.findIndex(e => e.creditCardId === brokerageCardId);
+    let updatedExpenses: Expense[];
+    if (existingIdx !== -1) {
+      // Update existing transaction amount and set date to today
+      updatedExpenses = expenses.map((e, idx) => 
+        idx === existingIdx ? { ...e, amount: newBalance, date: new Date().toISOString().split('T')[0] } : e
+      );
+    } else {
+      // Create a new transaction representing the current balance
+      const newTx: Expense = {
+        id: 'exp-' + Math.random().toString(36).substr(2, 9) + Date.now().toString(36),
+        description: 'Current Balance',
+        amount: newBalance,
+        creditCardId: brokerageCardId,
+        date: new Date().toISOString().split('T')[0],
+        fromTo: 'Imported Balance',
+        details: 'Calculated from transfer logs'
+      };
+      updatedExpenses = [newTx, ...expenses];
+    }
+    setExpenses(updatedExpenses);
+    await saveExpenses(updatedExpenses);
   };
 
   // Render correct screen component based on active tab
@@ -230,6 +264,7 @@ export default function App() {
             cards={cards}
             onDelete={handleExpenseDelete}
             onEdit={handleExpenseEditRequest}
+            onBrokerageBalanceUpdate={handleBrokerageBalanceUpdate}
           />
         );
       case 'credit_cards':
@@ -247,6 +282,7 @@ export default function App() {
             cards={cards}
             onAddCard={handleCardAdd}
             onDeleteCard={handleCardDelete}
+            onRenameCard={handleCardRename}
           />
         );
       default:
