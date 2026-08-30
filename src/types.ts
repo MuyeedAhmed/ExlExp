@@ -22,6 +22,7 @@ export interface CreditCard {
   isSaving?: boolean; // Optional flag to indicate saving account
   isBrokerage?: boolean; // Optional flag to indicate brokerage account
   isHidden?: boolean; // Optional flag to hide/unhide cards in logs
+  priority?: number; // Optional flag to save priority order of cards
 }
 
 export interface FutureExpense {
