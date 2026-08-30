@@ -166,9 +166,17 @@ export default function App() {
 
   // Credit Card Handlers
   const handleCardAdd = async (cardData: Omit<CreditCard, 'id'>) => {
+    let idPrefix = 'card-';
+    if (cardData.isChecking) {
+      idPrefix = 'card-checking-';
+    } else if (cardData.isSaving) {
+      idPrefix = 'card-saving-';
+    } else if (cardData.isBrokerage) {
+      idPrefix = 'card-brokerage-';
+    }
     const newCard: CreditCard = {
       ...cardData,
-      id: 'card-' + Math.random().toString(36).substr(2, 9) + Date.now().toString(36),
+      id: idPrefix + Math.random().toString(36).substr(2, 9) + Date.now().toString(36),
     };
     const updatedCards = [...cards, newCard];
     setCards(updatedCards);

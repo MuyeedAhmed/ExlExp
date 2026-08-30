@@ -87,14 +87,10 @@ export const getCreditCards = async (): Promise<CreditCard[]> => {
       await saveCreditCards(DEFAULT_CARDS);
       return DEFAULT_CARDS;
     }
+    const CHECKING_IDS = ['card-chase', 'card-santander', 'card-sofi', 'card-upgrade', 'card-citizens'];
     return data.map(c => ({
       ...c,
-      isChecking: !c.isSaving && !c.isBrokerage && (
-        c.id === 'card-chase' ||
-        c.name.toLowerCase().includes('checking') ||
-        c.id.toLowerCase().includes('checking') ||
-        ['chase', 'santander', 'sofi', 'upgrade', 'citizens'].some(name => c.name.toLowerCase().includes(name))
-      )
+      isChecking: CHECKING_IDS.includes(c.id) || c.id.startsWith('card-checking-')
     }));
   } catch (error) {
     console.log('Supabase offline or error, using local AsyncStorage for credit cards:', error);
