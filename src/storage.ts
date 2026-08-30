@@ -7,10 +7,10 @@ const CARDS_KEY = '@ExlExp:credit_cards';
 const FUTURE_EXPENSES_KEY = '@ExlExp:future_expenses';
 
 const DEFAULT_CARDS: CreditCard[] = [
-  { id: 'card-citidb', name: 'Citi Double Cash' },
-  { id: 'card-citistrata', name: 'Citi Strata' },
-  { id: 'card-bofa', name: 'BofA Premium' },
-  { id: 'card-chase', name: 'Chase Checking', isChecking: true }
+  { id: 'card-citidb', name: 'Citi Double Cash', priority: 0, isHidden: false },
+  { id: 'card-citistrata', name: 'Citi Strata', priority: 1, isHidden: false },
+  { id: 'card-bofa', name: 'BofA Premium', priority: 2, isHidden: false },
+  { id: 'card-chase', name: 'Chase Checking', isChecking: true, priority: 3, isHidden: false }
 ];
 
 export const getExpenses = async (): Promise<Expense[]> => {
@@ -101,24 +101,49 @@ export const getCreditCards = async (): Promise<CreditCard[]> => {
       .select('*');
 
     if (error) throw error;
-    if (!data || data.length === 0) {
-      await saveCreditCards(DEFAULT_CARDS);
-      return DEFAULT_CARDS;
+
+    // Fallback to DEFAULT_CARDS if Supabase is empty, but DO NOT write it to Supabase automatically
+    const cardsData = (data && data.length > 0) ? data : DEFAULT_CARDS;
+
+    // Fetch local user settings (priority order & visibility) from AsyncStorage
+    let localCards: CreditCard[] = [];
+    try {
+      const localData = await AsyncStorage.getItem(CARDS_KEY);
+      if (localData) {
+        localCards = JSON.parse(localData);
+      }
+    } catch (e) {
+      console.log('No local card settings found:', e);
     }
+
     const CHECKING_IDS = ['card-chase', 'card-santander', 'card-sofi', 'card-upgrade', 'card-citizens'];
-    return data.map(c => ({
-      ...c,
-      isChecking: CHECKING_IDS.includes(c.id) || c.id.startsWith('card-checking-')
-    }));
+    const mapped = cardsData.map(c => {
+      const local = localCards.find(lc => lc.id === c.id);
+      return {
+        ...c,
+        isChecking: CHECKING_IDS.includes(c.id) || c.id.startsWith('card-checking-'),
+        isHidden: local ? !!local.isHidden : !!c.isHidden,
+        priority: local && typeof local.priority === 'number'
+          ? local.priority
+          : (typeof c.priority === 'number' ? c.priority : 9999)
+      };
+    });
+
+    return mapped.sort((a, b) => a.priority - b.priority);
   } catch (error) {
     console.log('Supabase offline or error, using local AsyncStorage for credit cards:', error);
     try {
       const data = await AsyncStorage.getItem(CARDS_KEY);
       if (!data) {
-        await saveCreditCards(DEFAULT_CARDS);
         return DEFAULT_CARDS;
       }
-      return JSON.parse(data);
+      const parsed: CreditCard[] = JSON.parse(data);
+      const sorted = parsed.map((c, index) => ({
+        ...c,
+        isHidden: !!c.isHidden,
+        priority: typeof c.priority === 'number' ? c.priority : index
+      }));
+      return sorted.sort((a, b) => a.priority - b.priority);
     } catch (e) {
       console.error('Error fetching credit cards from AsyncStorage:', e);
       return DEFAULT_CARDS;
@@ -127,22 +152,34 @@ export const getCreditCards = async (): Promise<CreditCard[]> => {
 };
 
 export const saveCreditCards = async (cards: CreditCard[]): Promise<void> => {
+  // 1. Save priority order and visibility locally in AsyncStorage
+  try {
+    const mapped = cards.map((c, index) => ({
+      ...c,
+      priority: index,
+      isHidden: !!c.isHidden
+    }));
+    await AsyncStorage.setItem(CARDS_KEY, JSON.stringify(mapped));
+  } catch (e) {
+    console.error('Error saving credit cards settings to AsyncStorage:', e);
+  }
+
+  // 2. Write changes to Supabase cards table (only triggered by explicit user actions, never automatically on startup)
   try {
     const { error: delError } = await supabase.from('cards').delete().neq('id', '');
     if (delError) throw delError;
 
     if (cards.length > 0) {
-      const cardsToInsert = cards.map(({ isChecking, ...rest }) => rest);
+      const cardsToInsert = cards.map(({ isChecking, ...rest }, index) => ({
+        ...rest,
+        priority: index,
+        isHidden: !!rest.isHidden
+      }));
       const { error: insError } = await supabase.from('cards').insert(cardsToInsert);
       if (insError) throw insError;
     }
   } catch (error) {
-    console.log('Supabase offline or error, saving credit cards to local AsyncStorage:', error);
-    try {
-      await AsyncStorage.setItem(CARDS_KEY, JSON.stringify(cards));
-    } catch (e) {
-      console.error('Error saving credit cards to AsyncStorage:', e);
-    }
+    console.log('Supabase offline or error, could not save credit cards to cloud database:', error);
   }
 };
 

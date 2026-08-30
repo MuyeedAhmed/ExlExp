@@ -27,7 +27,9 @@ def main():
         
         card_obj = {
             "id": c_id,
-            "name": c_name
+            "name": c_name,
+            "priority": len(cards),
+            "isHidden": False
         }
         if c_type == "Checking":
             card_obj["isChecking"] = True

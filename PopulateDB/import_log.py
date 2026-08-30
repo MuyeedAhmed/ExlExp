@@ -42,7 +42,7 @@ def main():
         'Delta-G': {'id': 'card-deltag', 'name': 'Delta Gold', 'type': 'cc'},
         'AmEx-B': {'id': 'card-amexb', 'name': 'AmEx Blue', 'type': 'cc'},
         'AmEx-G': {'id': 'card-amexg', 'name': 'AmEx Gold', 'type': 'cc'},
-        'ChSdt': {'id': 'card-chsdt', 'name': 'Chase Slate', 'type': 'cc'},
+        'ChSdt': {'id': 'card-chsdt', 'name': 'Chase Student', 'type': 'cc'},
         'ChUltd': {'id': 'card-chultd', 'name': 'Chase Freedom Unlimited', 'type': 'cc'},
         'ChSaP': {'id': 'card-chsap', 'name': 'Chase Sapphire', 'type': 'cc'},
         'ChFlx': {'id': 'card-chflx', 'name': 'Chase Freedom Flex', 'type': 'cc'},
