@@ -3,7 +3,7 @@ import json
 import os
 import subprocess
 
-VERIFICATION_EXCEL_PATH = '/Users/muyeedahmed/Desktop/Gitcode/ExlExp/Imported_Data_For_Verification.xlsx'
+VERIFICATION_EXCEL_PATH = '/Users/muyeedahmed/Desktop/Gitcode/ExlExp/PopulateDB/Imported_Data_For_Verification.xlsx'
 DB_JSON_PATH = '/Users/muyeedahmed/Desktop/Gitcode/ExlExp/db.json'
 MIGRATE_SCRIPT_PATH = '/Users/muyeedahmed/Desktop/Gitcode/ExlExp/migrate.js'
 
@@ -20,7 +20,6 @@ def main():
     ws_accounts = wb["Accounts"]
     cards = []
     
-    # Read rows skipping header
     for row in ws_accounts.iter_rows(min_row=2, values_only=True):
         if not row[0]:
             continue
@@ -47,23 +46,21 @@ def main():
         if not row[0]:
             continue
             
-        # Headers: ["ID", "Date", "Account Name", "Account ID", "Description/FromTo", "Details", "Amount", "Is Fee", "Is Reward", "Reward Type", "Reward Value", "Is Interest"]
+        # Headers: ["ID", "Date", "Account Name", "Account ID", "Description/FromTo", "Details", "Amount", "Is Reward", "Reward Value", "Is Interest"]
         e_id = row[0]
-        e_date = str(row[1]).split(" ")[0] if row[1] else "" # strip time if any
+        e_date = str(row[1]).split(" ")[0] if row[1] else "" # strip time
         c_id = row[3]
         desc = row[4] or ""
         details = row[5] or ""
-        amount = float(row[6]) if row[6] is not None else 0.0
-        is_fee = str(row[7]).upper() == "TRUE"
-        is_reward = str(row[8]).upper() == "TRUE"
-        reward_type = row[9] if row[9] else None
+        amount = round(float(row[6]), 2) if row[6] is not None else 0.0
+        is_reward = str(row[7]).upper() == "TRUE"
         
         try:
-            reward_value = float(row[10]) if row[10] is not None and str(row[10]).strip() != "" and str(row[10]).strip() != "None" else None
+            reward_value = round(float(row[8]), 2) if row[8] is not None and str(row[8]).strip() != "" and str(row[8]).strip() != "None" else None
         except ValueError:
             reward_value = None
             
-        is_interest = str(row[11]).upper() == "TRUE"
+        is_interest = str(row[9]).upper() == "TRUE"
         
         exp_obj = {
             "id": e_id,
@@ -71,13 +68,13 @@ def main():
             "creditCardId": c_id,
             "description": desc,
             "amount": amount,
-            "isFee": is_fee,
+            "isFee": False,
             "isReward": is_reward,
         }
-        if reward_type:
-            exp_obj["rewardType"] = reward_type
-        if reward_value is not None:
-            exp_obj["rewardValue"] = reward_value
+        if is_reward:
+            exp_obj["rewardType"] = "cashback"
+            if reward_value is not None:
+                exp_obj["rewardValue"] = reward_value
         if is_interest:
             exp_obj["isInterest"] = is_interest
             
