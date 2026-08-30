@@ -349,7 +349,7 @@ export default function App() {
             setActiveTab('checking');
           }}
         >
-          <Text style={[styles.tabText, activeTab === 'checking' && styles.activeTabText]}>Checking & Saving</Text>
+          <Text style={[styles.tabText, activeTab === 'checking' && styles.activeTabText]}>Accounts</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
