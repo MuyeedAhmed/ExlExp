@@ -1,0 +1,32 @@
+name: Deploy to Vercel
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    name: Build & Deploy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Export Expo Web App
+        run: npx expo export --platform web
+
+      - name: Deploy to Vercel Production
+        run: npx vercel --token ${{ secrets.VERCEL_TOKEN }} --prod --yes dist
+        env:
+          VERCEL_ORG_ID: team_KTKVvtjsDYvGCJDb9KxDuM2L
+          VERCEL_PROJECT_ID: prj_QCduuM9W3IL4jpquQSarx2A0NHc4
