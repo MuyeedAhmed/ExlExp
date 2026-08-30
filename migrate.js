@@ -23,7 +23,8 @@ async function runMigration() {
       console.log(`Migrating ${data.cards.length} cards...`);
       // Delete any existing first to avoid duplicate primary keys
       await supabase.from('cards').delete().neq('id', '');
-      const { error: err } = await supabase.from('cards').insert(data.cards);
+      const cardsToInsert = data.cards.map(({ isChecking, ...rest }) => rest);
+      const { error: err } = await supabase.from('cards').insert(cardsToInsert);
       if (err) throw err;
       console.log('Cards migrated successfully.');
     }
@@ -41,7 +42,18 @@ async function runMigration() {
     if (data.expenses && data.expenses.length > 0) {
       console.log(`Migrating ${data.expenses.length} transactions...`);
       await supabase.from('expenses').delete().neq('id', '');
-      const { error: err } = await supabase.from('expenses').insert(data.expenses);
+      const expensesToInsert = data.expenses.map(e => {
+        const { fromTo, details, ...rest } = e;
+        let desc = e.description;
+        if (fromTo || details) {
+          desc = `${fromTo || ''} // ${details || ''}`;
+        }
+        return {
+          ...rest,
+          description: desc
+        };
+      });
+      const { error: err } = await supabase.from('expenses').insert(expensesToInsert);
       if (err) throw err;
       console.log('Transactions migrated successfully.');
     }
