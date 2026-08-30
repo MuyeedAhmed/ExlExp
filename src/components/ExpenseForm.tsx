@@ -38,6 +38,23 @@ const parseZelleDetails = (detailsStr: string) => {
   return null;
 };
 
+const isClosedCard = (c: CreditCard) => {
+  const nameLower = c.name.toLowerCase();
+  return nameLower.includes('closed') || nameLower.includes('close');
+};
+
+const getCardBgColor = (item: CreditCard) => {
+  if (item.isChecking) return '#dcfce7'; // Lite green for checking
+  if (item.isSaving) return '#15803d'; // Dark green for saving
+  if (item.isBrokerage) return '#7c3aed'; // Violet for brokerage
+  return '#c2410c'; // Dark orange for Credit Card
+};
+
+const getCardTextColor = (item: CreditCard) => {
+  if (item.isChecking) return '#14532d'; // Dark green text for lite green bg
+  return '#ffffff'; // White text for dark backgrounds
+};
+
 export const ExpenseForm: React.FC<ExpenseFormProps> = ({
   cards,
   expenses,
@@ -76,6 +93,7 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
   const [selectedSourceCardId, setSelectedSourceCardId] = useState('');
   const [selectedTargetCardId, setSelectedTargetCardId] = useState('');
   const [transferDetails, setTransferDetails] = useState('');
+  const [isCcBillPay, setIsCcBillPay] = useState(false);
 
   // Modals Visibility
   const [cardModalVisible, setCardModalVisible] = useState(false);
@@ -118,7 +136,13 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
       if (editingExpense.transferLinkId) {
         // We are editing a linked transfer
         setLogType('transfer');
-        setTransferDetails(editingExpense.details || '');
+        const detailsVal = editingExpense.details || '';
+        setTransferDetails(detailsVal);
+        if (detailsVal.startsWith('Credit Card Bill Pay -')) {
+          setIsCcBillPay(true);
+        } else {
+          setIsCcBillPay(false);
+        }
         setAmount(Math.abs(editingExpense.amount).toString());
 
         // Find the other linked transaction in expenses
@@ -225,8 +249,12 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
     setAmount('');
     setDate(getTodayString());
 
-    const standardCards = cards.filter(c => !c.isBrokerage);
-    const initialCardId = standardCards[0]?.id || '';
+    const activeCards = cards.filter(c => !isClosedCard(c));
+    const standardCards = activeCards.filter(c => !c.isBrokerage);
+    
+    // Default to Robinhood Gold if available, otherwise first active standard card
+    const defaultCard = standardCards.find(c => c.name.toLowerCase() === 'robinhood gold');
+    const initialCardId = defaultCard?.id || standardCards[0]?.id || '';
     setSelectedCardId(initialCardId);
 
     // Transaction resets
@@ -244,10 +272,11 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
     setIsInterest(false);
 
     // Transfer resets
-    const depositAccs = cards.filter(c => c.isChecking || c.isSaving || c.isBrokerage);
+    const depositAccs = activeCards.filter(c => c.isChecking || c.isSaving || c.isBrokerage);
     setSelectedSourceCardId(depositAccs[0]?.id || initialCardId);
-    setSelectedTargetCardId(cards.find(c => c.id !== depositAccs[0]?.id)?.id || initialCardId);
+    setSelectedTargetCardId(activeCards.find(c => c.id !== depositAccs[0]?.id)?.id || initialCardId);
     setTransferDetails('');
+    setIsCcBillPay(false);
   };
 
   const handleQuickDateSelect = (type: 'today' | 'yesterday') => {
@@ -288,13 +317,17 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
       const targetName = targetCard ? targetCard.name : 'Unknown';
 
       // Source Account: withdrawal of money
+      const finalDetails = isCcBillPay
+        ? `Credit Card Bill Pay - ${targetName}`
+        : (transferDetails.trim() || 'Account Transfer');
+
       const sourceTx: Omit<Expense, 'id'> = {
         creditCardId: selectedSourceCardId,
         amount: -parsedAmount,
         description: `Transfer to ${targetName}`,
         date,
         fromTo: targetName,
-        details: transferDetails.trim() || 'Account Transfer',
+        details: finalDetails,
         isTransfer: true,
       };
 
@@ -306,7 +339,7 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
         description: `Transfer from ${sourceName}`,
         date,
         fromTo: sourceName,
-        details: transferDetails.trim() || 'Account Transfer',
+        details: finalDetails,
         isTransfer: true,
       };
 
@@ -425,17 +458,20 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
   const selectedTargetCard = cards.find(c => c.id === selectedTargetCardId);
 
   // Transfers support checking, saving, and brokerage
-  const depositAccounts = cards.filter(c => c.isChecking || c.isSaving || c.isBrokerage);
+  const depositAccounts = cards.filter(
+    c => (c.isChecking || c.isSaving || c.isBrokerage) && !isClosedCard(c)
+  );
 
   // Filter Target accounts list
   const targetAccountsList = useMemo(() => {
     const sourceCard = cards.find(c => c.id === selectedSourceCardId);
+    const activeCards = cards.filter(c => !isClosedCard(c));
     if (sourceCard?.isBrokerage) {
       // If source is brokerage, target can only be Checking or Saving
-      return cards.filter(c => c.id !== selectedSourceCardId && (c.isChecking || c.isSaving));
+      return activeCards.filter(c => c.id !== selectedSourceCardId && (c.isChecking || c.isSaving));
     }
     // Checking/saving source accounts can target any other accounts
-    return cards.filter(c => c.id !== selectedSourceCardId);
+    return activeCards.filter(c => c.id !== selectedSourceCardId);
   }, [cards, selectedSourceCardId]);
 
   return (
@@ -515,14 +551,26 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
 
             {/* Details Description */}
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Transfer Details</Text>
-              <TextInput
-                style={styles.input}
-                value={transferDetails}
-                onChangeText={setTransferDetails}
-                placeholder="e.g. Credit Card Payment, Saving Deposit"
-                placeholderTextColor="#94a3b8"
-              />
+              <View style={styles.transferDetailsHeader}>
+                <Text style={[styles.label, { marginBottom: 0 }]}>Transfer Details</Text>
+                <TouchableOpacity
+                  style={[styles.ccBillPayTag, isCcBillPay && styles.activeCcBillPayTag]}
+                  onPress={() => setIsCcBillPay(!isCcBillPay)}
+                >
+                  <Text style={[styles.ccBillPayTagText, isCcBillPay && styles.activeCcBillPayTagText]}>
+                    Credit Card Bill Pay
+                  </Text>
+                </TouchableOpacity>
+              </View>
+              {!isCcBillPay && (
+                <TextInput
+                  style={styles.input}
+                  value={transferDetails}
+                  onChangeText={setTransferDetails}
+                  placeholder="e.g. Credit Card Payment, Saving Deposit"
+                  placeholderTextColor="#94a3b8"
+                />
+              )}
             </View>
           </>
         ) : (
@@ -544,94 +592,9 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
               </TouchableOpacity>
             </View>
 
-            {/* Savings Specific: Interest Checkbox */}
-            {isCheckingSelected && selectedCard?.isSaving && (
-              <View style={styles.inputGroup}>
-                <TouchableOpacity
-                  style={[styles.optionBtn, isInterest && styles.activeOptionBtn]}
-                  onPress={() => setIsInterest(!isInterest)}
-                >
-                  <Text style={[styles.optionBtnText, isInterest && styles.activeOptionBtnText]}>
-                    Interest Payment / Dividend
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            )}
 
-            {/* Checking/Saving Specific From/To Direction */}
-            {isCheckingSelected && !isInterest && (
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Transaction Direction</Text>
-                <View style={styles.zelleTypeRow}>
-                  <TouchableOpacity
-                    style={[styles.zelleTypeBtn, fromOrTo === 'From' && styles.activeZelleTypeBtn]}
-                    onPress={() => setFromOrTo('From')}
-                  >
-                    <Text style={[styles.zelleTypeText, fromOrTo === 'From' && styles.activeZelleTypeText]}>From (Deposit / Income)</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[styles.zelleTypeBtn, fromOrTo === 'To' && styles.activeZelleTypeBtn]}
-                    onPress={() => setFromOrTo('To')}
-                  >
-                    <Text style={[styles.zelleTypeText, fromOrTo === 'To' && styles.activeZelleTypeText]}>To (Payment / Expense)</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            )}
 
-            {/* Option Checkboxes (Credit Card Only) */}
-            {!isCheckingSelected && (
-              <View style={styles.optionRow}>
-                <TouchableOpacity
-                  style={[styles.optionBtn, isFee && styles.activeOptionBtn]}
-                  onPress={() => {
-                    setIsFee(!isFee);
-                    setIsReward(false);
-                  }}
-                >
-                  <Text style={[styles.optionBtnText, isFee && styles.activeOptionBtnText]}>Annual Fee</Text>
-                </TouchableOpacity>
 
-                <TouchableOpacity
-                  style={[styles.optionBtn, isReward && styles.activeOptionBtn]}
-                  onPress={() => {
-                    setIsReward(!isReward);
-                    setIsFee(false);
-                  }}
-                >
-                  <Text style={[styles.optionBtnText, isReward && styles.activeOptionBtnText]}>Reward / Credit</Text>
-                </TouchableOpacity>
-              </View>
-            )}
-
-            {/* Reward Sub-options */}
-            {!isCheckingSelected && isReward && (
-              <View style={styles.zelleDetailsContainer}>
-                <View style={styles.inputGroup}>
-                  <Text style={styles.label}>Credit ($) - Reduces statement balance</Text>
-                  <TextInput
-                    style={styles.input}
-                    value={amount}
-                    onChangeText={handleCreditChange}
-                    placeholder="0.00"
-                    placeholderTextColor="#94a3b8"
-                    keyboardType="decimal-pad"
-                  />
-                </View>
-
-                <View style={[styles.inputGroup, { marginTop: 8 }]}>
-                  <Text style={styles.label}>Reward ($) - Cash reward value earned</Text>
-                  <TextInput
-                    style={styles.input}
-                    value={rewardValue}
-                    onChangeText={setRewardValue}
-                    placeholder="0.00"
-                    placeholderTextColor="#94a3b8"
-                    keyboardType="decimal-pad"
-                  />
-                </View>
-              </View>
-            )}
 
             {/* Description or From/To Name */}
             {!isCheckingSelected ? (
@@ -648,64 +611,186 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
             ) : (
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>From / To Name</Text>
-                <View style={styles.fromToRow}>
+                <TextInput
+                  style={[styles.input, (isZelle || isInterest) && styles.disabledInput]}
+                  value={fromTo}
+                  onChangeText={setFromTo}
+                  placeholder={
+                    isInterest
+                      ? "Interest"
+                      : isZelle
+                      ? "(Cleared for Zelle)"
+                      : "e.g. Landlord, Employer, John Doe"
+                  }
+                  placeholderTextColor="#94a3b8"
+                  editable={!isZelle && !isInterest}
+                />
+              </View>
+            )}
+
+            {/* Amount input & Option buttons row (Credit Card vs Checking/Saving layout) */}
+            {!isCheckingSelected ? (
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Amount (USD)</Text>
+                <View style={styles.dateRow}>
+                  {!(logType === 'transaction' && !isCheckingSelected && isReward) ? (
+                    <TextInput
+                      style={[styles.input, styles.dateInput]}
+                      value={amount}
+                      onChangeText={setAmount}
+                      placeholder="0.00"
+                      placeholderTextColor="#94a3b8"
+                      keyboardType="decimal-pad"
+                    />
+                  ) : (
+                    <View style={styles.dateInput} />
+                  )}
+                  <TouchableOpacity
+                    style={[styles.quickDateButton, styles.todayDateButton, isFee && styles.activeOrangeBtn]}
+                    onPress={() => {
+                      setIsFee(!isFee);
+                      setIsReward(false);
+                    }}
+                  >
+                    <Text style={[styles.quickDateText, isFee && styles.activeOrangeBtnText]}>Fee</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[styles.quickDateButton, styles.yesterdayDateButton, isReward && styles.activeLiteGreenBtn]}
+                    onPress={() => {
+                      setIsReward(!isReward);
+                      setIsFee(false);
+                    }}
+                  >
+                    <Text style={[styles.quickDateText, isReward && styles.activeLiteGreenBtnText]}>Reward</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ) : (
+              // Checking/Saving/Brokerage Layout: From & To next to Amount, and Interest (Savings Only) next to Amount
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Amount (USD)</Text>
+                <View style={styles.dateRow}>
                   <TextInput
-                    style={[styles.input, styles.fromToInput, (isZelle || isInterest) && styles.disabledInput]}
-                    value={fromTo}
-                    onChangeText={setFromTo}
-                    placeholder={
-                      isInterest
-                        ? "Interest"
-                        : isZelle
-                        ? "(Cleared for Zelle)"
-                        : "e.g. Landlord, Employer, John Doe"
-                    }
+                    style={[styles.input, styles.dateInput]}
+                    value={amount}
+                    onChangeText={setAmount}
+                    placeholder="0.00"
                     placeholderTextColor="#94a3b8"
-                    editable={!isZelle && !isInterest}
+                    keyboardType="decimal-pad"
                   />
-                  {!isInterest && (
+                  
+                  {/* From Button */}
+                  <TouchableOpacity
+                    style={[
+                      styles.quickDateButton,
+                      selectedCard?.isSaving ? { flex: 0.8 } : styles.todayDateButton,
+                      fromOrTo === 'From' && !isInterest && styles.activeLiteGreenBtn
+                    ]}
+                    onPress={() => {
+                      setFromOrTo('From');
+                      setIsInterest(false);
+                    }}
+                  >
+                    <Text style={[styles.quickDateText, fromOrTo === 'From' && !isInterest && styles.activeLiteGreenBtnText]}>
+                      From
+                    </Text>
+                  </TouchableOpacity>
+
+                  {/* To Button */}
+                  <TouchableOpacity
+                    style={[
+                      styles.quickDateButton,
+                      selectedCard?.isSaving ? { flex: 0.8 } : styles.yesterdayDateButton,
+                      fromOrTo === 'To' && !isInterest && styles.activeOrangeBtn
+                    ]}
+                    onPress={() => {
+                      setFromOrTo('To');
+                      setIsInterest(false);
+                    }}
+                  >
+                    <Text style={[styles.quickDateText, fromOrTo === 'To' && !isInterest && styles.activeOrangeBtnText]}>
+                      To
+                    </Text>
+                  </TouchableOpacity>
+
+                  {/* Interest Button (Savings Only) */}
+                  {selectedCard?.isSaving && (
                     <TouchableOpacity
-                      style={[styles.zelleToggleBtn, isZelle && styles.activeZelleToggleBtn]}
-                      onPress={() => setIsZelle(!isZelle)}
+                      style={[
+                        styles.quickDateButton,
+                        { flex: 1.1 },
+                        isInterest && styles.activeOptionBtn
+                      ]}
+                      onPress={() => {
+                        setIsInterest(!isInterest);
+                      }}
                     >
-                      <Text style={[styles.zelleToggleText, isZelle && styles.activeZelleToggleText]}>Zelle</Text>
+                      <Text style={[styles.quickDateText, isInterest && styles.activeOptionBtnText]}>
+                        Interest
+                      </Text>
                     </TouchableOpacity>
                   )}
                 </View>
               </View>
             )}
 
-            {/* Amount input (Hidden only for non-cashback rewards, since amount is 0) */}
-            {!(logType === 'transaction' && !isCheckingSelected && isReward) && (
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Amount (USD)</Text>
-                <TextInput
-                  style={styles.input}
-                  value={amount}
-                  onChangeText={setAmount}
-                  placeholder="0.00"
-                  placeholderTextColor="#94a3b8"
-                  keyboardType="decimal-pad"
-                />
+            {/* Reward Sub-options */}
+            {!isCheckingSelected && isReward && (
+              <View style={styles.zelleDetailsContainer}>
+                <View style={styles.inputGroup}>
+                  <Text style={styles.label}>Credit ($) - Reduces statement balance</Text>
+                  <TextInput
+                    style={[styles.input, styles.amountInput]}
+                    value={amount}
+                    onChangeText={handleCreditChange}
+                    placeholder="0.00"
+                    placeholderTextColor="#94a3b8"
+                    keyboardType="decimal-pad"
+                  />
+                </View>
+
+                <View style={[styles.inputGroup, { marginTop: 8 }]}>
+                  <Text style={styles.label}>Reward ($) - Cash reward value earned</Text>
+                  <TextInput
+                    style={[styles.input, styles.amountInput]}
+                    value={rewardValue}
+                    onChangeText={setRewardValue}
+                    placeholder="0.00"
+                    placeholderTextColor="#94a3b8"
+                    keyboardType="decimal-pad"
+                  />
+                </View>
               </View>
             )}
 
             {/* Checking-Specific Details or Zelle inputs */}
             {isCheckingSelected && (
-              <>
+              <View style={styles.inputGroup}>
+                <View style={styles.transferDetailsHeader}>
+                  <Text style={[styles.label, { marginBottom: 0 }]}>Details</Text>
+                  {!isInterest && (
+                    <TouchableOpacity
+                      style={[styles.ccBillPayTag, isZelle && styles.activeCcBillPayTag]}
+                      onPress={() => setIsZelle(!isZelle)}
+                    >
+                      <Text style={[styles.ccBillPayTagText, isZelle && styles.activeCcBillPayTagText]}>
+                        Zelle
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+
                 {!isZelle ? (
-                  <View style={styles.inputGroup}>
-                    <Text style={styles.label}>Details (Excel For Column)</Text>
-                    <TextInput
-                      style={[styles.input, styles.textArea]}
-                      value={details}
-                      onChangeText={setDetails}
-                      placeholder={isInterest ? "e.g. Monthly interest credit" : "e.g. Monthly rent, utility bill payment"}
-                      placeholderTextColor="#94a3b8"
-                      multiline={true}
-                      numberOfLines={2}
-                    />
-                  </View>
+                  <TextInput
+                    style={[styles.input, styles.textArea]}
+                    value={details}
+                    onChangeText={setDetails}
+                    placeholder={isInterest ? "e.g. Monthly interest credit" : "e.g. Monthly rent, utility bill payment"}
+                    placeholderTextColor="#94a3b8"
+                    multiline={true}
+                    numberOfLines={2}
+                  />
                 ) : (
                   <View style={styles.zelleDetailsContainer}>
                     {/* Zelle Name */}
@@ -721,7 +806,7 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
                     </View>
 
                     {/* Zelle Details */}
-                    <View style={styles.inputGroup}>
+                    <View style={[styles.inputGroup, { marginBottom: 0 }]}>
                       <Text style={styles.label}>Zelle Details</Text>
                       <TextInput
                         style={[styles.input, styles.textArea]}
@@ -735,7 +820,7 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
                     </View>
                   </View>
                 )}
-              </>
+              </View>
             )}
           </>
         )}
@@ -752,13 +837,13 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
               placeholderTextColor="#94a3b8"
             />
             <TouchableOpacity
-              style={[styles.quickDateButton, date === getTodayString() && styles.activeQuickDate]}
+              style={[styles.quickDateButton, styles.todayDateButton, date === getTodayString() && styles.activeQuickDate]}
               onPress={() => handleQuickDateSelect('today')}
             >
               <Text style={[styles.quickDateText, date === getTodayString() && styles.activeQuickDateText]}>Today</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.quickDateButton, date === getYesterdayString() && styles.activeQuickDate]}
+              style={[styles.quickDateButton, styles.yesterdayDateButton, date === getYesterdayString() && styles.activeQuickDate]}
               onPress={() => handleQuickDateSelect('yesterday')}
             >
               <Text style={[styles.quickDateText, date === getYesterdayString() && styles.activeQuickDateText]}>Yesterday</Text>
@@ -792,18 +877,26 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Select Account/Card</Text>
             <FlatList
-              data={cards.filter(c => !c.isBrokerage)}
+              data={cards.filter(c => !c.isBrokerage && !isClosedCard(c))}
               keyExtractor={item => item.id}
               renderItem={({ item }) => (
                 <TouchableOpacity
-                  style={[styles.modalItem, selectedCardId === item.id && styles.modalItemSelected]}
+                  style={[
+                    styles.modalItem,
+                    { backgroundColor: getCardBgColor(item), marginVertical: 4, borderRadius: 4 },
+                    selectedCardId === item.id && { borderWidth: 2, borderColor: '#0f172a' }
+                  ]}
                   onPress={() => {
                     setSelectedCardId(item.id);
                     setCardModalVisible(false);
                   }}
                 >
-                  <Text style={[styles.modalItemText, selectedCardId === item.id && styles.modalItemTextSelected]}>
-                    {item.name} ({item.isChecking ? 'Checking' : item.isSaving ? 'Saving' : 'Credit Card'})
+                  <Text style={[
+                    styles.modalItemText,
+                    { color: getCardTextColor(item) },
+                    selectedCardId === item.id && { fontWeight: '700' }
+                  ]}>
+                    {item.name}
                   </Text>
                 </TouchableOpacity>
               )}
@@ -830,14 +923,22 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
               keyExtractor={item => item.id}
               renderItem={({ item }) => (
                 <TouchableOpacity
-                  style={[styles.modalItem, selectedSourceCardId === item.id && styles.modalItemSelected]}
+                  style={[
+                    styles.modalItem,
+                    { backgroundColor: getCardBgColor(item), marginVertical: 4, borderRadius: 4 },
+                    selectedSourceCardId === item.id && { borderWidth: 2, borderColor: '#0f172a' }
+                  ]}
                   onPress={() => {
                     setSelectedSourceCardId(item.id);
                     setSourceModalVisible(false);
                   }}
                 >
-                  <Text style={[styles.modalItemText, selectedSourceCardId === item.id && styles.modalItemTextSelected]}>
-                    {item.name} ({item.isSaving ? 'Saving' : item.isBrokerage ? 'Brokerage' : 'Checking'})
+                  <Text style={[
+                    styles.modalItemText,
+                    { color: getCardTextColor(item) },
+                    selectedSourceCardId === item.id && { fontWeight: '700' }
+                  ]}>
+                    {item.name}
                   </Text>
                 </TouchableOpacity>
               )}
@@ -864,14 +965,22 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
               keyExtractor={item => item.id}
               renderItem={({ item }) => (
                 <TouchableOpacity
-                  style={[styles.modalItem, selectedTargetCardId === item.id && styles.modalItemSelected]}
+                  style={[
+                    styles.modalItem,
+                    { backgroundColor: getCardBgColor(item), marginVertical: 4, borderRadius: 4 },
+                    selectedTargetCardId === item.id && { borderWidth: 2, borderColor: '#0f172a' }
+                  ]}
                   onPress={() => {
                     setSelectedTargetCardId(item.id);
                     setTargetModalVisible(false);
                   }}
                 >
-                  <Text style={[styles.modalItemText, selectedTargetCardId === item.id && styles.modalItemTextSelected]}>
-                    {item.name} ({item.isChecking ? 'Checking' : item.isSaving ? 'Saving' : item.isBrokerage ? 'Brokerage' : 'Credit Card'})
+                  <Text style={[
+                    styles.modalItemText,
+                    { color: getCardTextColor(item) },
+                    selectedTargetCardId === item.id && { fontWeight: '700' }
+                  ]}>
+                    {item.name}
                   </Text>
                 </TouchableOpacity>
               )}
@@ -959,6 +1068,9 @@ const styles = StyleSheet.create({
     color: '#0f172a',
     backgroundColor: '#ffffff',
   },
+  amountInput: {
+    width: 160,
+  },
   selectorButton: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -984,10 +1096,15 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   dateInput: {
-    flex: 2,
+    flex: 1.5,
+  },
+  todayDateButton: {
+    flex: 0.9,
+  },
+  yesterdayDateButton: {
+    flex: 1.3,
   },
   quickDateButton: {
-    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     height: 38,
@@ -1001,9 +1118,10 @@ const styles = StyleSheet.create({
     borderColor: '#0f172a',
   },
   quickDateText: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '600',
     color: '#475569',
+    paddingHorizontal: 2,
   },
   activeQuickDateText: {
     color: '#ffffff',
@@ -1188,6 +1306,30 @@ const styles = StyleSheet.create({
     backgroundColor: '#0f172a',
     borderColor: '#0f172a',
   },
+  activeFeeBtn: {
+    backgroundColor: '#dc2626',
+    borderColor: '#dc2626',
+  },
+  activeRewardBtn: {
+    backgroundColor: '#16a34a',
+    borderColor: '#16a34a',
+  },
+  activeOrangeBtn: {
+    backgroundColor: '#ea580c', // Dark orange
+    borderColor: '#ea580c',
+  },
+  activeOrangeBtnText: {
+    color: '#ffffff',
+    fontWeight: 'bold',
+  },
+  activeLiteGreenBtn: {
+    backgroundColor: '#dcfce7', // Lite green
+    borderColor: '#bbf7d0',
+  },
+  activeLiteGreenBtnText: {
+    color: '#14532d', // Dark green text for readability
+    fontWeight: 'bold',
+  },
   optionBtnText: {
     fontSize: 13,
     fontWeight: '600',
@@ -1196,5 +1338,32 @@ const styles = StyleSheet.create({
   activeOptionBtnText: {
     color: '#ffffff',
     fontWeight: 'bold',
+  },
+  transferDetailsHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  ccBillPayTag: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
+    backgroundColor: '#ffffff',
+    borderRadius: 4,
+  },
+  activeCcBillPayTag: {
+    backgroundColor: '#1e40af',
+    borderColor: '#1e40af',
+  },
+  ccBillPayTagText: {
+    fontSize: 10,
+    fontWeight: 'bold',
+    color: '#64748b',
+    textTransform: 'uppercase',
+  },
+  activeCcBillPayTagText: {
+    color: '#ffffff',
   },
 });
