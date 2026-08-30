@@ -11,21 +11,22 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { Expense, CreditCard, Category } from './src/types';
+import { Expense, CreditCard, FutureExpense } from './src/types';
 import {
   getExpenses,
   saveExpenses,
   getCreditCards,
   saveCreditCards,
-  getCategories,
-  saveCategories,
+  getFutureExpenses,
+  saveFutureExpenses,
 } from './src/storage';
 import { Dashboard } from './src/components/Dashboard';
 import { ExpenseForm } from './src/components/ExpenseForm';
-import { History } from './src/components/History';
+import { CheckingTab } from './src/components/CheckingTab';
+import { CreditCardsTab } from './src/components/CreditCardsTab';
 import { Settings } from './src/components/Settings';
 
-type TabType = 'dashboard' | 'add' | 'history' | 'settings';
+type TabType = 'dashboard' | 'checking' | 'credit_cards' | 'add' | 'settings';
 
 export default function App() {
   const { width } = useWindowDimensions();
@@ -34,7 +35,7 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [cards, setCards] = useState<CreditCard[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
+  const [futureExpenses, setFutureExpenses] = useState<FutureExpense[]>([]);
   const [activeTab, setActiveTab] = useState<TabType>('dashboard');
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
 
@@ -44,11 +45,11 @@ export default function App() {
       try {
         const loadedExpenses = await getExpenses();
         const loadedCards = await getCreditCards();
-        const loadedCategories = await getCategories();
+        const loadedFutureExpenses = await getFutureExpenses();
         
         setExpenses(loadedExpenses);
         setCards(loadedCards);
-        setCategories(loadedCategories);
+        setFutureExpenses(loadedFutureExpenses);
       } catch (error) {
         console.error('Failed to load initial data:', error);
       } finally {
@@ -59,31 +60,100 @@ export default function App() {
   }, []);
 
   // Expense Handlers
-  const handleExpenseSubmit = async (expenseData: Omit<Expense, 'id'> & { id?: string }) => {
+  const handleExpenseSubmit = async (
+    expenseData:
+      | (Omit<Expense, 'id'> & { id?: string })
+      | (Omit<Expense, 'id'> & { id?: string })[]
+  ) => {
     let updatedExpenses: Expense[];
+    const isArray = Array.isArray(expenseData);
 
-    if (expenseData.id) {
-      // Editing existing expense
-      updatedExpenses = expenses.map(e =>
-        e.id === expenseData.id ? (expenseData as Expense) : e
-      );
+    if (editingExpense) {
+      // Editing mode
+      if (editingExpense.transferLinkId) {
+        // Was previously a transfer
+        // Filter out all transactions linked to this transfer
+        const filtered = expenses.filter(e => e.transferLinkId !== editingExpense.transferLinkId);
+        if (isArray) {
+          // Saving as edited transfer
+          const transferLinkId = editingExpense.transferLinkId;
+          const newItems = (expenseData as Omit<Expense, 'id'>[]).map(item => ({
+            ...item,
+            id: 'exp-' + Math.random().toString(36).substr(2, 9) + Date.now().toString(36),
+            transferLinkId,
+          }));
+          updatedExpenses = [...newItems, ...filtered];
+        } else {
+          // Saving as standard transaction (converted from transfer)
+          const newExpense: Expense = {
+            ...(expenseData as Omit<Expense, 'id'> & { id?: string }),
+            id: editingExpense.id, // keep same ID
+          };
+          updatedExpenses = [newExpense, ...filtered];
+        }
+      } else {
+        // Was previously a standard transaction
+        if (isArray) {
+          // Saving as transfer (converted from standard transaction)
+          // Filter out the old standard transaction
+          const filtered = expenses.filter(e => e.id !== editingExpense.id);
+          const transferLinkId = 'tr-' + Math.random().toString(36).substr(2, 9) + Date.now().toString(36);
+          const newItems = (expenseData as Omit<Expense, 'id'>[]).map(item => ({
+            ...item,
+            id: 'exp-' + Math.random().toString(36).substr(2, 9) + Date.now().toString(36),
+            transferLinkId,
+          }));
+          updatedExpenses = [...newItems, ...filtered];
+        } else {
+          // Saving as standard transaction
+          updatedExpenses = expenses.map(e =>
+            e.id === editingExpense.id ? (expenseData as Expense) : e
+          );
+        }
+      }
       setEditingExpense(null);
     } else {
-      // Adding new expense
-      const newExpense: Expense = {
-        ...expenseData,
-        id: Math.random().toString(36).substr(2, 9) + Date.now().toString(36),
-      };
-      updatedExpenses = [newExpense, ...expenses];
+      // Adding mode
+      if (isArray) {
+        // Adding a new transfer
+        const transferLinkId = 'tr-' + Math.random().toString(36).substr(2, 9) + Date.now().toString(36);
+        const newItems = (expenseData as Omit<Expense, 'id'>[]).map(item => ({
+          ...item,
+          id: 'exp-' + Math.random().toString(36).substr(2, 9) + Date.now().toString(36),
+          transferLinkId,
+        }));
+        updatedExpenses = [...newItems, ...expenses];
+      } else {
+        // Adding a new standard transaction
+        const newExpense: Expense = {
+          ...(expenseData as Omit<Expense, 'id'>),
+          id: 'exp-' + Math.random().toString(36).substr(2, 9) + Date.now().toString(36),
+        };
+        updatedExpenses = [newExpense, ...expenses];
+      }
     }
 
     setExpenses(updatedExpenses);
     await saveExpenses(updatedExpenses);
-    setActiveTab('history'); // Navigate to history to see the entry
+
+    // Redirect tab based on active card type of the first/only item
+    const targetCardId = isArray ? (expenseData as any)[0].creditCardId : (expenseData as any).creditCardId;
+    const card = cards.find(c => c.id === targetCardId);
+    if (card?.isChecking || card?.isSaving) {
+      setActiveTab('checking');
+    } else {
+      setActiveTab('credit_cards');
+    }
   };
 
   const handleExpenseDelete = async (id: string) => {
-    const updatedExpenses = expenses.filter(e => e.id !== id);
+    const target = expenses.find(e => e.id === id);
+    let updatedExpenses: Expense[];
+    if (target && target.transferLinkId) {
+      updatedExpenses = expenses.filter(e => e.transferLinkId !== target.transferLinkId);
+    } else {
+      updatedExpenses = expenses.filter(e => e.id !== id);
+    }
     setExpenses(updatedExpenses);
     await saveExpenses(updatedExpenses);
   };
@@ -94,8 +164,13 @@ export default function App() {
   };
 
   const handleCancelEditing = () => {
+    const isChecking = editingExpense && cards.find(c => c.id === editingExpense.creditCardId)?.isChecking;
     setEditingExpense(null);
-    setActiveTab('history');
+    if (isChecking) {
+      setActiveTab('checking');
+    } else {
+      setActiveTab('credit_cards');
+    }
   };
 
   // Credit Card Handlers
@@ -115,44 +190,62 @@ export default function App() {
     await saveCreditCards(updatedCards);
   };
 
-  // Category Handlers
-  const handleCategoryAdd = async (categoryData: Omit<Category, 'id'>) => {
-    const newCategory: Category = {
-      ...categoryData,
-      id: 'cat-' + Math.random().toString(36).substr(2, 9) + Date.now().toString(36),
-    };
-    const updatedCategories = [...categories, newCategory];
-    setCategories(updatedCategories);
-    await saveCategories(updatedCategories);
+  const handleFutureExpenseAdd = async (newFuture: Omit<FutureExpense, 'id'>) => {
+    const updated = [
+      {
+        ...newFuture,
+        id: 'future-' + Math.random().toString(36).substr(2, 9) + Date.now().toString(36),
+      },
+      ...futureExpenses,
+    ];
+    setFutureExpenses(updated);
+    await saveFutureExpenses(updated);
   };
 
-  const handleCategoryDelete = async (id: string) => {
-    const updatedCategories = categories.filter(c => c.id !== id);
-    setCategories(updatedCategories);
-    await saveCategories(updatedCategories);
+  const handleFutureExpenseDelete = async (id: string) => {
+    const updated = futureExpenses.filter(f => f.id !== id);
+    setExpenses(expenses); // force reload dependencies if needed
+    setFutureExpenses(updated);
+    await saveFutureExpenses(updated);
   };
 
   // Render correct screen component based on active tab
   const renderContent = () => {
     switch (activeTab) {
       case 'dashboard':
-        return <Dashboard expenses={expenses} cards={cards} categories={categories} />;
+        return (
+          <Dashboard
+            expenses={expenses}
+            cards={cards}
+            futureExpenses={futureExpenses}
+            onAddFutureExpense={handleFutureExpenseAdd}
+            onDeleteFutureExpense={handleFutureExpenseDelete}
+          />
+        );
       case 'add':
         return (
           <ExpenseForm
             cards={cards}
-            categories={categories}
+            expenses={expenses}
             onSubmit={handleExpenseSubmit}
             editingExpense={editingExpense}
             onCancelEditing={handleCancelEditing}
           />
         );
-      case 'history':
+      case 'checking':
         return (
-          <History
+          <CheckingTab
             expenses={expenses}
             cards={cards}
-            categories={categories}
+            onDelete={handleExpenseDelete}
+            onEdit={handleExpenseEditRequest}
+          />
+        );
+      case 'credit_cards':
+        return (
+          <CreditCardsTab
+            expenses={expenses}
+            cards={cards}
             onDelete={handleExpenseDelete}
             onEdit={handleExpenseEditRequest}
           />
@@ -161,15 +254,20 @@ export default function App() {
         return (
           <Settings
             cards={cards}
-            categories={categories}
             onAddCard={handleCardAdd}
             onDeleteCard={handleCardDelete}
-            onAddCategory={handleCategoryAdd}
-            onDeleteCategory={handleCategoryDelete}
           />
         );
       default:
-        return <Dashboard expenses={expenses} cards={cards} categories={categories} />;
+        return (
+          <Dashboard
+            expenses={expenses}
+            cards={cards}
+            futureExpenses={futureExpenses}
+            onAddFutureExpense={handleFutureExpenseAdd}
+            onDeleteFutureExpense={handleFutureExpenseDelete}
+          />
+        );
     }
   };
 
@@ -210,22 +308,32 @@ export default function App() {
         </TouchableOpacity>
 
         <TouchableOpacity
+          style={[styles.tabButton, activeTab === 'checking' && styles.activeTabButton]}
+          onPress={() => {
+            setEditingExpense(null);
+            setActiveTab('checking');
+          }}
+        >
+          <Text style={[styles.tabText, activeTab === 'checking' && styles.activeTabText]}>Checking & Saving</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.tabButton, activeTab === 'credit_cards' && styles.activeTabButton]}
+          onPress={() => {
+            setEditingExpense(null);
+            setActiveTab('credit_cards');
+          }}
+        >
+          <Text style={[styles.tabText, activeTab === 'credit_cards' && styles.activeTabText]}>Credit Cards</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
           style={[styles.tabButton, activeTab === 'add' && styles.activeTabButton]}
           onPress={() => setActiveTab('add')}
         >
           <Text style={[styles.tabText, activeTab === 'add' && styles.activeTabText]}>
-            {editingExpense ? 'Edit Item' : 'Log Spend'}
+            {editingExpense ? 'Edit Item' : 'Log'}
           </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.tabButton, activeTab === 'history' && styles.activeTabButton]}
-          onPress={() => {
-            setEditingExpense(null);
-            setActiveTab('history');
-          }}
-        >
-          <Text style={[styles.tabText, activeTab === 'history' && styles.activeTabText]}>History</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
