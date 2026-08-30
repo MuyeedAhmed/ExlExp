@@ -429,11 +429,11 @@ const styles = StyleSheet.create({
   },
   tabBar: {
     flexDirection: 'row',
-    height: 48,
+    height: Platform.OS === 'android' ? 68 : 48,
     borderTopWidth: 1,
     borderTopColor: '#e2e8f0',
     backgroundColor: '#ffffff',
-    paddingBottom: 0,
+    paddingBottom: Platform.OS === 'android' ? 16 : 0,
   },
   tabBarWeb: {
     maxWidth: 600,
