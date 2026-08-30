@@ -15,9 +15,9 @@ export const CreditCardsTab: React.FC<CreditCardsTabProps> = ({
   onDelete,
   onEdit,
 }) => {
-  // Filter out the Checking accounts
+  // Filter out the Checking & Saving accounts
   const creditCardsOnly = useMemo(() => {
-    return cards.filter(c => !c.isChecking);
+    return cards.filter(c => !c.isChecking && !c.isSaving);
   }, [cards]);
 
   // Active card tab state
@@ -51,25 +51,25 @@ export const CreditCardsTab: React.FC<CreditCardsTabProps> = ({
 
     cardExpenses.forEach(e => {
       const amt = Number(e.amount) || 0;
-      const desc = e.description.toLowerCase();
 
-      if (amt > 0) {
-        if (desc.includes('fee')) {
-          fees += amt;
+      if (e.isFee) {
+        fees += amt;
+      } else if (e.isReward) {
+        if (e.rewardType === 'cashback') {
+          const cashbackValue = Number(e.rewardValue) || Math.abs(amt);
+          rewards += cashbackValue;
+          paid += Math.abs(amt); // Cashback statement credit reduces what is owed
         } else {
-          spent += amt;
+          rewards += Number(e.rewardValue) || 0;
         }
+      } else if (amt > 0) {
+        spent += amt;
       } else if (amt < 0) {
-        const absAmt = Math.abs(amt);
-        if (desc.includes('payment')) {
-          paid += absAmt;
-        } else {
-          rewards += absAmt;
-        }
+        paid += Math.abs(amt);
       }
     });
 
-    const owed = spent + fees - paid - rewards;
+    const owed = spent + fees - paid;
 
     return { spent, paid, rewards, fees, owed };
   }, [cardExpenses]);
@@ -153,12 +153,11 @@ export const CreditCardsTab: React.FC<CreditCardsTabProps> = ({
           {/* Table Headers */}
           <View style={styles.tableRowHeader}>
             <Text style={[styles.headerCell, { width: 90 }]}>Date</Text>
-            <Text style={[styles.headerCell, { width: 180 }]}>Description</Text>
-            <Text style={[styles.headerCell, { width: 80, textAlign: 'right' }]}>Spend</Text>
-            <Text style={[styles.headerCell, { width: 80, textAlign: 'right' }]}>Paid</Text>
-            <Text style={[styles.headerCell, { width: 80, textAlign: 'right' }]}>Rewards</Text>
-            <Text style={[styles.headerCell, { width: 80, textAlign: 'right' }]}>Fee</Text>
-            <Text style={[styles.headerCell, { width: 120 }]}>Category</Text>
+            <Text style={[styles.headerCell, { width: 200 }]}>Description</Text>
+            <Text style={[styles.headerCell, { width: 90, textAlign: 'right' }]}>Spend</Text>
+            <Text style={[styles.headerCell, { width: 90, textAlign: 'right' }]}>Paid</Text>
+            <Text style={[styles.headerCell, { width: 100, textAlign: 'right' }]}>Rewards</Text>
+            <Text style={[styles.headerCell, { width: 90, textAlign: 'right' }]}>Fee</Text>
             <Text style={[styles.headerCell, { width: 100, textAlign: 'center' }]}>Actions</Text>
           </View>
 
@@ -169,51 +168,46 @@ export const CreditCardsTab: React.FC<CreditCardsTabProps> = ({
             ) : (
               cardExpenses.map(item => {
                 const amt = Number(item.amount) || 0;
-                const desc = item.description.toLowerCase();
 
                 let spendVal = '-';
                 let paidVal = '-';
                 let rewardsVal = '-';
                 let feeVal = '-';
 
-                if (amt > 0) {
-                  if (desc.includes('fee')) {
-                    feeVal = `$${amt.toFixed(2)}`;
+                if (item.isFee) {
+                  feeVal = `$${amt.toFixed(2)}`;
+                } else if (item.isReward) {
+                  if (item.rewardType === 'cashback') {
+                    paidVal = `$${Math.abs(amt).toFixed(2)}`;
+                    rewardsVal = `$${(item.rewardValue || Math.abs(amt)).toFixed(2)}`;
                   } else {
-                    spendVal = `$${amt.toFixed(2)}`;
+                    rewardsVal = `${item.rewardValue || 0} pts`;
                   }
+                } else if (amt > 0) {
+                  spendVal = `$${amt.toFixed(2)}`;
                 } else if (amt < 0) {
-                  const absAmt = Math.abs(amt);
-                  if (desc.includes('payment')) {
-                    paidVal = `$${absAmt.toFixed(2)}`;
-                  } else {
-                    rewardsVal = `$${absAmt.toFixed(2)}`;
-                  }
+                  paidVal = `$${Math.abs(amt).toFixed(2)}`;
                 }
 
                 return (
                   <View key={item.id} style={styles.tableRow}>
                     <Text style={[styles.cell, { width: 90 }, styles.monoText]}>{item.date}</Text>
-                    <Text style={[styles.cell, { width: 180 }]} numberOfLines={1}>
+                    <Text style={[styles.cell, { width: 200 }]} numberOfLines={1}>
                       {item.description}
                     </Text>
                     
                     {/* Columns matching spreadsheet values */}
-                    <Text style={[styles.cell, { width: 80, textAlign: 'right' }, styles.monoText]}>
+                    <Text style={[styles.cell, { width: 90, textAlign: 'right' }, styles.monoText]}>
                       {spendVal}
                     </Text>
-                    <Text style={[styles.cell, { width: 80, textAlign: 'right' }, styles.monoText, paidVal !== '-' && { color: '#16a34a' }]}>
+                    <Text style={[styles.cell, { width: 90, textAlign: 'right' }, styles.monoText, paidVal !== '-' && { color: '#16a34a' }]}>
                       {paidVal}
                     </Text>
-                    <Text style={[styles.cell, { width: 80, textAlign: 'right' }, styles.monoText, rewardsVal !== '-' && { color: '#16a34a' }]}>
+                    <Text style={[styles.cell, { width: 100, textAlign: 'right' }, styles.monoText, rewardsVal !== '-' && { color: '#16a34a' }]}>
                       {rewardsVal}
                     </Text>
-                    <Text style={[styles.cell, { width: 80, textAlign: 'right' }, styles.monoText, feeVal !== '-' && { color: '#dc2626' }]}>
+                    <Text style={[styles.cell, { width: 90, textAlign: 'right' }, styles.monoText, feeVal !== '-' && { color: '#dc2626' }]}>
                       {feeVal}
-                    </Text>
-
-                    <Text style={[styles.cell, { width: 120 }]} numberOfLines={1}>
-                      {item.category}
                     </Text>
                     
                     <View style={[styles.cellActions, { width: 100 }]}>

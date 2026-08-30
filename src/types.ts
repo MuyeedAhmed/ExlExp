@@ -2,11 +2,16 @@ export interface Expense {
   id: string;
   description: string;
   amount: number;
-  category: string;
   creditCardId: string; // references CreditCard.id
   date: string; // format YYYY-MM-DD
-  fromTo?: string; // From/To for checking accounts
-  details?: string; // Details for checking accounts
+  fromTo?: string; // From/To for checking/saving accounts
+  details?: string; // Details for checking/saving accounts
+  isFee?: boolean; // annual fee marker for CC
+  isReward?: boolean; // reward marker for CC
+  rewardType?: 'cashback' | 'other'; // cashback statement credit vs other (miles/points)
+  rewardValue?: number; // cashback dollars or miles/points value
+  isTransfer?: boolean; // transfer marker
+  transferLinkId?: string; // linked transfer transaction ID
 }
 
 export interface CreditCard {
@@ -14,12 +19,7 @@ export interface CreditCard {
   name: string;
   lastFour?: string; // Optional last 4 digits
   isChecking?: boolean; // Optional flag to indicate checking account
-}
-
-export interface Category {
-  id: string;
-  name: string;
-  icon?: string; // Optional icon name from expo vector icons
+  isSaving?: boolean; // Optional flag to indicate saving account
 }
 
 export interface FutureExpense {

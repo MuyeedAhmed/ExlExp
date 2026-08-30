@@ -6,39 +6,30 @@ import {
   TextInput,
   TouchableOpacity,
   ScrollView,
-  FlatList,
   Alert,
   Platform,
 } from 'react-native';
-import { CreditCard, Category } from '../types';
+import { CreditCard } from '../types';
 
 interface SettingsProps {
   cards: CreditCard[];
-  categories: Category[];
   onAddCard: (card: Omit<CreditCard, 'id'>) => void;
   onDeleteCard: (id: string) => void;
-  onAddCategory: (category: Omit<Category, 'id'>) => void;
-  onDeleteCategory: (id: string) => void;
 }
 
 export const Settings: React.FC<SettingsProps> = ({
   cards,
-  categories,
   onAddCard,
   onDeleteCard,
-  onAddCategory,
-  onDeleteCategory,
 }) => {
   // New Card Form State
   const [cardName, setCardName] = useState('');
   const [lastFour, setLastFour] = useState('');
 
-  // New Checking Account Form State
+  // New Checking/Saving Account Form State
   const [checkingName, setCheckingName] = useState('');
   const [checkingLastFour, setCheckingLastFour] = useState('');
-
-  // New Category Form State
-  const [categoryName, setCategoryName] = useState('');
+  const [checkingAccountType, setCheckingAccountType] = useState<'checking' | 'saving'>('checking');
 
   const handleAddCard = () => {
     if (!cardName.trim()) {
@@ -54,6 +45,7 @@ export const Settings: React.FC<SettingsProps> = ({
       name: cardName.trim(),
       lastFour: lastFour.trim() || undefined,
       isChecking: false,
+      isSaving: false,
     });
 
     setCardName('');
@@ -62,7 +54,7 @@ export const Settings: React.FC<SettingsProps> = ({
 
   const handleAddChecking = () => {
     if (!checkingName.trim()) {
-      showAlert('Error', 'Please enter a checking account name.');
+      showAlert('Error', 'Please enter an account name.');
       return;
     }
     if (checkingLastFour && (checkingLastFour.length !== 4 || isNaN(Number(checkingLastFour)))) {
@@ -73,75 +65,30 @@ export const Settings: React.FC<SettingsProps> = ({
     onAddCard({
       name: checkingName.trim(),
       lastFour: checkingLastFour.trim() || undefined,
-      isChecking: true,
+      isChecking: checkingAccountType === 'checking',
+      isSaving: checkingAccountType === 'saving',
     });
 
     setCheckingName('');
     setCheckingLastFour('');
   };
 
-  const handleAddCategory = () => {
-    if (!categoryName.trim()) {
-      showAlert('Error', 'Please enter a category name.');
-      return;
-    }
-
-    // Check if category name already exists
-    const exists = categories.some(
-      c => c.name.toLowerCase() === categoryName.trim().toLowerCase()
-    );
-    if (exists) {
-      showAlert('Error', 'This category already exists.');
-      return;
-    }
-
-    onAddCategory({
-      name: categoryName.trim(),
-    });
-
-    setCategoryName('');
-  };
-
   const confirmDeleteCard = (id: string, name: string) => {
     if (cards.length <= 1) {
-      showAlert('Cannot Delete', 'You must keep at least one payment card.');
+      showAlert('Cannot Delete', 'You must keep at least one account/card.');
       return;
     }
 
     const performDelete = () => onDeleteCard(id);
 
     if (Platform.OS === 'web') {
-      if (confirm(`Are you sure you want to remove card "${name}"? Existing expenses using this card will show as Unknown Card.`)) {
+      if (confirm(`Are you sure you want to remove card/account "${name}"? Existing transactions using this card will show as Unknown Card.`)) {
         performDelete();
       }
     } else {
       Alert.alert(
-        'Remove Card',
-        `Are you sure you want to remove card "${name}"? Existing expenses using this card will show as Unknown Card.`,
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Remove', style: 'destructive', onPress: performDelete },
-        ]
-      );
-    }
-  };
-
-  const confirmDeleteCategory = (id: string, name: string) => {
-    if (categories.length <= 1) {
-      showAlert('Cannot Delete', 'You must keep at least one category.');
-      return;
-    }
-
-    const performDelete = () => onDeleteCategory(id);
-
-    if (Platform.OS === 'web') {
-      if (confirm(`Are you sure you want to remove category "${name}"?`)) {
-        performDelete();
-      }
-    } else {
-      Alert.alert(
-        'Remove Category',
-        `Are you sure you want to remove category "${name}"?`,
+        'Remove Card/Account',
+        `Are you sure you want to remove card/account "${name}"? Existing transactions using this card will show as Unknown Card.`,
         [
           { text: 'Cancel', style: 'cancel' },
           { text: 'Remove', style: 'destructive', onPress: performDelete },
@@ -158,24 +105,40 @@ export const Settings: React.FC<SettingsProps> = ({
     }
   };
 
-  const creditCardsOnly = cards.filter(c => !c.isChecking);
-  const checkingAccountsOnly = cards.filter(c => c.isChecking);
+  const creditCardsOnly = cards.filter(c => !c.isChecking && !c.isSaving);
+  const checkingAccountsOnly = cards.filter(c => c.isChecking || c.isSaving);
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
       <Text style={styles.title}>Settings & Customization</Text>
  
-      {/* Checking Accounts Management */}
+      {/* Checking/Saving Accounts Management */}
       <View style={styles.sectionCard}>
-        <Text style={styles.sectionTitle}>Manage Checking Accounts</Text>
+        <Text style={styles.sectionTitle}>Manage Checking & Saving Accounts</Text>
  
-        {/* Add Checking Form */}
+        {/* Account Type Selector Toggle */}
+        <View style={styles.typeSelectorRow}>
+          <TouchableOpacity
+            style={[styles.typeBtn, checkingAccountType === 'checking' && styles.activeTypeBtn]}
+            onPress={() => setCheckingAccountType('checking')}
+          >
+            <Text style={[styles.typeText, checkingAccountType === 'checking' && styles.activeTypeText]}>Checking</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.typeBtn, checkingAccountType === 'saving' && styles.activeTypeBtn]}
+            onPress={() => setCheckingAccountType('saving')}
+          >
+            <Text style={[styles.typeText, checkingAccountType === 'saving' && styles.activeTypeText]}>Saving</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Add Checking/Saving Form */}
         <View style={styles.formContainer}>
           <TextInput
             style={styles.input}
             value={checkingName}
             onChangeText={setCheckingName}
-            placeholder="Checking Name (e.g. Chase Checking)"
+            placeholder={checkingAccountType === 'checking' ? "Checking Name (e.g. Chase Checking)" : "Saving Name (e.g. Ally Saving)"}
             placeholderTextColor="#94a3b8"
           />
           <TextInput
@@ -192,15 +155,15 @@ export const Settings: React.FC<SettingsProps> = ({
           </TouchableOpacity>
         </View>
  
-        {/* Checking List */}
+        {/* Checking/Saving List */}
         <View style={styles.listContainer}>
           {checkingAccountsOnly.length === 0 ? (
-            <Text style={styles.emptyText}>No checking accounts configured.</Text>
+            <Text style={styles.emptyText}>No checking or saving accounts configured.</Text>
           ) : (
             checkingAccountsOnly.map(card => (
               <View key={card.id} style={styles.listItem}>
                 <View style={styles.listItemTextContainer}>
-                  <Text style={styles.listItemTitle}>{card.name}</Text>
+                  <Text style={styles.listItemTitle}>{card.name} ({card.isSaving ? 'Saving' : 'Checking'})</Text>
                   {card.lastFour && <Text style={styles.listItemSub}>Ending in *{card.lastFour}</Text>}
                 </View>
                 <TouchableOpacity
@@ -264,40 +227,6 @@ export const Settings: React.FC<SettingsProps> = ({
           )}
         </View>
       </View>
- 
-      {/* Categories Management */}
-      <View style={styles.sectionCard}>
-        <Text style={styles.sectionTitle}>Manage Categories</Text>
- 
-        {/* Add Category Form */}
-        <View style={styles.formContainer}>
-          <TextInput
-            style={[styles.input, { flex: 1 }]}
-            value={categoryName}
-            onChangeText={setCategoryName}
-            placeholder="New Category Name (e.g. Coffee)"
-            placeholderTextColor="#94a3b8"
-          />
-          <TouchableOpacity style={styles.addButton} onPress={handleAddCategory}>
-            <Text style={styles.addButtonText}>Add Category</Text>
-          </TouchableOpacity>
-        </View>
- 
-        {/* Categories List */}
-        <View style={styles.listContainer}>
-          {categories.map(cat => (
-            <View key={cat.id} style={styles.listItem}>
-              <Text style={styles.listItemTitle}>{cat.name}</Text>
-              <TouchableOpacity
-                style={styles.deleteButton}
-                onPress={() => confirmDeleteCategory(cat.id, cat.name)}
-              >
-                <Text style={styles.deleteButtonText}>Remove</Text>
-              </TouchableOpacity>
-            </View>
-          ))}
-        </View>
-      </View>
     </ScrollView>
   );
 };
@@ -324,6 +253,33 @@ const styles = StyleSheet.create({
     padding: 20,
     borderWidth: 1,
     borderColor: '#cbd5e1',
+  },
+  typeSelectorRow: {
+    flexDirection: 'row',
+    width: '100%',
+    gap: 8,
+    marginBottom: 16,
+  },
+  typeBtn: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
+    paddingVertical: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: 38,
+  },
+  activeTypeBtn: {
+    backgroundColor: '#0f172a',
+    borderColor: '#0f172a',
+  },
+  typeText: {
+    fontSize: 13,
+    color: '#475569',
+  },
+  activeTypeText: {
+    color: '#ffffff',
+    fontWeight: 'bold',
   },
   sectionTitle: {
     fontSize: 15,

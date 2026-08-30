@@ -1,10 +1,9 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Expense, CreditCard, Category, FutureExpense } from './types';
+import { Expense, CreditCard, FutureExpense } from './types';
 import { supabase } from './supabaseClient';
 
 const EXPENSES_KEY = '@ExlExp:expenses';
 const CARDS_KEY = '@ExlExp:credit_cards';
-const CATEGORIES_KEY = '@ExlExp:categories';
 const FUTURE_EXPENSES_KEY = '@ExlExp:future_expenses';
 
 const DEFAULT_CARDS: CreditCard[] = [
@@ -12,16 +11,6 @@ const DEFAULT_CARDS: CreditCard[] = [
   { id: 'card-citistrata', name: 'Citi Strata', lastFour: '1234' },
   { id: 'card-bofa', name: 'BofA Premium', lastFour: '9876' },
   { id: 'card-chase', name: 'Chase Checking', lastFour: '----', isChecking: true }
-];
-
-const DEFAULT_CATEGORIES: Category[] = [
-  { id: 'cat-food', name: 'Food & Dining' },
-  { id: 'cat-groceries', name: 'Groceries' },
-  { id: 'cat-transport', name: 'Transportation' },
-  { id: 'cat-utilities', name: 'Rent & Utilities' },
-  { id: 'cat-shopping', name: 'Shopping' },
-  { id: 'cat-entertainment', name: 'Entertainment' },
-  { id: 'cat-others', name: 'Others' },
 ];
 
 export const getExpenses = async (): Promise<Expense[]> => {
@@ -111,52 +100,6 @@ export const saveCreditCards = async (cards: CreditCard[]): Promise<void> => {
   }
 };
 
-export const getCategories = async (): Promise<Category[]> => {
-  try {
-    const { data, error } = await supabase
-      .from('categories')
-      .select('*');
-
-    if (error) throw error;
-    if (!data || data.length === 0) {
-      await saveCategories(DEFAULT_CATEGORIES);
-      return DEFAULT_CATEGORIES;
-    }
-    return data;
-  } catch (error) {
-    console.log('Supabase offline or error, using local AsyncStorage for categories:', error);
-    try {
-      const data = await AsyncStorage.getItem(CATEGORIES_KEY);
-      if (!data) {
-        await saveCategories(DEFAULT_CATEGORIES);
-        return DEFAULT_CATEGORIES;
-      }
-      return JSON.parse(data);
-    } catch (e) {
-      console.error('Error fetching categories from AsyncStorage:', e);
-      return DEFAULT_CATEGORIES;
-    }
-  }
-};
-
-export const saveCategories = async (categories: Category[]): Promise<void> => {
-  try {
-    const { error: delError } = await supabase.from('categories').delete().neq('id', '');
-    if (delError) throw delError;
-
-    if (categories.length > 0) {
-      const { error: insError } = await supabase.from('categories').insert(categories);
-      if (insError) throw insError;
-    }
-  } catch (error) {
-    console.log('Supabase offline or error, saving categories to local AsyncStorage:', error);
-    try {
-      await AsyncStorage.setItem(CATEGORIES_KEY, JSON.stringify(categories));
-    } catch (e) {
-      console.error('Error saving categories to AsyncStorage:', e);
-    }
-  }
-};
 
 export const getFutureExpenses = async (): Promise<FutureExpense[]> => {
   try {

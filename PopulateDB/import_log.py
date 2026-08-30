@@ -8,61 +8,6 @@ import random
 EXCEL_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'Bank Log.xlsx')
 DB_JSON_PATH = '/Users/muyeedahmed/Desktop/Gitcode/ExlExp/db.json'
 
-# Default Categories
-CATEGORIES = [
-    { "id": "cat-food", "name": "Food & Dining" },
-    { "id": "cat-groceries", "name": "Groceries" },
-    { "id": "cat-transport", "name": "Transportation" },
-    { "id": "cat-utilities", "name": "Rent & Utilities" },
-    { "id": "cat-shopping", "name": "Shopping" },
-    { "id": "cat-entertainment", "name": "Entertainment" },
-    { "id": "cat-others", "name": "Others" }
-]
-
-def guess_category(merchant_name):
-    m = str(merchant_name).lower()
-    
-    import re
-    words = set(re.findall(r'\b\w+\b', m))
-    
-    # Food & Dining keywords
-    food_words = {'starbucks', 'bakery', 'gonbei', 'sweets', 'cafe', 'restaurant', 'food', 'dining', 'tasty', 'pizza', 'burger', 'grill', 'kitchen', 'eats', 'dunkin', 'umacha', 'mochi', 'pub', 'diner', 'sushi', 'deli', 'subway'}
-    food_substrings = ['tous les jours', 'dining']
-    if words.intersection(food_words) or any(s in m for s in food_substrings):
-        return 'Food & Dining'
-        
-    # Groceries keywords
-    groceries_words = {'mitsuwa', 'walmart', 'costco', 'grocery', 'groceries', 'market', 'supermarket', 'shoprite', 'aldi'}
-    groceries_substrings = ['h mart', 'trader joe', 'whole foods', 'target grocery']
-    if words.intersection(groceries_words) or any(s in m for s in groceries_substrings):
-        return 'Groceries'
-        
-    # Transportation keywords
-    transport_words = {'gas', 'wawa', 'uber', 'lyft', 'transport', 'transit', 'train', 'flight', 'airline', 'toll', 'parking', 'auto', 'car', 'repair', 'mvc', 'license'}
-    transport_substrings = ['nj mvc']
-    if words.intersection(transport_words) or any(s in m for s in transport_substrings):
-        return 'Transportation'
-        
-    # Rent & Utilities keywords
-    utilities_words = {'rent', 'utility', 'utilities', 'power', 'electric', 'water', 'internet', 'comcast', 'verizon', 'phone', 'cellphone', 'optimum', 'insurance'}
-    utilities_substrings = ['t-mobile', 'us mobile', 'h2o']
-    if words.intersection(utilities_words) or any(s in m for s in utilities_substrings):
-        return 'Rent & Utilities'
-        
-    # Shopping keywords
-    shopping_words = {'amazon', 'shopping', 'target', 'ebay', 'clothing', 'shoes', 'mall', 'store', 'hardware', 'ikea'}
-    shopping_substrings = ['ups store', 'best buy', 'home depot']
-    if words.intersection(shopping_words) or any(s in m for s in shopping_substrings):
-        return 'Shopping'
-        
-    # Entertainment keywords
-    entertainment_words = {'netflix', 'hulu', 'cinema', 'movie', 'entertainment', 'spotify', 'game', 'gaming', 'steam', 'playstation', 'xbox', 'disney', 'ticketmaster'}
-    entertainment_substrings = ['suno ai']
-    if words.intersection(entertainment_words) or any(s in m for s in entertainment_substrings):
-        return 'Entertainment'
-        
-    return 'Others'
-
 def generate_id(prefix=""):
     chars = "abcdefghijklmnopqrstuvwxyz0123456789"
     rand = "".join(random.choice(chars) for _ in range(9))
@@ -93,8 +38,7 @@ def main():
         cred_card_sheet = wb['CredCard']
         rows = list(cred_card_sheet.iter_rows(values_only=True))
         
-        # Row 2 contains headers: (None, 'Cards', 'Returned', 'Balance', 'Fee', 'Reward', 'Since', 'Age', 'Limit')
-        # Row 3 onwards are cards
+        # Row 2 contains headers
         for row in rows[2:]:
             if len(row) > 1 and row[1] is not None:
                 card_key = row[1].strip()
@@ -103,17 +47,22 @@ def main():
                     cards.append({
                         "id": card_def['id'],
                         "name": card_def['name'],
-                        "lastFour": card_def['lastFour']
+                        "lastFour": card_def['lastFour'],
+                        "isChecking": card_def['sheet'] == 'Chase'
                     })
                     card_name_to_id[card_key] = card_def['id']
                     print(f"Registered card from Excel: {card_def['name']} (ID: {card_def['id']})")
                 else:
                     # Dynamically register card if not in defaults
                     c_id = f"card-{card_key.lower().replace(' ', '')}"
+                    is_chk = "checking" in card_key.lower()
+                    is_sav = "saving" in card_key.lower()
                     cards.append({
                         "id": c_id,
                         "name": card_key,
-                        "lastFour": "----"
+                        "lastFour": "----",
+                        "isChecking": is_chk,
+                        "isSaving": is_sav
                     })
                     card_name_to_id[card_key] = c_id
                     print(f"Registered dynamic card: {card_key} (ID: {c_id})")
@@ -124,7 +73,8 @@ def main():
         cards.append({
             "id": card_def['id'],
             "name": card_def['name'],
-            "lastFour": card_def['lastFour']
+            "lastFour": card_def['lastFour'],
+            "isChecking": True
         })
         card_name_to_id['Chase Bank'] = card_def['id']
         print(f"Registered default Chase Checking (ID: {card_def['id']})")
@@ -146,7 +96,6 @@ def main():
         
         col_indices = {}
         for r_idx, row in enumerate(rows):
-            # check if row contains header indicators
             row_str = [str(x).lower().strip() if x is not None else "" for x in row]
             if 'date' in row_str and ('to' in row_str or 'from' in row_str) and ('spend' in row_str or 'withdraw' in row_str):
                 header_row_idx = r_idx
@@ -156,10 +105,14 @@ def main():
                         col_indices['date'] = c_idx
                     elif val in ['to', 'from'] and 'to' not in col_indices:
                         col_indices['to'] = c_idx
-                    elif val in ['return', 'salary', 'deposit'] and 'return' not in col_indices:
+                    elif val in ['return', 'paid'] and 'return' not in col_indices:
                         col_indices['return'] = c_idx
                     elif val in ['spend', 'withdraw'] and 'spend' not in col_indices:
                         col_indices['spend'] = c_idx
+                    elif val in ['reward', 'rewards'] and 'rewards' not in col_indices:
+                        col_indices['rewards'] = c_idx
+                    elif val in ['fee', 'fees'] and 'fee' not in col_indices:
+                        col_indices['fee'] = c_idx
                 break
                 
         if header_row_idx == -1:
@@ -178,17 +131,13 @@ def main():
                 if isinstance(date_cell, (datetime.datetime, datetime.date)):
                     current_date = date_cell.strftime('%Y-%m-%d')
                 else:
-                    # try parsing string
                     date_str = str(date_cell).strip()
                     try:
-                        # try standard YYYY-MM-DD
                         dt = datetime.datetime.strptime(date_str, '%Y-%m-%d')
                         current_date = dt.strftime('%Y-%m-%d')
                     except ValueError:
-                        # Try parsing common excel string date or just ignore
                         pass
             
-            # If we don't have a date yet, we can't register the transaction
             if current_date is None:
                 continue
                 
@@ -198,15 +147,20 @@ def main():
                 continue
             merchant = str(to_cell).strip()
             if not merchant or merchant.isdigit():
-                # Skip year rows or header separators
                 continue
                 
-            # 3. Spend / Withdraw amount
+            # 3. Amount parsing
             spend_cell = row[col_indices['spend']] if 'spend' in col_indices and col_indices['spend'] < len(row) else None
             return_cell = row[col_indices['return']] if 'return' in col_indices and col_indices['return'] < len(row) else None
+            fee_cell = row[col_indices['fee']] if 'fee' in col_indices and col_indices['fee'] < len(row) else None
+            rewards_cell = row[col_indices['rewards']] if 'rewards' in col_indices and col_indices['rewards'] < len(row) else None
             
             amount = 0.0
             is_valid = False
+            is_fee = False
+            is_reward = False
+            reward_val = None
+            reward_type = None
             
             if spend_cell is not None:
                 try:
@@ -221,23 +175,49 @@ def main():
                 try:
                     val = float(return_cell)
                     if val > 0:
-                        amount = -val # represent return/refund as negative expense
+                        amount = -val
+                        is_valid = True
+                except ValueError:
+                    pass
+
+            if fee_cell is not None:
+                try:
+                    val = float(fee_cell)
+                    if val > 0:
+                        amount = val
+                        is_fee = True
+                        is_valid = True
+                except ValueError:
+                    pass
+
+            if rewards_cell is not None:
+                try:
+                    val = float(rewards_cell)
+                    if val > 0:
+                        reward_val = val
+                        is_reward = True
+                        # If cashback and it maps to a refund amount, or if we have amount
+                        if amount < 0 or return_cell is not None:
+                            reward_type = 'cashback'
+                        else:
+                            reward_type = 'other'
                         is_valid = True
                 except ValueError:
                     pass
             
             if not is_valid:
-                continue # Skip row if it has no numerical amount
+                continue
                 
-            category = guess_category(merchant)
-            
             expenses.append({
                 "id": generate_id("exp-"),
                 "description": merchant,
                 "amount": amount,
-                "category": category,
                 "creditCardId": card_id,
-                "date": current_date
+                "date": current_date,
+                "isFee": is_fee,
+                "isReward": is_reward,
+                "rewardType": reward_type,
+                "rewardValue": reward_val
             })
             count += 1
             
@@ -306,15 +286,13 @@ def main():
             if from_cell is None:
                 continue
                 
-            merchant = str(from_cell).strip()
-            if not merchant or merchant.isdigit():
+            from_to_val = str(from_cell).strip() if from_cell is not None else ''
+            if not from_to_val or from_to_val.isdigit():
                 continue
                 
-            # Append details to description if present
             details_cell = row[col_indices['details']] if 'details' in col_indices and col_indices['details'] < len(row) else None
-            if details_cell is not None and str(details_cell).strip():
-                merchant = f"{merchant} ({str(details_cell).strip()})"
-                
+            details_val = str(details_cell).strip() if details_cell is not None else ''
+            
             withdraw_cell = row[col_indices['withdraw']] if 'withdraw' in col_indices and col_indices['withdraw'] < len(row) else None
             salary_cell = row[col_indices['salary']] if 'salary' in col_indices and col_indices['salary'] < len(row) else None
             deposit_cell = row[col_indices['deposit']] if 'deposit' in col_indices and col_indices['deposit'] < len(row) else None
@@ -322,22 +300,22 @@ def main():
             amount = 0.0
             is_valid = False
             
-            # Withdraw represents spending (positive expense)
+            # Withdraw represents spending (negative expense)
             if withdraw_cell is not None:
                 try:
                     val = float(withdraw_cell)
                     if val > 0:
-                        amount = val
+                        amount = -val
                         is_valid = True
                 except ValueError:
                     pass
             
-            # Salary/Deposit represents income (negative expense)
+            # Salary/Deposit represents income (positive expense)
             if not is_valid and salary_cell is not None:
                 try:
                     val = float(salary_cell)
                     if val > 0:
-                        amount = -val
+                        amount = val
                         is_valid = True
                 except ValueError:
                     pass
@@ -346,7 +324,7 @@ def main():
                 try:
                     val = float(deposit_cell)
                     if val > 0:
-                        amount = -val
+                        amount = val
                         is_valid = True
                 except ValueError:
                     pass
@@ -354,15 +332,14 @@ def main():
             if not is_valid:
                 continue
                 
-            category = guess_category(merchant)
-            
             expenses.append({
                 "id": generate_id("exp-"),
-                "description": merchant,
+                "description": from_to_val,
                 "amount": amount,
-                "category": category,
                 "creditCardId": card_id,
-                "date": current_date
+                "date": current_date,
+                "fromTo": from_to_val,
+                "details": details_val
             })
             count += 1
             
@@ -379,7 +356,6 @@ def main():
 
     # 4. Construct final db.json
     db_data = {
-        "categories": CATEGORIES,
         "cards": cards,
         "expenses": expenses
     }
@@ -388,7 +364,7 @@ def main():
     with open(DB_JSON_PATH, 'w') as f:
         json.dump(db_data, f, indent=2)
         
-    print(f"Migration complete! Generated {len(cards)} cards, {len(CATEGORIES)} categories, and {len(expenses)} expenses.")
+    print(f"Migration complete! Generated {len(cards)} cards and {len(expenses)} expenses.")
 
     # 5. Automatically trigger Supabase migration script
     import subprocess

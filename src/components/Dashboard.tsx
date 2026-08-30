@@ -1,11 +1,10 @@
 import React, { useMemo, useState } from 'react';
 import { StyleSheet, Text, View, ScrollView, TextInput, TouchableOpacity, useWindowDimensions, DimensionValue, Platform } from 'react-native';
-import { Expense, CreditCard, Category, FutureExpense } from '../types';
+import { Expense, CreditCard, FutureExpense } from '../types';
 
 interface DashboardProps {
   expenses: Expense[];
   cards: CreditCard[];
-  categories: Category[];
   futureExpenses: FutureExpense[];
   onAddFutureExpense: (expense: Omit<FutureExpense, 'id'>) => void;
   onDeleteFutureExpense: (id: string) => void;
@@ -14,7 +13,6 @@ interface DashboardProps {
 export const Dashboard: React.FC<DashboardProps> = ({
   expenses,
   cards,
-  categories,
   futureExpenses,
   onAddFutureExpense,
   onDeleteFutureExpense,
@@ -45,11 +43,11 @@ export const Dashboard: React.FC<DashboardProps> = ({
   }, [expenses, cards]);
 
   const checkingAccounts = useMemo(() => {
-    return cards.filter(c => c.isChecking);
+    return cards.filter(c => c.isChecking || c.isSaving);
   }, [cards]);
 
   const creditCardsOnly = useMemo(() => {
-    return cards.filter(c => !c.isChecking);
+    return cards.filter(c => !c.isChecking && !c.isSaving);
   }, [cards]);
 
   const checkingBalance = useMemo(() => {
@@ -70,34 +68,40 @@ export const Dashboard: React.FC<DashboardProps> = ({
     return checkingBalance - creditCardDebt;
   }, [checkingBalance, creditCardDebt]);
 
-  // Statistics for breakdown tables
+  // Statistics for breakdown tables (monthly spending by card/account)
   const stats = useMemo(() => {
     const now = new Date();
     const currentMonthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 
     let total = 0;
     let thisMonthTotal = 0;
-    const categoryTotals: { [key: string]: number } = {};
     const cardTotals: { [key: string]: number } = {};
 
     expenses.forEach(e => {
       const amount = Number(e.amount) || 0;
-      total += amount;
+      const card = cardMap.get(e.creditCardId);
+      if (!card) return;
 
-      if (e.date.startsWith(currentMonthStr)) {
-        thisMonthTotal += amount;
+      let amountToCount = 0;
+      if (card.isChecking || card.isSaving) {
+        if (amount < 0) { // checking/saving withdrawal (spending)
+          amountToCount = Math.abs(amount);
+        }
+      } else { // credit card standard spend
+        if (amount > 0 && !e.isFee && !e.isReward) {
+          amountToCount = amount;
+        }
       }
 
-      categoryTotals[e.category] = (categoryTotals[e.category] || 0) + amount;
-
-      const card = cardMap.get(e.creditCardId);
-      const cardName = card ? `${card.name} (*${card.lastFour})` : 'Unknown Card';
-      cardTotals[cardName] = (cardTotals[cardName] || 0) + amount;
+      if (amountToCount > 0) {
+        total += amountToCount;
+        if (e.date.startsWith(currentMonthStr)) {
+          thisMonthTotal += amountToCount;
+        }
+        const cardName = `${card.name}${card.lastFour ? ` (*${card.lastFour})` : ''}`;
+        cardTotals[cardName] = (cardTotals[cardName] || 0) + amountToCount;
+      }
     });
-
-    const categoryBreakdown = Object.keys(categoryTotals)
-      .map(name => ({ name, value: categoryTotals[name] }))
-      .sort((a, b) => b.value - a.value);
 
     const cardBreakdown = Object.keys(cardTotals)
       .map(name => ({ name, value: cardTotals[name] }))
@@ -106,14 +110,9 @@ export const Dashboard: React.FC<DashboardProps> = ({
     return {
       total,
       thisMonthTotal,
-      categoryBreakdown,
       cardBreakdown,
     };
   }, [expenses, cardMap]);
-
-  const maxCategoryValue = useMemo(() => {
-    return stats.categoryBreakdown.length > 0 ? stats.categoryBreakdown[0].value : 1;
-  }, [stats.categoryBreakdown]);
 
   const maxCardValue = useMemo(() => {
     return stats.cardBreakdown.length > 0 ? stats.cardBreakdown[0].value : 1;
@@ -291,62 +290,31 @@ export const Dashboard: React.FC<DashboardProps> = ({
       </View>
 
       {/* Breakdowns */}
-      <View style={[styles.breakdownRow, isWeb && styles.breakdownRowWeb, { marginTop: 12 }]}>
-        {/* Category Breakdown */}
-        <View style={[styles.sheetGrid, isWeb && styles.sectionCardWeb]}>
-          <View style={styles.sheetHeaderRow}>
-            <Text style={styles.sheetHeaderCell}>Month Spending by Category</Text>
-          </View>
-          {stats.categoryBreakdown.length === 0 ? (
-            <Text style={styles.emptyText}>No data available.</Text>
-          ) : (
-            stats.categoryBreakdown.map((item, idx) => {
-              const percentage = stats.total > 0 ? (item.value / stats.total) * 100 : 0;
-              const fillWidth = `${(item.value / maxCategoryValue) * 100}%` as DimensionValue;
-              return (
-                <View key={idx} style={styles.barItem}>
-                  <View style={styles.barHeader}>
-                    <Text style={styles.barName} numberOfLines={1}>{item.name}</Text>
-                    <Text style={[styles.barValue, styles.monoText]}>
-                      ${item.value.toFixed(2)} ({percentage.toFixed(0)}%)
-                    </Text>
-                  </View>
-                  <View style={styles.barTrack}>
-                    <View style={[styles.barFill, { width: fillWidth, backgroundColor: '#475569' }]} />
-                  </View>
-                </View>
-              );
-            })
-          )}
+      <View style={[styles.sheetGrid, { marginTop: 12 }]}>
+        <View style={styles.sheetHeaderRow}>
+          <Text style={styles.sheetHeaderCell}>Month Spending by Card/Account</Text>
         </View>
-
-        {/* Credit Card Breakdown */}
-        <View style={[styles.sheetGrid, isWeb && styles.sectionCardWeb]}>
-          <View style={styles.sheetHeaderRow}>
-            <Text style={styles.sheetHeaderCell}>Month Spending by Credit Card</Text>
-          </View>
-          {stats.cardBreakdown.length === 0 ? (
-            <Text style={styles.emptyText}>No data available.</Text>
-          ) : (
-            stats.cardBreakdown.map((item, idx) => {
-              const percentage = stats.total > 0 ? (item.value / stats.total) * 100 : 0;
-              const fillWidth = `${(item.value / maxCardValue) * 100}%` as DimensionValue;
-              return (
-                <View key={idx} style={styles.barItem}>
-                  <View style={styles.barHeader}>
-                    <Text style={styles.barName} numberOfLines={1}>{item.name}</Text>
-                    <Text style={[styles.barValue, styles.monoText]}>
-                      ${item.value.toFixed(2)} ({percentage.toFixed(0)}%)
-                    </Text>
-                  </View>
-                  <View style={styles.barTrack}>
-                    <View style={[styles.barFill, { width: fillWidth, backgroundColor: '#475569' }]} />
-                  </View>
+        {stats.cardBreakdown.length === 0 ? (
+          <Text style={styles.emptyText}>No data available.</Text>
+        ) : (
+          stats.cardBreakdown.map((item, idx) => {
+            const percentage = stats.total > 0 ? (item.value / stats.total) * 100 : 0;
+            const fillWidth = `${(item.value / maxCardValue) * 100}%` as DimensionValue;
+            return (
+              <View key={idx} style={styles.barItem}>
+                <View style={styles.barHeader}>
+                  <Text style={styles.barName} numberOfLines={1}>{item.name}</Text>
+                  <Text style={[styles.barValue, styles.monoText]}>
+                    ${item.value.toFixed(2)} ({percentage.toFixed(0)}%)
+                  </Text>
                 </View>
-              );
-            })
-          )}
-        </View>
+                <View style={styles.barTrack}>
+                  <View style={[styles.barFill, { width: fillWidth, backgroundColor: '#475569' }]} />
+                </View>
+              </View>
+            );
+          })
+        )}
       </View>
     </ScrollView>
   );

@@ -17,7 +17,7 @@ export const CheckingTab: React.FC<CheckingTabProps> = ({
 }) => {
   // Filter cards to get only checking accounts
   const checkingAccounts = useMemo(() => {
-    return cards.filter(c => c.isChecking);
+    return cards.filter(c => c.isChecking || c.isSaving);
   }, [cards]);
 
   // Active checking account sheet state
@@ -121,20 +121,19 @@ export const CheckingTab: React.FC<CheckingTabProps> = ({
       {/* Spreadsheet grid */}
       <ScrollView horizontal showsHorizontalScrollIndicator={true} style={styles.tableScroll}>
         <View style={styles.tableContainer}>
-          {/* Table Headers (Date, From/To, Amount, Details, Category) */}
+          {/* Table Headers (Date, From/To, Amount, Details) */}
           <View style={styles.tableRowHeader}>
             <Text style={[styles.headerCell, { width: 90 }]}>Date</Text>
-            <Text style={[styles.headerCell, { width: 150 }]}>From/To</Text>
-            <Text style={[styles.headerCell, { width: 100, textAlign: 'right' }]}>Amount</Text>
-            <Text style={[styles.headerCell, { width: 240 }]}>Details</Text>
-            <Text style={[styles.headerCell, { width: 150 }]}>Category</Text>
+            <Text style={[styles.headerCell, { width: 180 }]}>From/To</Text>
+            <Text style={[styles.headerCell, { width: 110, textAlign: 'right' }]}>Amount</Text>
+            <Text style={[styles.headerCell, { width: 310 }]}>Details</Text>
             <Text style={[styles.headerCell, { width: 100, textAlign: 'center' }]}>Actions</Text>
           </View>
 
           {/* Table Rows */}
           <ScrollView style={styles.rowsScroll}>
             {checkingExpenses.length === 0 ? (
-              <Text style={styles.emptyText}>No checking transactions recorded.</Text>
+              <Text style={styles.emptyText}>No checking or saving transactions recorded.</Text>
             ) : (
               checkingExpenses.map(item => {
                 const isDeposit = item.amount >= 0;
@@ -145,24 +144,21 @@ export const CheckingTab: React.FC<CheckingTabProps> = ({
                 return (
                   <View key={item.id} style={styles.tableRow}>
                     <Text style={[styles.cell, { width: 90 }, styles.monoText]}>{item.date}</Text>
-                    <Text style={[styles.cell, { width: 150 }]} numberOfLines={1}>
+                    <Text style={[styles.cell, { width: 180 }]} numberOfLines={1}>
                       {item.fromTo || item.description || ''}
                     </Text>
                     <Text
                       style={[
                         styles.cell,
-                        { width: 100, textAlign: 'right' },
+                        { width: 110, textAlign: 'right' },
                         styles.monoText,
                         isDeposit ? styles.depositText : styles.withdrawText,
                       ]}
                     >
                       {formattedAmount}
                     </Text>
-                    <Text style={[styles.cell, { width: 240 }]} numberOfLines={1}>
+                    <Text style={[styles.cell, { width: 310 }]} numberOfLines={1}>
                       {item.details || ''}
-                    </Text>
-                    <Text style={[styles.cell, { width: 150 }]} numberOfLines={1}>
-                      {item.category}
                     </Text>
                     <View style={[styles.cellActions, { width: 100 }]}>
                       <TouchableOpacity style={styles.actionBtn} onPress={() => onEdit(item)}>

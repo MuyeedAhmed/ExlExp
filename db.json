@@ -1,49 +1,22 @@
 {
-  "categories": [
-    {
-      "id": "cat-food",
-      "name": "Food & Dining"
-    },
-    {
-      "id": "cat-groceries",
-      "name": "Groceries"
-    },
-    {
-      "id": "cat-transport",
-      "name": "Transportation"
-    },
-    {
-      "id": "cat-utilities",
-      "name": "Rent & Utilities"
-    },
-    {
-      "id": "cat-shopping",
-      "name": "Shopping"
-    },
-    {
-      "id": "cat-entertainment",
-      "name": "Entertainment"
-    },
-    {
-      "id": "cat-others",
-      "name": "Others"
-    }
-  ],
   "cards": [
     {
       "id": "card-citidb",
       "name": "Citi Double Cash",
-      "lastFour": "5555"
+      "lastFour": "5555",
+      "isChecking": false
     },
     {
       "id": "card-citistrata",
       "name": "Citi Strata",
-      "lastFour": "1234"
+      "lastFour": "1234",
+      "isChecking": false
     },
     {
       "id": "card-bofa",
       "name": "BofA Premium",
-      "lastFour": "9876"
+      "lastFour": "9876",
+      "isChecking": false
     },
     {
       "id": "card-chase",
@@ -54,1068 +27,1031 @@
   ],
   "expenses": [
     {
-      "id": "exp-9cig1iwsl",
+      "id": "exp-f3wvqk3du",
       "description": "Metro By T-Mobile",
       "amount": 30,
-      "category": "Rent & Utilities",
       "creditCardId": "card-citidb",
       "date": "2024-02-20"
     },
     {
-      "id": "exp-gnsjgnkcs",
+      "id": "exp-ai6eywmb2",
       "description": "Chat-GPT",
       "amount": 20,
-      "category": "Others",
       "creditCardId": "card-citidb",
       "date": "2025-01-03"
     },
     {
-      "id": "exp-thuxkr6u2",
+      "id": "exp-iuv7lwmp7",
       "description": "Credit Card Payment",
       "amount": -20,
-      "category": "Others",
       "creditCardId": "card-citidb",
       "date": "2025-01-10"
     },
     {
-      "id": "exp-bn3iohs9z",
+      "id": "exp-oqrol8n3g",
       "description": "Solomons Auto Repair",
       "amount": 60,
-      "category": "Transportation",
       "creditCardId": "card-citidb",
       "date": "2025-01-10"
     },
     {
-      "id": "exp-eovdq2m2h",
+      "id": "exp-8tjyuojoi",
       "description": "Reward Points Redeem",
       "amount": -42.93,
-      "category": "Others",
       "creditCardId": "card-citidb",
       "date": "2025-03-29"
     },
     {
-      "id": "exp-8okf10cx0",
+      "id": "exp-esdvs28ba",
       "description": "Chat-GPT",
       "amount": 20,
-      "category": "Others",
       "creditCardId": "card-citidb",
       "date": "2025-03-04"
     },
     {
-      "id": "exp-ltx48aldd",
+      "id": "exp-syle090du",
       "description": "Credit Card Payment",
       "amount": -70.93,
-      "category": "Others",
       "creditCardId": "card-citidb",
       "date": "2025-03-05"
     },
     {
-      "id": "exp-wzs1scc0j",
+      "id": "exp-yadj0h6q2",
       "description": "Walmart",
       "amount": 49.01,
-      "category": "Groceries",
       "creditCardId": "card-citidb",
       "date": "2025-03-13"
     },
     {
-      "id": "exp-1mycy3coh",
+      "id": "exp-26hojvuj2",
       "description": "Credit Card Payment",
       "amount": -49.01,
-      "category": "Others",
       "creditCardId": "card-citidb",
       "date": "2025-05-16"
     },
     {
-      "id": "exp-0qhrlsner",
+      "id": "exp-bv0myd067",
       "description": "Costco",
       "amount": 46.05,
-      "category": "Groceries",
       "creditCardId": "card-citidb",
       "date": "2025-09-06"
     },
     {
-      "id": "exp-22r55wuoh",
+      "id": "exp-kr0cfw78r",
       "description": "Foreign Transaction Fee",
       "amount": 1.38,
-      "category": "Others",
       "creditCardId": "card-citidb",
       "date": "2025-09-25"
     },
     {
-      "id": "exp-mxq51ktja",
+      "id": "exp-cnpaksvsy",
       "description": "Credit Card Payment",
       "amount": -47.42999999999938,
-      "category": "Others",
       "creditCardId": "card-citidb",
       "date": "2025-09-26"
     },
     {
-      "id": "exp-i393ga86s",
+      "id": "exp-z17e3doce",
       "description": "Quickcheck",
       "amount": 3.99,
-      "category": "Others",
       "creditCardId": "card-citidb",
       "date": "2026-06-18"
     },
     {
-      "id": "exp-wqpb3oh5t",
+      "id": "exp-1wmr51h4i",
       "description": "Credit Card Payment",
       "amount": -3.99,
-      "category": "Others",
       "creditCardId": "card-citidb",
       "date": "2026-06-27"
     },
     {
-      "id": "exp-lc5ecrjw0",
+      "id": "exp-ikgvdfy35",
       "description": "Umacha",
       "amount": 7.48,
-      "category": "Food & Dining",
       "creditCardId": "card-citistrata",
       "date": "2025-10-20"
     },
     {
-      "id": "exp-saunb3l6a",
+      "id": "exp-7i09jgcc5",
       "description": "Mochi Mochi Kai Sweets",
       "amount": 5,
-      "category": "Food & Dining",
       "creditCardId": "card-citistrata",
       "date": "2025-10-20"
     },
     {
-      "id": "exp-m5s2ig37r",
+      "id": "exp-5m0r9516o",
       "description": "Omusubi Gonbei",
       "amount": 7.84,
-      "category": "Food & Dining",
       "creditCardId": "card-citistrata",
       "date": "2025-10-20"
     },
     {
-      "id": "exp-d68k0pyxc",
+      "id": "exp-kktaznya5",
       "description": "Taskin Bakery",
       "amount": 24.71,
-      "category": "Food & Dining",
       "creditCardId": "card-citistrata",
       "date": "2025-10-24"
     },
     {
-      "id": "exp-76gqk1975",
+      "id": "exp-99gc3qmf7",
       "description": "Credit Card Payment",
       "amount": -20.32,
-      "category": "Others",
       "creditCardId": "card-citistrata",
       "date": "2025-10-24"
     },
     {
-      "id": "exp-f9dob9zrw",
+      "id": "exp-fdtykgukl",
       "description": "Tous Les Jours",
       "amount": 15.58,
-      "category": "Food & Dining",
       "creditCardId": "card-citistrata",
       "date": "2025-10-24"
     },
     {
-      "id": "exp-mg4fuf6jt",
+      "id": "exp-ugo3rpgom",
       "description": "Gas - Wawa",
       "amount": 25,
-      "category": "Transportation",
       "creditCardId": "card-citistrata",
       "date": "2025-10-25"
     },
     {
-      "id": "exp-7ugybq9hq",
+      "id": "exp-6vk180uzy",
       "description": "Mitsuwa",
       "amount": 15.49,
-      "category": "Groceries",
       "creditCardId": "card-citistrata",
       "date": "2025-10-25"
     },
     {
-      "id": "exp-f0ioydqmo",
+      "id": "exp-qojuhk5ke",
       "description": "Omusubi Gonbei",
       "amount": 3.64,
-      "category": "Food & Dining",
       "creditCardId": "card-citistrata",
       "date": "2025-10-25"
     },
     {
-      "id": "exp-qfjgu9dvi",
+      "id": "exp-rjsagpf5f",
       "description": "Mitsuwa",
       "amount": 9.08,
-      "category": "Groceries",
       "creditCardId": "card-citistrata",
       "date": "2025-10-25"
     },
     {
-      "id": "exp-gmvcmkfp4",
+      "id": "exp-tht6zbhg9",
       "description": "Walmart",
       "amount": 17.05,
-      "category": "Groceries",
       "creditCardId": "card-citistrata",
       "date": "2025-10-26"
     },
     {
-      "id": "exp-vaadk0p93",
+      "id": "exp-fm80gytg0",
       "description": "Tous Les Jours",
       "amount": 13.53,
-      "category": "Food & Dining",
       "creditCardId": "card-citistrata",
       "date": "2025-10-29"
     },
     {
-      "id": "exp-xhm7t8uts",
+      "id": "exp-t8ruyupx2",
       "description": "Qahwah House",
       "amount": 9.16,
-      "category": "Others",
       "creditCardId": "card-citistrata",
       "date": "2025-10-29"
     },
     {
-      "id": "exp-th4gxd0e3",
+      "id": "exp-j6bqn02fv",
       "description": "Tous Les Jours",
       "amount": 15.87,
-      "category": "Food & Dining",
       "creditCardId": "card-citistrata",
       "date": "2025-10-31"
     },
     {
-      "id": "exp-st0sdklzt",
+      "id": "exp-kaoy3onr4",
       "description": "Gas - Wawa",
       "amount": 32.79,
-      "category": "Transportation",
       "creditCardId": "card-citistrata",
       "date": "2025-11-01"
     },
     {
-      "id": "exp-rexbjqqh8",
+      "id": "exp-e1viljeyh",
       "description": "EZ Pass",
       "amount": 26.8,
-      "category": "Others",
       "creditCardId": "card-citistrata",
       "date": "2025-11-02"
     },
     {
-      "id": "exp-m8gdmhbv4",
+      "id": "exp-d7vwi232q",
       "description": "Target",
       "amount": 7.17,
-      "category": "Shopping",
       "creditCardId": "card-citistrata",
       "date": "2025-11-03"
     },
     {
-      "id": "exp-ppvfis0md",
+      "id": "exp-51ca8efwa",
       "description": "Panera Bread",
       "amount": 9.36,
-      "category": "Others",
       "creditCardId": "card-citistrata",
       "date": "2025-11-03"
     },
     {
-      "id": "exp-b5918gxl5",
+      "id": "exp-13q4pls5s",
       "description": "Credit Card Payment",
       "amount": -225.23,
-      "category": "Others",
       "creditCardId": "card-citistrata",
       "date": "2025-11-06"
     },
     {
-      "id": "exp-uo27k03sn",
+      "id": "exp-xuj880p00",
       "description": "Tous Les Jours",
       "amount": 9.55,
-      "category": "Food & Dining",
       "creditCardId": "card-citistrata",
       "date": "2025-11-06"
     },
     {
-      "id": "exp-ee6li9ac9",
+      "id": "exp-aezbjq2o2",
       "description": "Qahwah House",
       "amount": 19.62,
-      "category": "Others",
       "creditCardId": "card-citistrata",
       "date": "2025-11-08"
     },
     {
-      "id": "exp-sisygwsco",
+      "id": "exp-uvhf593l3",
       "description": "Parking",
       "amount": 1.52,
-      "category": "Transportation",
       "creditCardId": "card-citistrata",
       "date": "2025-11-08"
     },
     {
-      "id": "exp-0eaxg1q03",
+      "id": "exp-gk091ixjo",
       "description": "Wawa",
       "amount": 33.25,
-      "category": "Transportation",
       "creditCardId": "card-citistrata",
       "date": "2025-11-09"
     },
     {
-      "id": "exp-c3sr9d6fm",
+      "id": "exp-pm323jefk",
       "description": "Tous Les Jours",
       "amount": 18.98,
-      "category": "Food & Dining",
       "creditCardId": "card-citistrata",
       "date": "2025-11-11"
     },
     {
-      "id": "exp-3ms5wx0qh",
+      "id": "exp-z16mnh6eq",
       "description": "Bagels On The Hudson",
       "amount": 18.09,
-      "category": "Others",
       "creditCardId": "card-citistrata",
       "date": "2025-11-13"
     },
     {
-      "id": "exp-1uo9zch9x",
+      "id": "exp-8gufbyss6",
       "description": "Omusubi Gonbei",
       "amount": 14.1,
-      "category": "Food & Dining",
       "creditCardId": "card-citistrata",
       "date": "2025-11-13"
     },
     {
-      "id": "exp-tmfdeggmd",
+      "id": "exp-pg2jyg9mr",
       "description": "Mitsuwa",
       "amount": 19.87,
-      "category": "Groceries",
       "creditCardId": "card-citistrata",
       "date": "2025-11-13"
     },
     {
-      "id": "exp-kp9flcip0",
+      "id": "exp-bk2lkq1p9",
       "description": "Gas - Wawa",
       "amount": 36.62,
-      "category": "Transportation",
       "creditCardId": "card-citistrata",
       "date": "2025-11-14"
     },
     {
-      "id": "exp-8cbg2qtn6",
+      "id": "exp-st2hfja1q",
       "description": "Credit Card Payment",
       "amount": -100,
-      "category": "Others",
       "creditCardId": "card-citistrata",
       "date": "2025-11-17"
     },
     {
-      "id": "exp-xjvpzukwd",
+      "id": "exp-9a0m643lk",
       "description": "Parking",
       "amount": 2.8,
-      "category": "Transportation",
       "creditCardId": "card-citistrata",
       "date": "2025-11-17"
     },
     {
-      "id": "exp-o9a5uxkex",
+      "id": "exp-klcvgopna",
       "description": "Parking",
       "amount": 2.8,
-      "category": "Transportation",
       "creditCardId": "card-citistrata",
       "date": "2025-11-18"
     },
     {
-      "id": "exp-a0trmptss",
+      "id": "exp-jdgqkxnbo",
       "description": "Parking",
       "amount": 1.3,
-      "category": "Transportation",
       "creditCardId": "card-citistrata",
       "date": "2025-11-18"
     },
     {
-      "id": "exp-off5nkx7e",
+      "id": "exp-sviy8dgvm",
       "description": "Walmart",
       "amount": 6.88,
-      "category": "Groceries",
       "creditCardId": "card-citistrata",
       "date": "2025-11-19"
     },
     {
-      "id": "exp-aulpk5uk0",
+      "id": "exp-dupb3jwtj",
       "description": "Car Insurance - Geico",
       "amount": 800,
-      "category": "Transportation",
       "creditCardId": "card-citistrata",
       "date": "2025-11-20"
     },
     {
-      "id": "exp-rzhkjfa34",
+      "id": "exp-xtkzjb912",
       "description": "Credit Card Payment",
       "amount": -885.1,
-      "category": "Others",
       "creditCardId": "card-citistrata",
       "date": "2025-11-25"
     },
     {
-      "id": "exp-qxxk283dl",
+      "id": "exp-op2bspylc",
       "description": "NJ MVC Car Registration Renewal",
       "amount": 48.07,
-      "category": "Transportation",
       "creditCardId": "card-bofa",
       "date": "2026-03-11"
     },
     {
-      "id": "exp-zpz832jyq",
+      "id": "exp-f0bhtm3gg",
       "description": "US Mobile",
       "amount": 175,
-      "category": "Rent & Utilities",
       "creditCardId": "card-bofa",
       "date": "2026-03-13"
     },
     {
-      "id": "exp-gl20kncuj",
+      "id": "exp-262x9l17y",
       "description": "Minnewaska Entry",
       "amount": 10,
-      "category": "Others",
       "creditCardId": "card-bofa",
       "date": "2026-05-02"
     },
     {
-      "id": "exp-i1krt2xfc",
+      "id": "exp-dnt5evdx4",
       "description": "NJIT MKPLACE (Rifath)",
       "amount": 200,
-      "category": "Others",
       "creditCardId": "card-bofa",
       "date": "2026-05-04"
     },
     {
-      "id": "exp-effev6egc",
+      "id": "exp-vtkyfy3x2",
       "description": "UPS Store (Tahil)",
       "amount": 15.48,
-      "category": "Shopping",
       "creditCardId": "card-bofa",
       "date": "2026-05-04"
     },
     {
-      "id": "exp-5b3dhr5th",
+      "id": "exp-8fu87il2y",
       "description": "Suno AI",
       "amount": 10.66,
-      "category": "Entertainment",
       "creditCardId": "card-bofa",
       "date": "2026-05-05"
     },
     {
-      "id": "exp-t9ouzaenu",
+      "id": "exp-ydcptq4i6",
       "description": "Costco",
       "amount": 18.99,
-      "category": "Groceries",
       "creditCardId": "card-bofa",
       "date": "2026-05-05"
     },
     {
-      "id": "exp-8j2nmy2mt",
+      "id": "exp-lfm7x6rp5",
       "description": "Walmart",
       "amount": 81.32,
-      "category": "Groceries",
       "creditCardId": "card-bofa",
       "date": "2026-05-06"
     },
     {
-      "id": "exp-362tl01hc",
+      "id": "exp-zg8080se7",
       "description": "Redeem Points for Cash",
       "amount": -35.48,
-      "category": "Others",
       "creditCardId": "card-bofa",
       "date": "2026-05-08"
     },
     {
-      "id": "exp-9wrys168g",
+      "id": "exp-0sufsr96q",
       "description": "Credit Card Payment",
       "amount": -50,
-      "category": "Others",
       "creditCardId": "card-bofa",
       "date": "2026-05-08"
     },
     {
-      "id": "exp-9dhaea8q5",
+      "id": "exp-hk28bwhmz",
       "description": "Credit Card Payment",
       "amount": -732.71,
-      "category": "Others",
       "creditCardId": "card-bofa",
       "date": "2026-05-08"
     },
     {
-      "id": "exp-m2oi9p39l",
+      "id": "exp-o5vl22wg8",
       "description": "Burger King",
       "amount": 2.65,
-      "category": "Food & Dining",
       "creditCardId": "card-bofa",
       "date": "2026-05-09"
     },
     {
-      "id": "exp-i7do7m0z2",
+      "id": "exp-6s340pos4",
       "description": "Costco Gas",
       "amount": 35.53,
-      "category": "Groceries",
       "creditCardId": "card-bofa",
       "date": "2026-05-10"
     },
     {
-      "id": "exp-505rcuae9",
+      "id": "exp-be0gfxdj8",
       "description": "Costco",
       "amount": 41.45,
-      "category": "Groceries",
       "creditCardId": "card-bofa",
       "date": "2026-05-10"
     },
     {
-      "id": "exp-4y5qpps6f",
+      "id": "exp-hcoc6h36c",
       "description": "H Mart",
       "amount": 17.65,
-      "category": "Groceries",
       "creditCardId": "card-bofa",
       "date": "2026-05-10"
     },
     {
-      "id": "exp-edldwnwet",
+      "id": "exp-oub4re1e8",
       "description": "BD Supermarket",
       "amount": 21.97,
-      "category": "Groceries",
       "creditCardId": "card-bofa",
       "date": "2026-05-10"
     },
     {
-      "id": "exp-wik21ta89",
+      "id": "exp-5lo0h9w04",
       "description": "Geico",
       "amount": 1187.45,
-      "category": "Others",
       "creditCardId": "card-bofa",
       "date": "2026-05-11"
     },
     {
-      "id": "exp-2mki7f7a7",
+      "id": "exp-qmawe3ftb",
       "description": "Walmart",
       "amount": 68.16,
-      "category": "Groceries",
       "creditCardId": "card-bofa",
       "date": "2026-05-11"
     },
     {
-      "id": "exp-wys1879o1",
+      "id": "exp-hl6m1rti8",
       "description": "Amazon",
       "amount": 138.6,
-      "category": "Shopping",
       "creditCardId": "card-bofa",
       "date": "2026-05-11"
     },
     {
-      "id": "exp-bzh8zjqfl",
+      "id": "exp-w0h37zna2",
       "description": "Credit Card Payment",
       "amount": -800,
-      "category": "Others",
       "creditCardId": "card-bofa",
       "date": "2026-05-12"
     },
     {
-      "id": "exp-jg52cc3os",
+      "id": "exp-4sc4jn6wh",
       "description": "NJM Jersey City - Rifath Ticket",
       "amount": 51.5,
-      "category": "Others",
       "creditCardId": "card-bofa",
       "date": "2026-05-12"
     },
     {
-      "id": "exp-w0sa5s727",
+      "id": "exp-33j4i6hgh",
       "description": "NJ MVC Car Registration Renewal - Rifath",
       "amount": 48.07,
-      "category": "Transportation",
       "creditCardId": "card-bofa",
       "date": "2026-05-12"
     },
     {
-      "id": "exp-daj326ooa",
+      "id": "exp-a60epbpsz",
       "description": "Shoprite",
       "amount": 9.87,
-      "category": "Groceries",
       "creditCardId": "card-bofa",
       "date": "2026-05-13"
     },
     {
-      "id": "exp-igvamx56x",
+      "id": "exp-b08cw9zvs",
       "description": "Amazon",
       "amount": 232.31,
-      "category": "Shopping",
       "creditCardId": "card-bofa",
       "date": "2026-05-16"
     },
     {
-      "id": "exp-yg9klg91c",
+      "id": "exp-hj9hwrtkl",
       "description": "Credit Card Payment",
       "amount": -400,
-      "category": "Others",
       "creditCardId": "card-bofa",
       "date": "2026-05-18"
     },
     {
-      "id": "exp-fcajwp3f7",
+      "id": "exp-3m2ofy7f5",
       "description": "Car Wash",
       "amount": 9,
-      "category": "Transportation",
       "creditCardId": "card-bofa",
       "date": "2026-05-20"
     },
     {
-      "id": "exp-0tgpqrlrh",
+      "id": "exp-2wiypycl4",
       "description": "Suno AI",
       "amount": 10.66,
-      "category": "Entertainment",
       "creditCardId": "card-bofa",
       "date": "2026-05-20"
     },
     {
-      "id": "exp-2pslf1trl",
+      "id": "exp-k7y7yfzrc",
       "description": "7-Eleven",
       "amount": 6,
-      "category": "Others",
       "creditCardId": "card-bofa",
       "date": "2026-05-20"
     },
     {
-      "id": "exp-cnekgi53l",
+      "id": "exp-xwu2da2r9",
       "description": "Costco Gas",
       "amount": 49.58,
-      "category": "Groceries",
       "creditCardId": "card-bofa",
       "date": "2026-05-21"
     },
     {
-      "id": "exp-xt699piw9",
+      "id": "exp-x5868vgq1",
       "description": "Costco",
       "amount": 45.99,
-      "category": "Groceries",
       "creditCardId": "card-bofa",
       "date": "2026-05-21"
     },
     {
-      "id": "exp-o58idwdkp",
+      "id": "exp-n9tf31wrp",
       "description": "Paris Baguette",
       "amount": 0.82,
-      "category": "Others",
       "creditCardId": "card-bofa",
       "date": "2026-05-26"
     },
     {
-      "id": "exp-0cs37fb4c",
+      "id": "exp-ji3cq6eih",
       "description": "Nablus Sweets",
       "amount": 24.13,
-      "category": "Food & Dining",
       "creditCardId": "card-bofa",
       "date": "2026-05-26"
     },
     {
-      "id": "exp-1836u9xun",
+      "id": "exp-gh6r24jus",
       "description": "Credit Card Payment",
       "amount": -170,
-      "category": "Others",
       "creditCardId": "card-bofa",
       "date": "2026-05-27"
     },
     {
-      "id": "exp-d3fq6q2hp",
+      "id": "exp-d22ouuovg",
       "description": "Dollar General",
       "amount": 3.2,
-      "category": "Others",
       "creditCardId": "card-bofa",
       "date": "2026-05-27"
     },
     {
-      "id": "exp-dic4l07zx",
+      "id": "exp-bdb6qljd7",
       "description": "Redeem Points for Cash",
       "amount": -630.2,
-      "category": "Others",
       "creditCardId": "card-bofa",
       "date": "2026-06-07"
     },
     {
-      "id": "exp-39co2sanm",
+      "id": "exp-ljg91b7o2",
       "description": "Credit Card Payment",
       "amount": -4.39,
-      "category": "Others",
       "creditCardId": "card-bofa",
       "date": "2026-06-08"
     },
     {
-      "id": "exp-wanf36eld",
+      "id": "exp-9kuy0ia40",
       "description": "Self",
       "amount": 100,
-      "category": "Others",
       "creditCardId": "card-chase",
-      "date": "2021-01-16"
+      "date": "2021-01-16",
+      "fromTo": "Self",
+      "details": ""
     },
     {
-      "id": "exp-gfffj6o7l",
+      "id": "exp-zdp1j0b5k",
       "description": "Zelle",
       "amount": -60,
-      "category": "Others",
       "creditCardId": "card-chase",
-      "date": "2021-01-22"
+      "date": "2021-01-22",
+      "fromTo": "Zelle",
+      "details": ""
     },
     {
-      "id": "exp-aptaqlhwz",
+      "id": "exp-wy7shbjvu",
       "description": "NJIT",
       "amount": 1181.77,
-      "category": "Others",
       "creditCardId": "card-chase",
-      "date": "2021-01-22"
+      "date": "2021-01-22",
+      "fromTo": "NJIT",
+      "details": ""
     },
     {
-      "id": "exp-12nt1swua",
+      "id": "exp-x69aq8twh",
       "description": "Sav Account",
       "amount": -20,
-      "category": "Others",
       "creditCardId": "card-chase",
-      "date": "2021-01-23"
+      "date": "2021-01-23",
+      "fromTo": "Sav Account",
+      "details": ""
     },
     {
-      "id": "exp-k7jkwbbn6",
+      "id": "exp-a1ivyv3pe",
       "description": "Debit",
       "amount": -40,
-      "category": "Others",
       "creditCardId": "card-chase",
-      "date": "2021-01-23"
+      "date": "2021-01-23",
+      "fromTo": "Debit",
+      "details": ""
     },
     {
-      "id": "exp-x9opqmg2i",
+      "id": "exp-uabncb0vd",
       "description": "Zelle",
       "amount": -20,
-      "category": "Others",
       "creditCardId": "card-chase",
-      "date": "2021-01-24"
+      "date": "2021-01-24",
+      "fromTo": "Zelle",
+      "details": ""
     },
     {
-      "id": "exp-49bvqrmeu",
+      "id": "exp-yl7o7ncht",
       "description": "Sav Account",
       "amount": -180,
-      "category": "Others",
       "creditCardId": "card-chase",
-      "date": "2021-01-26"
+      "date": "2021-01-26",
+      "fromTo": "Sav Account",
+      "details": ""
     },
     {
-      "id": "exp-skhmnklb1",
+      "id": "exp-zrvrgq730",
       "description": "Debit",
       "amount": -40,
-      "category": "Others",
       "creditCardId": "card-chase",
-      "date": "2021-01-30"
+      "date": "2021-01-30",
+      "fromTo": "Debit",
+      "details": ""
     },
     {
-      "id": "exp-sqty4mnsk",
+      "id": "exp-l2r5w99ly",
       "description": "Debit",
       "amount": -55.65,
-      "category": "Others",
       "creditCardId": "card-chase",
-      "date": "2021-01-30"
+      "date": "2021-01-30",
+      "fromTo": "Debit",
+      "details": ""
     },
     {
-      "id": "exp-hhcn1ej4p",
+      "id": "exp-0him7qlsq",
       "description": "Debit",
       "amount": -107.23,
-      "category": "Others",
       "creditCardId": "card-chase",
-      "date": "2021-01-30"
+      "date": "2021-01-30",
+      "fromTo": "Debit",
+      "details": ""
     },
     {
-      "id": "exp-g4cg3row4",
+      "id": "exp-nfxh4oglz",
       "description": "Zelle",
       "amount": 35.73,
-      "category": "Others",
       "creditCardId": "card-chase",
-      "date": "2021-01-31"
+      "date": "2021-01-31",
+      "fromTo": "Zelle",
+      "details": ""
     },
     {
-      "id": "exp-jqs3k7bo9",
+      "id": "exp-5vvcw8ivl",
       "description": "Zelle",
       "amount": -8,
-      "category": "Others",
       "creditCardId": "card-chase",
-      "date": "2021-02-01"
+      "date": "2021-02-01",
+      "fromTo": "Zelle",
+      "details": ""
     },
     {
-      "id": "exp-kmvx7w3z5",
-      "description": "Zelle (420)",
+      "id": "exp-auxwm77kt",
+      "description": "Zelle",
       "amount": -515,
-      "category": "Others",
       "creditCardId": "card-chase",
-      "date": "2021-02-02"
+      "date": "2021-02-02",
+      "fromTo": "Zelle",
+      "details": "420"
     },
     {
-      "id": "exp-p72bj35cn",
+      "id": "exp-nvhptv55f",
       "description": "NJIT",
       "amount": 1181.77,
-      "category": "Others",
       "creditCardId": "card-chase",
-      "date": "2021-02-05"
+      "date": "2021-02-05",
+      "fromTo": "NJIT",
+      "details": ""
     },
     {
-      "id": "exp-p1kupmvnh",
+      "id": "exp-yodvy19sg",
       "description": "Sav Account",
       "amount": -100,
-      "category": "Others",
       "creditCardId": "card-chase",
-      "date": "2021-02-05"
+      "date": "2021-02-05",
+      "fromTo": "Sav Account",
+      "details": ""
     },
     {
-      "id": "exp-dsavpe73x",
+      "id": "exp-ocwnkm4hi",
       "description": "Sav Account",
       "amount": -100,
-      "category": "Others",
       "creditCardId": "card-chase",
-      "date": "2021-02-06"
+      "date": "2021-02-06",
+      "fromTo": "Sav Account",
+      "details": ""
     },
     {
-      "id": "exp-kauhy5o4e",
+      "id": "exp-c3l9sx0ch",
       "description": "Zelle",
       "amount": -33.3,
-      "category": "Others",
       "creditCardId": "card-chase",
-      "date": "2021-02-07"
+      "date": "2021-02-07",
+      "fromTo": "Zelle",
+      "details": ""
     },
     {
-      "id": "exp-lwncdutft",
+      "id": "exp-dhw7gqu2n",
       "description": "Zelle",
       "amount": 2.6,
-      "category": "Others",
       "creditCardId": "card-chase",
-      "date": "2021-02-07"
+      "date": "2021-02-07",
+      "fromTo": "Zelle",
+      "details": ""
     },
     {
-      "id": "exp-51grtfit6",
+      "id": "exp-pun41kdwa",
       "description": "Zelle",
       "amount": 6.43,
-      "category": "Others",
       "creditCardId": "card-chase",
-      "date": "2021-02-07"
+      "date": "2021-02-07",
+      "fromTo": "Zelle",
+      "details": ""
     },
     {
-      "id": "exp-6yqxmfxht",
+      "id": "exp-p0dvnc7pr",
       "description": "Debit",
       "amount": -56.95,
-      "category": "Others",
       "creditCardId": "card-chase",
-      "date": "2021-02-08"
+      "date": "2021-02-08",
+      "fromTo": "Debit",
+      "details": ""
     },
     {
-      "id": "exp-hxhkmc4k2",
+      "id": "exp-cb6u1nziu",
       "description": "Debit",
       "amount": -56.1,
-      "category": "Others",
       "creditCardId": "card-chase",
-      "date": "2021-02-10"
+      "date": "2021-02-10",
+      "fromTo": "Debit",
+      "details": ""
     },
     {
-      "id": "exp-6f2uz17ic",
-      "description": "Zelle (188.46)",
+      "id": "exp-e9ez0vi0y",
+      "description": "Zelle",
       "amount": -188.46,
-      "category": "Others",
       "creditCardId": "card-chase",
-      "date": "2021-02-12"
+      "date": "2021-02-12",
+      "fromTo": "Zelle",
+      "details": "188.46"
     },
     {
-      "id": "exp-znponaah1",
+      "id": "exp-6awah7ubz",
       "description": "Debit",
       "amount": -23.49,
-      "category": "Others",
       "creditCardId": "card-chase",
-      "date": "2021-02-13"
+      "date": "2021-02-13",
+      "fromTo": "Debit",
+      "details": ""
     },
     {
-      "id": "exp-zpvax50pt",
+      "id": "exp-0q9qmwet3",
       "description": "Zelle",
       "amount": -3,
-      "category": "Others",
       "creditCardId": "card-chase",
-      "date": "2021-02-13"
+      "date": "2021-02-13",
+      "fromTo": "Zelle",
+      "details": ""
     },
     {
-      "id": "exp-sdyrhzmpx",
+      "id": "exp-56eawsico",
       "description": "Zelle",
       "amount": -3,
-      "category": "Others",
       "creditCardId": "card-chase",
-      "date": "2021-02-14"
+      "date": "2021-02-14",
+      "fromTo": "Zelle",
+      "details": ""
     },
     {
-      "id": "exp-aztimj6nq",
-      "description": "Zelle (30)",
+      "id": "exp-g31zv3bpl",
+      "description": "Zelle",
       "amount": -90.15,
-      "category": "Others",
       "creditCardId": "card-chase",
-      "date": "2021-02-15"
+      "date": "2021-02-15",
+      "fromTo": "Zelle",
+      "details": "30"
     },
     {
-      "id": "exp-yi8w803rd",
+      "id": "exp-2i3obz37q",
       "description": "CHASE",
       "amount": 200,
-      "category": "Others",
       "creditCardId": "card-chase",
-      "date": "2021-02-16"
+      "date": "2021-02-16",
+      "fromTo": "CHASE",
+      "details": ""
     },
     {
-      "id": "exp-4lhjhemjj",
+      "id": "exp-12tlaearu",
       "description": "Bank",
       "amount": -48,
-      "category": "Others",
       "creditCardId": "card-chase",
-      "date": "2021-02-16"
+      "date": "2021-02-16",
+      "fromTo": "Bank",
+      "details": ""
     },
     {
-      "id": "exp-9wem5tutv",
+      "id": "exp-m1sl9u3fx",
       "description": "Debit",
       "amount": -40,
-      "category": "Others",
       "creditCardId": "card-chase",
-      "date": "2021-02-17"
+      "date": "2021-02-17",
+      "fromTo": "Debit",
+      "details": ""
     },
     {
-      "id": "exp-damekg8pu",
+      "id": "exp-nyqgbflce",
       "description": "Zelle",
       "amount": 2,
-      "category": "Others",
       "creditCardId": "card-chase",
-      "date": "2021-02-17"
+      "date": "2021-02-17",
+      "fromTo": "Zelle",
+      "details": ""
     },
     {
-      "id": "exp-escgcosnk",
+      "id": "exp-r8n3e4gmu",
       "description": "Zelle",
       "amount": 4.33,
-      "category": "Others",
       "creditCardId": "card-chase",
-      "date": "2021-02-18"
+      "date": "2021-02-18",
+      "fromTo": "Zelle",
+      "details": ""
     },
     {
-      "id": "exp-03vjjlsyo",
+      "id": "exp-d04uqh3fh",
       "description": "Zelle",
       "amount": -5.81,
-      "category": "Others",
       "creditCardId": "card-chase",
-      "date": "2026-08-18"
+      "date": "2026-08-18",
+      "fromTo": "Zelle",
+      "details": ""
     },
     {
-      "id": "exp-mjwuzjuta",
+      "id": "exp-4b1h1u7ko",
       "description": "Verizon",
       "amount": -74.99,
-      "category": "Rent & Utilities",
       "creditCardId": "card-chase",
-      "date": "2026-08-18"
+      "date": "2026-08-18",
+      "fromTo": "Verizon",
+      "details": ""
     },
     {
-      "id": "exp-fn6c37lav",
+      "id": "exp-syf7dmmb0",
       "description": "Zelle",
       "amount": -6.05,
-      "category": "Others",
       "creditCardId": "card-chase",
-      "date": "2026-08-18"
+      "date": "2026-08-18",
+      "fromTo": "Zelle",
+      "details": ""
     },
     {
-      "id": "exp-0338p7l89",
+      "id": "exp-j4xwwqc9h",
       "description": "Zelle",
       "amount": 18.33,
-      "category": "Others",
       "creditCardId": "card-chase",
-      "date": "2026-08-18"
+      "date": "2026-08-18",
+      "fromTo": "Zelle",
+      "details": ""
     },
     {
-      "id": "exp-l70lgm2ih",
+      "id": "exp-kf7cjuf5e",
       "description": "Zelle",
       "amount": 36,
-      "category": "Others",
       "creditCardId": "card-chase",
-      "date": "2026-08-18"
+      "date": "2026-08-18",
+      "fromTo": "Zelle",
+      "details": ""
     },
     {
-      "id": "exp-2us5bxn5m",
+      "id": "exp-kbqp5k8o2",
       "description": "Zelle",
       "amount": 12.45,
-      "category": "Others",
       "creditCardId": "card-chase",
-      "date": "2026-08-22"
+      "date": "2026-08-22",
+      "fromTo": "Zelle",
+      "details": ""
     },
     {
-      "id": "exp-iwlnxlt7h",
+      "id": "exp-mdac4ugs0",
       "description": "Zelle",
       "amount": 43.07,
-      "category": "Others",
       "creditCardId": "card-chase",
-      "date": "2026-08-22"
+      "date": "2026-08-22",
+      "fromTo": "Zelle",
+      "details": ""
     },
     {
-      "id": "exp-9i2nakbq7",
+      "id": "exp-mndnjg8ga",
       "description": "Zelle",
       "amount": 364.79,
-      "category": "Others",
       "creditCardId": "card-chase",
-      "date": "2026-08-22"
+      "date": "2026-08-22",
+      "fromTo": "Zelle",
+      "details": ""
     },
     {
-      "id": "exp-peabyxkbc",
+      "id": "exp-cetiv695f",
       "description": "Deposit",
       "amount": 300,
-      "category": "Others",
       "creditCardId": "card-chase",
-      "date": "2026-08-24"
+      "date": "2026-08-24",
+      "fromTo": "Deposit",
+      "details": ""
     },
     {
-      "id": "exp-ucvsnw6z3",
+      "id": "exp-qj6nkollo",
       "description": "Zelle",
       "amount": 300,
-      "category": "Others",
       "creditCardId": "card-chase",
-      "date": "2026-08-24"
+      "date": "2026-08-24",
+      "fromTo": "Zelle",
+      "details": ""
     },
     {
-      "id": "exp-ednaq5esd",
+      "id": "exp-gprxwlpb3",
       "description": "PNC Car",
       "amount": -478.08,
-      "category": "Transportation",
       "creditCardId": "card-chase",
-      "date": "2026-08-26"
+      "date": "2026-08-26",
+      "fromTo": "PNC Car",
+      "details": ""
     },
     {
-      "id": "exp-4hgm8ctz9",
+      "id": "exp-g5p1ix40w",
       "description": "Zelle",
       "amount": 24.22,
-      "category": "Others",
       "creditCardId": "card-chase",
-      "date": "2026-08-27"
+      "date": "2026-08-27",
+      "fromTo": "Zelle",
+      "details": ""
     },
     {
-      "id": "exp-e1bo6tqu3",
+      "id": "exp-xkvkmzvha",
       "description": "NJIT",
       "amount": 1383.21,
-      "category": "Others",
       "creditCardId": "card-chase",
-      "date": "2026-08-28"
+      "date": "2026-08-28",
+      "fromTo": "NJIT",
+      "details": ""
     },
     {
-      "id": "exp-necdmnwtd",
+      "id": "exp-w53ei71u8",
       "description": "Robinhood Gold",
       "amount": -668.31,
-      "category": "Others",
       "creditCardId": "card-chase",
-      "date": "2026-08-28"
+      "date": "2026-08-28",
+      "fromTo": "Robinhood Gold",
+      "details": ""
     },
     {
-      "id": "exp-zeisg8uzl",
+      "id": "exp-d6778a9pt",
       "description": "AmEx Savings",
       "amount": -1000,
-      "category": "Others",
       "creditCardId": "card-chase",
-      "date": "2026-08-28"
+      "date": "2026-08-28",
+      "fromTo": "AmEx Savings",
+      "details": ""
     },
     {
-      "id": "exp-bvx20oqre",
+      "id": "exp-r1firije9",
       "description": "Robinhood",
       "amount": -1100,
-      "category": "Others",
       "creditCardId": "card-chase",
-      "date": "2026-08-28"
+      "date": "2026-08-28",
+      "fromTo": "Robinhood",
+      "details": ""
     },
     {
-      "id": "exp-5jut4poq4",
+      "id": "exp-9g9djfmly",
       "description": "Schwab",
       "amount": 1000,
-      "category": "Others",
       "creditCardId": "card-chase",
-      "date": "2026-08-28"
+      "date": "2026-08-28",
+      "fromTo": "Schwab",
+      "details": ""
     }
   ]
 }
