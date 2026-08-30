@@ -24,11 +24,9 @@ export const Settings: React.FC<SettingsProps> = ({
 }) => {
   // New Card Form State
   const [cardName, setCardName] = useState('');
-  const [lastFour, setLastFour] = useState('');
 
   // New Checking/Saving Account Form State
   const [checkingName, setCheckingName] = useState('');
-  const [checkingLastFour, setCheckingLastFour] = useState('');
   const [checkingAccountType, setCheckingAccountType] = useState<'checking' | 'saving'>('checking');
 
   const handleAddCard = () => {
@@ -36,20 +34,14 @@ export const Settings: React.FC<SettingsProps> = ({
       showAlert('Error', 'Please enter a card name.');
       return;
     }
-    if (lastFour && (lastFour.length !== 4 || isNaN(Number(lastFour)))) {
-      showAlert('Error', 'Last 4 digits must be exactly 4 numbers.');
-      return;
-    }
 
     onAddCard({
       name: cardName.trim(),
-      lastFour: lastFour.trim() || undefined,
       isChecking: false,
       isSaving: false,
     });
 
     setCardName('');
-    setLastFour('');
   };
 
   const handleAddChecking = () => {
@@ -57,20 +49,14 @@ export const Settings: React.FC<SettingsProps> = ({
       showAlert('Error', 'Please enter an account name.');
       return;
     }
-    if (checkingLastFour && (checkingLastFour.length !== 4 || isNaN(Number(checkingLastFour)))) {
-      showAlert('Error', 'Last 4 digits must be exactly 4 numbers.');
-      return;
-    }
 
     onAddCard({
       name: checkingName.trim(),
-      lastFour: checkingLastFour.trim() || undefined,
       isChecking: checkingAccountType === 'checking',
       isSaving: checkingAccountType === 'saving',
     });
 
     setCheckingName('');
-    setCheckingLastFour('');
   };
 
   const confirmDeleteCard = (id: string, name: string) => {
@@ -135,20 +121,11 @@ export const Settings: React.FC<SettingsProps> = ({
         {/* Add Checking/Saving Form */}
         <View style={styles.formContainer}>
           <TextInput
-            style={styles.input}
+            style={[styles.input, { flex: 1 }]}
             value={checkingName}
             onChangeText={setCheckingName}
             placeholder={checkingAccountType === 'checking' ? "Checking Name (e.g. Chase Checking)" : "Saving Name (e.g. Ally Saving)"}
             placeholderTextColor="#94a3b8"
-          />
-          <TextInput
-            style={[styles.input, styles.shortInput]}
-            value={checkingLastFour}
-            onChangeText={setCheckingLastFour}
-            placeholder="Last 4 (e.g. 0000)"
-            placeholderTextColor="#94a3b8"
-            keyboardType="number-pad"
-            maxLength={4}
           />
           <TouchableOpacity style={styles.addButton} onPress={handleAddChecking}>
             <Text style={styles.addButtonText}>Add Account</Text>
@@ -164,7 +141,6 @@ export const Settings: React.FC<SettingsProps> = ({
               <View key={card.id} style={styles.listItem}>
                 <View style={styles.listItemTextContainer}>
                   <Text style={styles.listItemTitle}>{card.name} ({card.isSaving ? 'Saving' : 'Checking'})</Text>
-                  {card.lastFour && <Text style={styles.listItemSub}>Ending in *{card.lastFour}</Text>}
                 </View>
                 <TouchableOpacity
                   style={styles.deleteButton}
@@ -185,20 +161,11 @@ export const Settings: React.FC<SettingsProps> = ({
         {/* Add Card Form */}
         <View style={styles.formContainer}>
           <TextInput
-            style={styles.input}
+            style={[styles.input, { flex: 1 }]}
             value={cardName}
             onChangeText={setCardName}
             placeholder="Card Name (e.g. Sapphire Preferred)"
             placeholderTextColor="#94a3b8"
-          />
-          <TextInput
-            style={[styles.input, styles.shortInput]}
-            value={lastFour}
-            onChangeText={setLastFour}
-            placeholder="Last 4 (e.g. 4321)"
-            placeholderTextColor="#94a3b8"
-            keyboardType="number-pad"
-            maxLength={4}
           />
           <TouchableOpacity style={styles.addButton} onPress={handleAddCard}>
             <Text style={styles.addButtonText}>Add Card</Text>
@@ -214,7 +181,6 @@ export const Settings: React.FC<SettingsProps> = ({
               <View key={card.id} style={styles.listItem}>
                 <View style={styles.listItemTextContainer}>
                   <Text style={styles.listItemTitle}>{card.name}</Text>
-                  {card.lastFour && <Text style={styles.listItemSub}>Ending in *{card.lastFour}</Text>}
                 </View>
                 <TouchableOpacity
                   style={styles.deleteButton}

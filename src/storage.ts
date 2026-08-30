@@ -7,10 +7,10 @@ const CARDS_KEY = '@ExlExp:credit_cards';
 const FUTURE_EXPENSES_KEY = '@ExlExp:future_expenses';
 
 const DEFAULT_CARDS: CreditCard[] = [
-  { id: 'card-citidb', name: 'Citi Double Cash', lastFour: '5555' },
-  { id: 'card-citistrata', name: 'Citi Strata', lastFour: '1234' },
-  { id: 'card-bofa', name: 'BofA Premium', lastFour: '9876' },
-  { id: 'card-chase', name: 'Chase Checking', lastFour: '----', isChecking: true }
+  { id: 'card-citidb', name: 'Citi Double Cash' },
+  { id: 'card-citistrata', name: 'Citi Strata' },
+  { id: 'card-bofa', name: 'BofA Premium' },
+  { id: 'card-chase', name: 'Chase Checking', isChecking: true }
 ];
 
 export const getExpenses = async (): Promise<Expense[]> => {

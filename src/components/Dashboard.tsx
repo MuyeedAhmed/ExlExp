@@ -98,7 +98,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
         if (e.date.startsWith(currentMonthStr)) {
           thisMonthTotal += amountToCount;
         }
-        const cardName = `${card.name}${card.lastFour ? ` (*${card.lastFour})` : ''}`;
+        const cardName = card.name;
         cardTotals[cardName] = (cardTotals[cardName] || 0) + amountToCount;
       }
     });
@@ -184,7 +184,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
             const bal = cardBalances[account.id] || 0.0;
             return (
               <View key={account.id} style={styles.sheetRow}>
-                <Text style={[styles.sheetCell, { flex: 2 }]}>{account.name} {account.lastFour ? `(*${account.lastFour})` : ''}</Text>
+                <Text style={[styles.sheetCell, { flex: 2 }]}>{account.name}</Text>
                 <Text style={[styles.sheetCell, { flex: 1, textAlign: 'right' }, styles.monoText, bal >= 0 ? { color: '#16a34a' } : { color: '#dc2626' }]}>
                   ${bal.toFixed(2)}
                 </Text>
@@ -211,7 +211,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
             const bal = cardBalances[card.id] || 0.0;
             return (
               <View key={card.id} style={styles.sheetRow}>
-                <Text style={[styles.sheetCell, { flex: 2 }]}>{card.name} {card.lastFour ? `(*${card.lastFour})` : ''}</Text>
+                <Text style={[styles.sheetCell, { flex: 2 }]}>{card.name}</Text>
                 <Text style={[styles.sheetCell, { flex: 1, textAlign: 'right' }, styles.monoText, bal > 0 && { color: '#dc2626' }]}>
                   {bal >= 0 ? `$${bal.toFixed(2)}` : `-$${Math.abs(bal).toFixed(2)}`}
                 </Text>

@@ -27,10 +27,10 @@ def main():
     
     # Add default cards
     default_cards_map = {
-        'Citi DB': { 'id': 'card-citidb', 'name': 'Citi Double Cash', 'lastFour': '5555', 'sheet': 'CitiDb' },
-        'Citi Strata': { 'id': 'card-citistrata', 'name': 'Citi Strata', 'lastFour': '1234', 'sheet': 'CitiSrt' },
-        'BofA - Premium': { 'id': 'card-bofa', 'name': 'BofA Premium', 'lastFour': '9876', 'sheet': 'BoA' },
-        'Chase Bank': { 'id': 'card-chase', 'name': 'Chase Checking', 'lastFour': '0000', 'sheet': 'Chase' }
+        'Citi DB': { 'id': 'card-citidb', 'name': 'Citi Double Cash', 'sheet': 'CitiDb' },
+        'Citi Strata': { 'id': 'card-citistrata', 'name': 'Citi Strata', 'sheet': 'CitiSrt' },
+        'BofA - Premium': { 'id': 'card-bofa', 'name': 'BofA Premium', 'sheet': 'BoA' },
+        'Chase Bank': { 'id': 'card-chase', 'name': 'Chase Checking', 'sheet': 'Chase' }
     }
     
     # Let's inspect CredCard sheet
@@ -47,7 +47,6 @@ def main():
                     cards.append({
                         "id": card_def['id'],
                         "name": card_def['name'],
-                        "lastFour": card_def['lastFour'],
                         "isChecking": card_def['sheet'] == 'Chase'
                     })
                     card_name_to_id[card_key] = card_def['id']
@@ -60,7 +59,6 @@ def main():
                     cards.append({
                         "id": c_id,
                         "name": card_key,
-                        "lastFour": "----",
                         "isChecking": is_chk,
                         "isSaving": is_sav
                     })
@@ -73,7 +71,6 @@ def main():
         cards.append({
             "id": card_def['id'],
             "name": card_def['name'],
-            "lastFour": card_def['lastFour'],
             "isChecking": True
         })
         card_name_to_id['Chase Bank'] = card_def['id']

@@ -110,7 +110,7 @@ export const CheckingTab: React.FC<CheckingTabProps> = ({
       {activeAccount && (
         <View style={styles.headerBanner}>
           <Text style={styles.headerLabel}>
-            Account: {activeAccount.name} {activeAccount.lastFour ? `(*${activeAccount.lastFour})` : ''}
+            Account: {activeAccount.name}
           </Text>
           <Text style={styles.headerBalance}>
             Current Balance: <Text style={styles.monoBalance}>${balance.toFixed(2)}</Text>

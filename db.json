@@ -3,25 +3,21 @@
     {
       "id": "card-citidb",
       "name": "Citi Double Cash",
-      "lastFour": "5555",
       "isChecking": false
     },
     {
       "id": "card-citistrata",
       "name": "Citi Strata",
-      "lastFour": "1234",
       "isChecking": false
     },
     {
       "id": "card-bofa",
       "name": "BofA Premium",
-      "lastFour": "9876",
       "isChecking": false
     },
     {
       "id": "card-chase",
       "name": "Chase Checking",
-      "lastFour": "0000",
       "isChecking": true
     }
   ],

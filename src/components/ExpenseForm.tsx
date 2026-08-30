@@ -441,7 +441,7 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
               >
                 <Text style={styles.selectorButtonText}>
                   {selectedSourceCard
-                    ? `${selectedSourceCard.name} (${selectedSourceCard.lastFour ? `*${selectedSourceCard.lastFour}` : '----'})`
+                    ? selectedSourceCard.name
                     : 'Select Source Account'}
                 </Text>
                 <Text style={styles.dropdownArrow}>▼</Text>
@@ -457,7 +457,7 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
               >
                 <Text style={styles.selectorButtonText}>
                   {selectedTargetCard
-                    ? `${selectedTargetCard.name} (${selectedTargetCard.lastFour ? `*${selectedTargetCard.lastFour}` : '----'})`
+                    ? selectedTargetCard.name
                     : 'Select Target Account'}
                 </Text>
                 <Text style={styles.dropdownArrow}>▼</Text>
@@ -501,7 +501,7 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
               >
                 <Text style={styles.selectorButtonText}>
                   {selectedCard
-                    ? `${selectedCard.name} (${selectedCard.lastFour ? `*${selectedCard.lastFour}` : '----'})`
+                    ? selectedCard.name
                     : 'Select Card/Account'}
                 </Text>
                 <Text style={styles.dropdownArrow}>▼</Text>
@@ -751,7 +751,7 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
                   }}
                 >
                   <Text style={[styles.modalItemText, selectedCardId === item.id && styles.modalItemTextSelected]}>
-                    {item.name} {item.lastFour ? `(*${item.lastFour})` : ''} ({item.isChecking ? 'Checking' : item.isSaving ? 'Saving' : 'Credit Card'})
+                    {item.name} ({item.isChecking ? 'Checking' : item.isSaving ? 'Saving' : 'Credit Card'})
                   </Text>
                 </TouchableOpacity>
               )}
@@ -785,7 +785,7 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
                   }}
                 >
                   <Text style={[styles.modalItemText, selectedSourceCardId === item.id && styles.modalItemTextSelected]}>
-                    {item.name} {item.lastFour ? `(*${item.lastFour})` : ''} ({item.isSaving ? 'Saving' : 'Checking'})
+                    {item.name} ({item.isSaving ? 'Saving' : 'Checking'})
                   </Text>
                 </TouchableOpacity>
               )}
@@ -819,7 +819,7 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
                   }}
                 >
                   <Text style={[styles.modalItemText, selectedTargetCardId === item.id && styles.modalItemTextSelected]}>
-                    {item.name} {item.lastFour ? `(*${item.lastFour})` : ''} ({item.isChecking ? 'Checking' : item.isSaving ? 'Saving' : 'Credit Card'})
+                    {item.name} ({item.isChecking ? 'Checking' : item.isSaving ? 'Saving' : 'Credit Card'})
                   </Text>
                 </TouchableOpacity>
               )}

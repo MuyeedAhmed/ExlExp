@@ -125,7 +125,7 @@ export const CreditCardsTab: React.FC<CreditCardsTabProps> = ({
       {activeCard && (
         <View style={styles.headerBanner}>
           <Text style={styles.headerLabel}>
-            Card: {activeCard.name} (*{activeCard.lastFour || '----'})
+            Card: {activeCard.name}
           </Text>
           <View style={styles.statsContainer}>
             <Text style={styles.bannerStat}>

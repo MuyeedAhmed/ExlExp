@@ -17,7 +17,6 @@ export interface Expense {
 export interface CreditCard {
   id: string;
   name: string;
-  lastFour?: string; // Optional last 4 digits
   isChecking?: boolean; // Optional flag to indicate checking account
   isSaving?: boolean; // Optional flag to indicate saving account
 }
