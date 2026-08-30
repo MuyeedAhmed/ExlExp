@@ -15,9 +15,9 @@ export const CheckingTab: React.FC<CheckingTabProps> = ({
   onDelete,
   onEdit,
 }) => {
-  // Filter cards to get only checking accounts
+  // Filter cards to get checking, saving, and brokerage accounts
   const checkingAccounts = useMemo(() => {
-    return cards.filter(c => c.isChecking || c.isSaving);
+    return cards.filter(c => c.isChecking || c.isSaving || c.isBrokerage);
   }, [cards]);
 
   // Active checking account sheet state
@@ -121,19 +121,29 @@ export const CheckingTab: React.FC<CheckingTabProps> = ({
       {/* Spreadsheet grid */}
       <ScrollView horizontal showsHorizontalScrollIndicator={true} style={styles.tableScroll}>
         <View style={styles.tableContainer}>
-          {/* Table Headers (Date, From/To, Amount, Details) */}
+          {/* Table Headers */}
           <View style={styles.tableRowHeader}>
             <Text style={[styles.headerCell, { width: 90 }]}>Date</Text>
             <Text style={[styles.headerCell, { width: 180 }]}>From/To</Text>
-            <Text style={[styles.headerCell, { width: 110, textAlign: 'right' }]}>Amount</Text>
-            <Text style={[styles.headerCell, { width: 310 }]}>Details</Text>
+            {activeAccount?.isSaving ? (
+              <>
+                <Text style={[styles.headerCell, { width: 110, textAlign: 'right' }]}>Amount</Text>
+                <Text style={[styles.headerCell, { width: 110, textAlign: 'right' }]}>Interest</Text>
+                <Text style={[styles.headerCell, { width: 200 }]}>Details</Text>
+              </>
+            ) : (
+              <>
+                <Text style={[styles.headerCell, { width: 110, textAlign: 'right' }]}>Amount</Text>
+                <Text style={[styles.headerCell, { width: 310 }]}>Details</Text>
+              </>
+            )}
             <Text style={[styles.headerCell, { width: 100, textAlign: 'center' }]}>Actions</Text>
           </View>
 
           {/* Table Rows */}
           <ScrollView style={styles.rowsScroll}>
             {checkingExpenses.length === 0 ? (
-              <Text style={styles.emptyText}>No checking or saving transactions recorded.</Text>
+              <Text style={styles.emptyText}>No transactions recorded.</Text>
             ) : (
               checkingExpenses.map(item => {
                 const isDeposit = item.amount >= 0;
@@ -147,19 +157,49 @@ export const CheckingTab: React.FC<CheckingTabProps> = ({
                     <Text style={[styles.cell, { width: 180 }]} numberOfLines={1}>
                       {item.fromTo || item.description || ''}
                     </Text>
-                    <Text
-                      style={[
-                        styles.cell,
-                        { width: 110, textAlign: 'right' },
-                        styles.monoText,
-                        isDeposit ? styles.depositText : styles.withdrawText,
-                      ]}
-                    >
-                      {formattedAmount}
-                    </Text>
-                    <Text style={[styles.cell, { width: 310 }]} numberOfLines={1}>
-                      {item.details || ''}
-                    </Text>
+                    {activeAccount?.isSaving ? (
+                      <>
+                        <Text
+                          style={[
+                            styles.cell,
+                            { width: 110, textAlign: 'right' },
+                            styles.monoText,
+                            item.isInterest ? { color: '#94a3b8' } : (isDeposit ? styles.depositText : styles.withdrawText),
+                          ]}
+                        >
+                          {item.isInterest ? '-' : formattedAmount}
+                        </Text>
+                        <Text
+                          style={[
+                            styles.cell,
+                            { width: 110, textAlign: 'right' },
+                            styles.monoText,
+                            item.isInterest ? styles.depositText : { color: '#94a3b8' },
+                          ]}
+                        >
+                          {item.isInterest ? formattedAmount : '-'}
+                        </Text>
+                        <Text style={[styles.cell, { width: 200 }]} numberOfLines={1}>
+                          {item.details || ''}
+                        </Text>
+                      </>
+                    ) : (
+                      <>
+                        <Text
+                          style={[
+                            styles.cell,
+                            { width: 110, textAlign: 'right' },
+                            styles.monoText,
+                            isDeposit ? styles.depositText : styles.withdrawText,
+                          ]}
+                        >
+                          {formattedAmount}
+                        </Text>
+                        <Text style={[styles.cell, { width: 310 }]} numberOfLines={1}>
+                          {item.details || ''}
+                        </Text>
+                      </>
+                    )}
                     <View style={[styles.cellActions, { width: 100 }]}>
                       <TouchableOpacity style={styles.actionBtn} onPress={() => onEdit(item)}>
                         <Text style={styles.editBtnText}>Edit</Text>

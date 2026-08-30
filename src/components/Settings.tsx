@@ -27,7 +27,7 @@ export const Settings: React.FC<SettingsProps> = ({
 
   // New Checking/Saving Account Form State
   const [checkingName, setCheckingName] = useState('');
-  const [checkingAccountType, setCheckingAccountType] = useState<'checking' | 'saving'>('checking');
+  const [checkingAccountType, setCheckingAccountType] = useState<'checking' | 'saving' | 'brokerage'>('checking');
 
   const handleAddCard = () => {
     if (!cardName.trim()) {
@@ -39,6 +39,7 @@ export const Settings: React.FC<SettingsProps> = ({
       name: cardName.trim(),
       isChecking: false,
       isSaving: false,
+      isBrokerage: false,
     });
 
     setCardName('');
@@ -54,6 +55,7 @@ export const Settings: React.FC<SettingsProps> = ({
       name: checkingName.trim(),
       isChecking: checkingAccountType === 'checking',
       isSaving: checkingAccountType === 'saving',
+      isBrokerage: checkingAccountType === 'brokerage',
     });
 
     setCheckingName('');
@@ -91,8 +93,8 @@ export const Settings: React.FC<SettingsProps> = ({
     }
   };
 
-  const creditCardsOnly = cards.filter(c => !c.isChecking && !c.isSaving);
-  const checkingAccountsOnly = cards.filter(c => c.isChecking || c.isSaving);
+  const creditCardsOnly = cards.filter(c => !c.isChecking && !c.isSaving && !c.isBrokerage);
+  const checkingAccountsOnly = cards.filter(c => c.isChecking || c.isSaving || c.isBrokerage);
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
@@ -100,7 +102,7 @@ export const Settings: React.FC<SettingsProps> = ({
  
       {/* Checking/Saving Accounts Management */}
       <View style={styles.sectionCard}>
-        <Text style={styles.sectionTitle}>Manage Checking & Saving Accounts</Text>
+        <Text style={styles.sectionTitle}>Manage Checking, Saving & Brokerage Accounts</Text>
  
         {/* Account Type Selector Toggle */}
         <View style={styles.typeSelectorRow}>
@@ -116,6 +118,12 @@ export const Settings: React.FC<SettingsProps> = ({
           >
             <Text style={[styles.typeText, checkingAccountType === 'saving' && styles.activeTypeText]}>Saving</Text>
           </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.typeBtn, checkingAccountType === 'brokerage' && styles.activeTypeBtn]}
+            onPress={() => setCheckingAccountType('brokerage')}
+          >
+            <Text style={[styles.typeText, checkingAccountType === 'brokerage' && styles.activeTypeText]}>Brokerage</Text>
+          </TouchableOpacity>
         </View>
 
         {/* Add Checking/Saving Form */}
@@ -124,7 +132,13 @@ export const Settings: React.FC<SettingsProps> = ({
             style={[styles.input, { flex: 1 }]}
             value={checkingName}
             onChangeText={setCheckingName}
-            placeholder={checkingAccountType === 'checking' ? "Checking Name (e.g. Chase Checking)" : "Saving Name (e.g. Ally Saving)"}
+            placeholder={
+              checkingAccountType === 'checking'
+                ? "Checking Name (e.g. Chase Checking)"
+                : checkingAccountType === 'saving'
+                ? "Saving Name (e.g. Ally Saving)"
+                : "Brokerage Name (e.g. Fidelity Brokerage)"
+            }
             placeholderTextColor="#94a3b8"
           />
           <TouchableOpacity style={styles.addButton} onPress={handleAddChecking}>
@@ -135,12 +149,14 @@ export const Settings: React.FC<SettingsProps> = ({
         {/* Checking/Saving List */}
         <View style={styles.listContainer}>
           {checkingAccountsOnly.length === 0 ? (
-            <Text style={styles.emptyText}>No checking or saving accounts configured.</Text>
+            <Text style={styles.emptyText}>No checking, saving or brokerage accounts configured.</Text>
           ) : (
             checkingAccountsOnly.map(card => (
               <View key={card.id} style={styles.listItem}>
                 <View style={styles.listItemTextContainer}>
-                  <Text style={styles.listItemTitle}>{card.name} ({card.isSaving ? 'Saving' : 'Checking'})</Text>
+                  <Text style={styles.listItemTitle}>
+                    {card.name} ({card.isSaving ? 'Saving' : card.isBrokerage ? 'Brokerage' : 'Checking'})
+                  </Text>
                 </View>
                 <TouchableOpacity
                   style={styles.deleteButton}

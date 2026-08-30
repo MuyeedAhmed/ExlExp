@@ -43,17 +43,24 @@ export const Dashboard: React.FC<DashboardProps> = ({
   }, [expenses, cards]);
 
   const checkingAccounts = useMemo(() => {
-    return cards.filter(c => c.isChecking || c.isSaving);
+    return cards.filter(c => c.isChecking);
   }, [cards]);
 
   const creditCardsOnly = useMemo(() => {
-    return cards.filter(c => !c.isChecking && !c.isSaving);
+    return cards.filter(c => !c.isChecking && !c.isSaving && !c.isBrokerage);
   }, [cards]);
+
+  const activeCreditCards = useMemo(() => {
+    return creditCardsOnly.filter(c => {
+      const bal = cardBalances[c.id] || 0.0;
+      return bal !== 0;
+    });
+  }, [creditCardsOnly, cardBalances]);
 
   const checkingBalance = useMemo(() => {
     return checkingAccounts.reduce((sum, account) => {
       const bal = cardBalances[account.id] || 0;
-      return sum + bal; // Now deposits are positive, withdrawals are negative. So balance = sum(amount)
+      return sum + bal;
     }, 0);
   }, [cardBalances, checkingAccounts]);
 
@@ -64,59 +71,13 @@ export const Dashboard: React.FC<DashboardProps> = ({
     }, 0);
   }, [cardBalances, creditCardsOnly]);
 
+  const futureExpensesTotal = useMemo(() => {
+    return futureExpenses.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+  }, [futureExpenses]);
+
   const netBalance = useMemo(() => {
-    return checkingBalance - creditCardDebt;
-  }, [checkingBalance, creditCardDebt]);
-
-  // Statistics for breakdown tables (monthly spending by card/account)
-  const stats = useMemo(() => {
-    const now = new Date();
-    const currentMonthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-
-    let total = 0;
-    let thisMonthTotal = 0;
-    const cardTotals: { [key: string]: number } = {};
-
-    expenses.forEach(e => {
-      const amount = Number(e.amount) || 0;
-      const card = cardMap.get(e.creditCardId);
-      if (!card) return;
-
-      let amountToCount = 0;
-      if (card.isChecking || card.isSaving) {
-        if (amount < 0) { // checking/saving withdrawal (spending)
-          amountToCount = Math.abs(amount);
-        }
-      } else { // credit card standard spend
-        if (amount > 0 && !e.isFee && !e.isReward) {
-          amountToCount = amount;
-        }
-      }
-
-      if (amountToCount > 0) {
-        total += amountToCount;
-        if (e.date.startsWith(currentMonthStr)) {
-          thisMonthTotal += amountToCount;
-        }
-        const cardName = card.name;
-        cardTotals[cardName] = (cardTotals[cardName] || 0) + amountToCount;
-      }
-    });
-
-    const cardBreakdown = Object.keys(cardTotals)
-      .map(name => ({ name, value: cardTotals[name] }))
-      .sort((a, b) => b.value - a.value);
-
-    return {
-      total,
-      thisMonthTotal,
-      cardBreakdown,
-    };
-  }, [expenses, cardMap]);
-
-  const maxCardValue = useMemo(() => {
-    return stats.cardBreakdown.length > 0 ? stats.cardBreakdown[0].value : 1;
-  }, [stats.cardBreakdown]);
+    return checkingBalance - creditCardDebt - futureExpensesTotal;
+  }, [checkingBalance, creditCardDebt, futureExpensesTotal]);
 
   const handleAddFutureExpense = () => {
     if (!futureDesc.trim()) return alert('Please enter a description');
@@ -159,6 +120,13 @@ export const Dashboard: React.FC<DashboardProps> = ({
           </Text>
         </View>
 
+        <View style={styles.sheetRow}>
+          <Text style={[styles.sheetCell, { flex: 2 }]}>Upcoming Scheduled Bills</Text>
+          <Text style={[styles.sheetCell, { flex: 1, textAlign: 'right' }, styles.monoText, futureExpensesTotal > 0 && { color: '#dc2626' }]}>
+            ${futureExpensesTotal.toFixed(2)}
+          </Text>
+        </View>
+
         <View style={[styles.sheetRow, { backgroundColor: '#f8fafc' }]}>
           <Text style={[styles.sheetCell, { flex: 2, fontWeight: 'bold' }]}>Net Financial Position</Text>
           <Text style={[styles.sheetCell, { flex: 1, textAlign: 'right', fontWeight: 'bold' }, styles.monoText]}>
@@ -197,17 +165,17 @@ export const Dashboard: React.FC<DashboardProps> = ({
       {/* Credit Card List - Spreadsheet Grid Style */}
       <View style={[styles.sheetGrid, { marginTop: 12 }]}>
         <View style={styles.sheetHeaderRow}>
-          <Text style={[styles.sheetHeaderCell, { flex: 2 }]}>Credit Card Registry</Text>
+          <Text style={[styles.sheetHeaderCell, { flex: 2 }]}>Credit Card Registry (Active)</Text>
           <Text style={[styles.sheetHeaderCell, { flex: 1, textAlign: 'right' }]}>Owed Balance</Text>
         </View>
-        {creditCardsOnly.length === 0 ? (
+        {activeCreditCards.length === 0 ? (
           <View style={styles.sheetRow}>
             <Text style={[styles.sheetCell, { flex: 3, textAlign: 'center', color: '#64748b' }]}>
-              No credit cards configured.
+              No credit cards with active balance.
             </Text>
           </View>
         ) : (
-          creditCardsOnly.map(card => {
+          activeCreditCards.map(card => {
             const bal = cardBalances[card.id] || 0.0;
             return (
               <View key={card.id} style={styles.sheetRow}>
@@ -286,34 +254,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
               </View>
             </View>
           ))
-        )}
-      </View>
-
-      {/* Breakdowns */}
-      <View style={[styles.sheetGrid, { marginTop: 12 }]}>
-        <View style={styles.sheetHeaderRow}>
-          <Text style={styles.sheetHeaderCell}>Month Spending by Card/Account</Text>
-        </View>
-        {stats.cardBreakdown.length === 0 ? (
-          <Text style={styles.emptyText}>No data available.</Text>
-        ) : (
-          stats.cardBreakdown.map((item, idx) => {
-            const percentage = stats.total > 0 ? (item.value / stats.total) * 100 : 0;
-            const fillWidth = `${(item.value / maxCardValue) * 100}%` as DimensionValue;
-            return (
-              <View key={idx} style={styles.barItem}>
-                <View style={styles.barHeader}>
-                  <Text style={styles.barName} numberOfLines={1}>{item.name}</Text>
-                  <Text style={[styles.barValue, styles.monoText]}>
-                    ${item.value.toFixed(2)} ({percentage.toFixed(0)}%)
-                  </Text>
-                </View>
-                <View style={styles.barTrack}>
-                  <View style={[styles.barFill, { width: fillWidth, backgroundColor: '#475569' }]} />
-                </View>
-              </View>
-            );
-          })
         )}
       </View>
     </ScrollView>

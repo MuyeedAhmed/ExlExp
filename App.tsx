@@ -135,15 +135,6 @@ export default function App() {
 
     setExpenses(updatedExpenses);
     await saveExpenses(updatedExpenses);
-
-    // Redirect tab based on active card type of the first/only item
-    const targetCardId = isArray ? (expenseData as any)[0].creditCardId : (expenseData as any).creditCardId;
-    const card = cards.find(c => c.id === targetCardId);
-    if (card?.isChecking || card?.isSaving) {
-      setActiveTab('checking');
-    } else {
-      setActiveTab('credit_cards');
-    }
   };
 
   const handleExpenseDelete = async (id: string) => {

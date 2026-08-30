@@ -10,7 +10,6 @@ import {
   FlatList,
   Alert,
   Platform,
-  DimensionValue,
 } from 'react-native';
 import { Expense, CreditCard } from '../types';
 
@@ -64,6 +63,9 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
   const [zelleName, setZelleName] = useState('');
   const [zelleDetails, setZelleDetails] = useState('');
 
+  // Savings specific state
+  const [isInterest, setIsInterest] = useState(false);
+
   // Credit Card specific states
   const [isFee, setIsFee] = useState(false);
   const [isReward, setIsReward] = useState(false);
@@ -94,8 +96,19 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
 
   const isCheckingSelected = useMemo(() => {
     const card = cards.find(c => c.id === selectedCardId);
-    return !!(card?.isChecking || card?.isSaving);
+    return !!(card?.isChecking || card?.isSaving || card?.isBrokerage);
   }, [cards, selectedCardId]);
+
+  const selectedCard = cards.find(c => c.id === selectedCardId);
+
+  // Force Interest values when marked as interest
+  useEffect(() => {
+    if (isInterest) {
+      setFromOrTo('From');
+      setFromTo('Interest');
+      setIsZelle(false);
+    }
+  }, [isInterest]);
 
   // Sync state when editing an existing transaction or transfer
   useEffect(() => {
@@ -121,8 +134,8 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
           const exp2Card = cards.find(c => c.id === linked.creditCardId);
 
           if (exp1Card && exp2Card) {
-            const exp1IsDeposit = exp1Card.isChecking || exp1Card.isSaving;
-            const exp2IsDeposit = exp2Card.isChecking || exp2Card.isSaving;
+            const exp1IsDeposit = exp1Card.isChecking || exp1Card.isSaving || exp1Card.isBrokerage;
+            const exp2IsDeposit = exp2Card.isChecking || exp2Card.isSaving || exp2Card.isBrokerage;
 
             if (exp1IsDeposit && !exp2IsDeposit) {
               sourceId = editingExpense.creditCardId;
@@ -158,9 +171,10 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
         setIsReward(!!editingExpense.isReward);
         setRewardType(editingExpense.rewardType || 'cashback');
         setRewardValue(editingExpense.rewardValue ? editingExpense.rewardValue.toString() : '');
+        setIsInterest(!!editingExpense.isInterest);
 
         const card = cards.find(c => c.id === editingExpense.creditCardId);
-        const isDepositAcc = !!(card?.isChecking || card?.isSaving);
+        const isDepositAcc = !!(card?.isChecking || card?.isSaving || card?.isBrokerage);
 
         if (isDepositAcc) {
           setAmount(Math.abs(editingExpense.amount).toString());
@@ -204,7 +218,8 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
     setAmount('');
     setDate(getTodayString());
 
-    const initialCardId = cards[0]?.id || '';
+    const standardCards = cards.filter(c => !c.isBrokerage);
+    const initialCardId = standardCards[0]?.id || '';
     setSelectedCardId(initialCardId);
 
     // Transaction resets
@@ -219,9 +234,10 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
     setIsReward(false);
     setRewardType('cashback');
     setRewardValue('');
+    setIsInterest(false);
 
     // Transfer resets
-    const depositAccs = cards.filter(c => c.isChecking || c.isSaving);
+    const depositAccs = cards.filter(c => c.isChecking || c.isSaving || c.isBrokerage);
     setSelectedSourceCardId(depositAccs[0]?.id || initialCardId);
     setSelectedTargetCardId(cards.find(c => c.id !== depositAccs[0]?.id)?.id || initialCardId);
     setTransferDetails('');
@@ -275,8 +291,8 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
         isTransfer: true,
       };
 
-      // Target Account: credit payment (for CC) or deposit (for checking/saving)
-      const targetIsDeposit = !!(targetCard?.isChecking || targetCard?.isSaving);
+      // Target Account: credit payment (for CC) or deposit (for checking/saving/brokerage)
+      const targetIsDeposit = !!(targetCard?.isChecking || targetCard?.isSaving || targetCard?.isBrokerage);
       const targetTx: Omit<Expense, 'id'> = {
         creditCardId: selectedTargetCardId,
         amount: targetIsDeposit ? parsedAmount : -parsedAmount, // paying credit card is negative (reduces balance owed)
@@ -297,15 +313,17 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
       }
 
       if (isCheckingSelected) {
-        if (isZelle) {
-          if (!zelleName.trim()) {
-            showAlert('Error', 'Please enter a Zelle name.');
-            return;
-          }
-        } else {
-          if (!fromTo.trim()) {
-            showAlert('Error', 'Please enter a From/To name.');
-            return;
+        if (!isInterest) {
+          if (isZelle) {
+            if (!zelleName.trim()) {
+              showAlert('Error', 'Please enter a Zelle name.');
+              return;
+            }
+          } else {
+            if (!fromTo.trim()) {
+              showAlert('Error', 'Please enter a From/To name.');
+              return;
+            }
           }
         }
         if (isNaN(parsedAmount) || parsedAmount <= 0) {
@@ -344,7 +362,11 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
 
       if (isCheckingSelected) {
         finalAmount = fromOrTo === 'From' ? parsedAmount : -parsedAmount;
-        if (isZelle) {
+        if (isInterest) {
+          finalFromTo = 'Interest';
+          finalDetails = details.trim() || 'Savings Interest';
+          finalDescription = 'Interest';
+        } else if (isZelle) {
           finalFromTo = '';
           finalDetails = `Zelle ${fromOrTo} ${zelleName.trim()} (${zelleDetails.trim()})`;
           finalDescription = `Zelle ${fromOrTo} ${zelleName.trim()}`;
@@ -381,6 +403,7 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
         isReward: !isCheckingSelected ? isReward : undefined,
         rewardType: !isCheckingSelected && isReward ? rewardType : undefined,
         rewardValue: !isCheckingSelected && isReward ? finalRewardValue : undefined,
+        isInterest: isCheckingSelected && selectedCard?.isSaving ? isInterest : undefined,
       });
 
       resetForm();
@@ -395,12 +418,22 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
     }
   };
 
-  const selectedCard = cards.find(c => c.id === selectedCardId);
   const selectedSourceCard = cards.find(c => c.id === selectedSourceCardId);
   const selectedTargetCard = cards.find(c => c.id === selectedTargetCardId);
 
-  const depositAccounts = cards.filter(c => c.isChecking || c.isSaving);
-  const targetAccountsList = cards.filter(c => c.id !== selectedSourceCardId);
+  // Transfers support checking, saving, and brokerage
+  const depositAccounts = cards.filter(c => c.isChecking || c.isSaving || c.isBrokerage);
+
+  // Filter Target accounts list
+  const targetAccountsList = useMemo(() => {
+    const sourceCard = cards.find(c => c.id === selectedSourceCardId);
+    if (sourceCard?.isBrokerage) {
+      // If source is brokerage, target can only be Checking or Saving
+      return cards.filter(c => c.id !== selectedSourceCardId && (c.isChecking || c.isSaving));
+    }
+    // Checking/saving source accounts can target any other accounts
+    return cards.filter(c => c.id !== selectedSourceCardId);
+  }, [cards, selectedSourceCardId]);
 
   return (
     <ScrollView style={styles.container} keyboardShouldPersistTaps="handled">
@@ -494,7 +527,7 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
           <>
             {/* Account Selector */}
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>{isCheckingSelected ? 'Checking/Saving Account' : 'Payment Card'}</Text>
+              <Text style={styles.label}>{isCheckingSelected ? 'Account' : 'Payment Card'}</Text>
               <TouchableOpacity
                 style={styles.selectorButton}
                 onPress={() => setCardModalVisible(true)}
@@ -508,8 +541,22 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
               </TouchableOpacity>
             </View>
 
+            {/* Savings Specific: Interest Checkbox */}
+            {isCheckingSelected && selectedCard?.isSaving && (
+              <View style={styles.inputGroup}>
+                <TouchableOpacity
+                  style={[styles.optionBtn, isInterest && styles.activeOptionBtn]}
+                  onPress={() => setIsInterest(!isInterest)}
+                >
+                  <Text style={[styles.optionBtnText, isInterest && styles.activeOptionBtnText]}>
+                    Interest Payment / Dividend
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
             {/* Checking/Saving Specific From/To Direction */}
-            {isCheckingSelected && (
+            {isCheckingSelected && !isInterest && (
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>Transaction Direction</Text>
                 <View style={styles.zelleTypeRow}>
@@ -604,19 +651,27 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
                 <Text style={styles.label}>From / To Name</Text>
                 <View style={styles.fromToRow}>
                   <TextInput
-                    style={[styles.input, styles.fromToInput, isZelle && styles.disabledInput]}
+                    style={[styles.input, styles.fromToInput, (isZelle || isInterest) && styles.disabledInput]}
                     value={fromTo}
                     onChangeText={setFromTo}
-                    placeholder={isZelle ? "(Cleared for Zelle)" : "e.g. Landlord, Employer, John Doe"}
+                    placeholder={
+                      isInterest
+                        ? "Interest"
+                        : isZelle
+                        ? "(Cleared for Zelle)"
+                        : "e.g. Landlord, Employer, John Doe"
+                    }
                     placeholderTextColor="#94a3b8"
-                    editable={!isZelle}
+                    editable={!isZelle && !isInterest}
                   />
-                  <TouchableOpacity
-                    style={[styles.zelleToggleBtn, isZelle && styles.activeZelleToggleBtn]}
-                    onPress={() => setIsZelle(!isZelle)}
-                  >
-                    <Text style={[styles.zelleToggleText, isZelle && styles.activeZelleToggleText]}>Zelle</Text>
-                  </TouchableOpacity>
+                  {!isInterest && (
+                    <TouchableOpacity
+                      style={[styles.zelleToggleBtn, isZelle && styles.activeZelleToggleBtn]}
+                      onPress={() => setIsZelle(!isZelle)}
+                    >
+                      <Text style={[styles.zelleToggleText, isZelle && styles.activeZelleToggleText]}>Zelle</Text>
+                    </TouchableOpacity>
+                  )}
                 </View>
               </View>
             )}
@@ -648,7 +703,7 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
                       style={[styles.input, styles.textArea]}
                       value={details}
                       onChangeText={setDetails}
-                      placeholder="e.g. Monthly rent, utility bill payment"
+                      placeholder={isInterest ? "e.g. Monthly interest credit" : "e.g. Monthly rent, utility bill payment"}
                       placeholderTextColor="#94a3b8"
                       multiline={true}
                       numberOfLines={2}
@@ -729,7 +784,7 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
         </View>
       </View>
 
-      {/* Credit Card / Standard Account Modal Picker */}
+      {/* Credit Card / Standard Account Modal Picker (Brokerage excluded from standard transactions) */}
       <Modal
         visible={cardModalVisible}
         transparent={true}
@@ -740,7 +795,7 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Select Account/Card</Text>
             <FlatList
-              data={cards}
+              data={cards.filter(c => !c.isBrokerage)}
               keyExtractor={item => item.id}
               renderItem={({ item }) => (
                 <TouchableOpacity
@@ -785,7 +840,7 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
                   }}
                 >
                   <Text style={[styles.modalItemText, selectedSourceCardId === item.id && styles.modalItemTextSelected]}>
-                    {item.name} ({item.isSaving ? 'Saving' : 'Checking'})
+                    {item.name} ({item.isSaving ? 'Saving' : item.isBrokerage ? 'Brokerage' : 'Checking'})
                   </Text>
                 </TouchableOpacity>
               )}
@@ -819,7 +874,7 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
                   }}
                 >
                   <Text style={[styles.modalItemText, selectedTargetCardId === item.id && styles.modalItemTextSelected]}>
-                    {item.name} ({item.isChecking ? 'Checking' : item.isSaving ? 'Saving' : 'Credit Card'})
+                    {item.name} ({item.isChecking ? 'Checking' : item.isSaving ? 'Saving' : item.isBrokerage ? 'Brokerage' : 'Credit Card'})
                   </Text>
                 </TouchableOpacity>
               )}

@@ -12,6 +12,7 @@ export interface Expense {
   rewardValue?: number; // cashback dollars or miles/points value
   isTransfer?: boolean; // transfer marker
   transferLinkId?: string; // linked transfer transaction ID
+  isInterest?: boolean; // interest marker for savings accounts
 }
 
 export interface CreditCard {
@@ -19,6 +20,7 @@ export interface CreditCard {
   name: string;
   isChecking?: boolean; // Optional flag to indicate checking account
   isSaving?: boolean; // Optional flag to indicate saving account
+  isBrokerage?: boolean; // Optional flag to indicate brokerage account
 }
 
 export interface FutureExpense {
