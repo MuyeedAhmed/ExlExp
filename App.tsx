@@ -85,7 +85,8 @@ export default function App() {
 
     setExpenses(updatedExpenses);
     await saveExpenses(updatedExpenses);
-    if (expenseData.creditCardId === 'card-chase') {
+    const isChecking = cards.find(c => c.id === expenseData.creditCardId)?.isChecking;
+    if (isChecking) {
       setActiveTab('checking');
     } else {
       setActiveTab('credit_cards');
@@ -104,7 +105,7 @@ export default function App() {
   };
 
   const handleCancelEditing = () => {
-    const isChecking = editingExpense && editingExpense.creditCardId === 'card-chase';
+    const isChecking = editingExpense && cards.find(c => c.id === editingExpense.creditCardId)?.isChecking;
     setEditingExpense(null);
     if (isChecking) {
       setActiveTab('checking');

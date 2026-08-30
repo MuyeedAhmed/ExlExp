@@ -11,7 +11,7 @@ const DEFAULT_CARDS: CreditCard[] = [
   { id: 'card-citidb', name: 'Citi Double Cash', lastFour: '5555' },
   { id: 'card-citistrata', name: 'Citi Strata', lastFour: '1234' },
   { id: 'card-bofa', name: 'BofA Premium', lastFour: '9876' },
-  { id: 'card-chase', name: 'Chase Checking', lastFour: '----' }
+  { id: 'card-chase', name: 'Chase Checking', lastFour: '----', isChecking: true }
 ];
 
 const DEFAULT_CATEGORIES: Category[] = [

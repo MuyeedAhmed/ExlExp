@@ -5,12 +5,15 @@ export interface Expense {
   category: string;
   creditCardId: string; // references CreditCard.id
   date: string; // format YYYY-MM-DD
+  fromTo?: string; // From/To for checking accounts
+  details?: string; // Details for checking accounts
 }
 
 export interface CreditCard {
   id: string;
   name: string;
   lastFour?: string; // Optional last 4 digits
+  isChecking?: boolean; // Optional flag to indicate checking account
 }
 
 export interface Category {

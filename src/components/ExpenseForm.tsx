@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   StyleSheet,
   Text,
@@ -21,6 +21,21 @@ interface ExpenseFormProps {
   onCancelEditing?: () => void;
 }
 
+const CHECKING_CATEGORIES = ['Rent', 'Utilities', 'Salary', 'Creditcard bill pay', 'Others'];
+
+const parseZelleDetails = (detailsStr: string) => {
+  if (!detailsStr) return null;
+  const match = detailsStr.match(/^Zelle (To|From) (.+?) \((.*?)\)$/);
+  if (match) {
+    return {
+      type: match[1] as 'To' | 'From',
+      name: match[2],
+      details: match[3],
+    };
+  }
+  return null;
+};
+
 export const ExpenseForm: React.FC<ExpenseFormProps> = ({
   cards,
   categories,
@@ -33,6 +48,14 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
   const [selectedCategory, setSelectedCategory] = useState('');
   const [selectedCardId, setSelectedCardId] = useState('');
   const [date, setDate] = useState('');
+
+  // Checking Account specific states
+  const [fromTo, setFromTo] = useState('');
+  const [details, setDetails] = useState('');
+  const [isZelle, setIsZelle] = useState(false);
+  const [fromOrTo, setFromOrTo] = useState<'To' | 'From'>('To');
+  const [zelleName, setZelleName] = useState('');
+  const [zelleDetails, setZelleDetails] = useState('');
 
   // Dropdown Modal states
   const [categoryModalVisible, setCategoryModalVisible] = useState(false);
@@ -50,25 +73,95 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   };
 
+  const isCheckingSelected = useMemo(() => {
+    const card = cards.find(c => c.id === selectedCardId);
+    return !!card?.isChecking;
+  }, [cards, selectedCardId]);
+
+  const displayedCategories = useMemo(() => {
+    if (isCheckingSelected) {
+      return CHECKING_CATEGORIES.map(name => ({ id: `checking-cat-${name}`, name }));
+    }
+    return categories;
+  }, [isCheckingSelected, categories]);
+
   // Sync state if editing an existing expense
   useEffect(() => {
     if (editingExpense) {
       setDescription(editingExpense.description);
-      setAmount(editingExpense.amount.toString());
       setSelectedCategory(editingExpense.category);
       setSelectedCardId(editingExpense.creditCardId);
       setDate(editingExpense.date);
+
+      const isChecking = cards.find(c => c.id === editingExpense.creditCardId)?.isChecking;
+      if (isChecking) {
+        setAmount(Math.abs(editingExpense.amount).toString());
+        setFromOrTo(editingExpense.amount >= 0 ? 'From' : 'To');
+        setFromTo(editingExpense.fromTo || editingExpense.description || '');
+        const zelleInfo = parseZelleDetails(editingExpense.details || '');
+        if (zelleInfo) {
+          setIsZelle(true);
+          setZelleName(zelleInfo.name);
+          setZelleDetails(zelleInfo.details);
+          setDetails('');
+        } else {
+          setIsZelle(false);
+          setDetails(editingExpense.details || '');
+          setZelleName('');
+          setZelleDetails('');
+        }
+      } else {
+        setAmount(editingExpense.amount.toString());
+        setFromOrTo('To');
+        setFromTo('');
+        setDetails('');
+        setIsZelle(false);
+        setZelleName('');
+        setZelleDetails('');
+      }
     } else {
       resetForm();
     }
-  }, [editingExpense]);
+  }, [editingExpense, cards]);
+
+  // Automatically select category based on account type
+  useEffect(() => {
+    const card = cards.find(c => c.id === selectedCardId);
+    if (card?.isChecking) {
+      if (!CHECKING_CATEGORIES.includes(selectedCategory)) {
+        setSelectedCategory('Others');
+      }
+    }
+  }, [selectedCardId, cards]);
+
+  // Clear fromTo if Zelle is enabled
+  useEffect(() => {
+    if (isZelle) {
+      setFromTo('');
+    }
+  }, [isZelle]);
 
   const resetForm = () => {
     setDescription('');
     setAmount('');
-    setSelectedCategory(categories[0]?.name || '');
-    setSelectedCardId(cards[0]?.id || '');
+    
+    const initialCardId = cards[0]?.id || '';
+    setSelectedCardId(initialCardId);
+    
+    const initialCard = cards.find(c => c.id === initialCardId);
+    if (initialCard?.isChecking) {
+      setSelectedCategory('Others');
+    } else {
+      setSelectedCategory(categories[0]?.name || '');
+    }
+    
     setDate(getTodayString());
+    setFromOrTo('To');
+    setFromTo('');
+    setDetails('');
+    setIsZelle(false);
+    setZelleName('');
+    setZelleDetails('');
   };
 
   const handleQuickDateSelect = (type: 'today' | 'yesterday') => {
@@ -81,38 +174,76 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
 
   const handleSubmit = () => {
     // Basic validation
-    if (!description.trim()) {
-      showAlert('Error', 'Please enter a description or merchant name.');
-      return;
+    if (!isCheckingSelected) {
+      if (!description.trim()) {
+        showAlert('Error', 'Please enter a description or merchant name.');
+        return;
+      }
+    } else {
+      if (isZelle) {
+        if (!zelleName.trim()) {
+          showAlert('Error', 'Please enter a Zelle recipient or sender name.');
+          return;
+        }
+      } else {
+        if (!fromTo.trim()) {
+          showAlert('Error', 'Please enter a From/To name.');
+          return;
+        }
+      }
     }
+
     const parsedAmount = parseFloat(amount);
     if (isNaN(parsedAmount) || parsedAmount <= 0) {
       showAlert('Error', 'Please enter a valid amount greater than 0.');
       return;
     }
+
     if (!selectedCategory) {
       showAlert('Error', 'Please select a category.');
       return;
     }
     if (!selectedCardId) {
-      showAlert('Error', 'Please select a credit card.');
+      showAlert('Error', 'Please select a payment card or checking account.');
       return;
     }
 
-    // Simple date format regex validation YYYY-MM-DD
     const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
     if (!dateRegex.test(date)) {
       showAlert('Error', 'Please enter a valid date in YYYY-MM-DD format.');
       return;
     }
 
+    // Formulate final amount, description, fromTo, details
+    let finalAmount = parsedAmount;
+    let finalDescription = '';
+    let finalFromTo: string | undefined = undefined;
+    let finalDetails: string | undefined = undefined;
+
+    if (isCheckingSelected) {
+      finalAmount = fromOrTo === 'From' ? parsedAmount : -parsedAmount;
+      if (isZelle) {
+        finalFromTo = '';
+        finalDetails = `Zelle ${fromOrTo} ${zelleName.trim()} (${zelleDetails.trim()})`;
+        finalDescription = `Zelle ${fromOrTo} ${zelleName.trim()}`;
+      } else {
+        finalFromTo = fromTo.trim();
+        finalDetails = details.trim();
+        finalDescription = fromTo.trim();
+      }
+    } else {
+      finalDescription = description.trim();
+    }
+
     onSubmit({
       id: editingExpense?.id,
-      description: description.trim(),
-      amount: parsedAmount,
+      description: finalDescription,
+      amount: finalAmount,
       category: selectedCategory,
       creditCardId: selectedCardId,
       date,
+      fromTo: finalFromTo,
+      details: finalDetails,
     });
 
     resetForm();
@@ -132,20 +263,77 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
     <ScrollView style={styles.container} keyboardShouldPersistTaps="handled">
       <View style={styles.formCard}>
         <Text style={styles.formTitle}>
-          {editingExpense ? 'Edit Expense' : 'Log New Expense'}
+          {editingExpense ? 'Edit Transaction' : 'Log New Transaction'}
         </Text>
 
-        {/* Description */}
+        {/* Card/Account Selector (Moved to top for dynamic input adjustments) */}
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>Where did you spend? (Merchant/Item)</Text>
-          <TextInput
-            style={styles.input}
-            value={description}
-            onChangeText={setDescription}
-            placeholder="e.g. Starbucks, Walmart, Gas"
-            placeholderTextColor="#94a3b8"
-          />
+          <Text style={styles.label}>{isCheckingSelected ? 'Checking Account' : 'Payment Card'}</Text>
+          <TouchableOpacity
+            style={styles.selectorButton}
+            onPress={() => setCardModalVisible(true)}
+          >
+            <Text style={styles.selectorButtonText}>
+              {selectedCard ? `${selectedCard.name} (${selectedCard.lastFour ? `*${selectedCard.lastFour}` : '----'})` : 'Select Payment Card/Account'}
+            </Text>
+            <Text style={styles.dropdownArrow}>▼</Text>
+          </TouchableOpacity>
         </View>
+
+        {/* Global From/To Selector (Checking Only) */}
+        {isCheckingSelected && (
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Transaction Direction</Text>
+            <View style={styles.zelleTypeRow}>
+              <TouchableOpacity
+                style={[styles.zelleTypeBtn, fromOrTo === 'From' && styles.activeZelleTypeBtn]}
+                onPress={() => setFromOrTo('From')}
+              >
+                <Text style={[styles.zelleTypeText, fromOrTo === 'From' && styles.activeZelleTypeText]}>From (Deposit / Income)</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.zelleTypeBtn, fromOrTo === 'To' && styles.activeZelleTypeBtn]}
+                onPress={() => setFromOrTo('To')}
+              >
+                <Text style={[styles.zelleTypeText, fromOrTo === 'To' && styles.activeZelleTypeText]}>To (Payment / Expense)</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+
+        {/* Description or From/To */}
+        {!isCheckingSelected ? (
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Where did you spend? (Merchant/Item)</Text>
+            <TextInput
+              style={styles.input}
+              value={description}
+              onChangeText={setDescription}
+              placeholder="e.g. Starbucks, Walmart, Gas"
+              placeholderTextColor="#94a3b8"
+            />
+          </View>
+        ) : (
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>From / To Name</Text>
+            <View style={styles.fromToRow}>
+              <TextInput
+                style={[styles.input, styles.fromToInput, isZelle && styles.disabledInput]}
+                value={fromTo}
+                onChangeText={setFromTo}
+                placeholder={isZelle ? "(Cleared for Zelle)" : "e.g. Landlord, Employer, John Doe"}
+                placeholderTextColor="#94a3b8"
+                editable={!isZelle}
+              />
+              <TouchableOpacity
+                style={[styles.zelleToggleBtn, isZelle && styles.activeZelleToggleBtn]}
+                onPress={() => setIsZelle(!isZelle)}
+              >
+                <Text style={[styles.zelleToggleText, isZelle && styles.activeZelleToggleText]}>Zelle</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
 
         {/* Amount */}
         <View style={styles.inputGroup}>
@@ -160,6 +348,54 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
           />
         </View>
 
+        {/* Checking-Specific Details or Zelle inputs */}
+        {isCheckingSelected && (
+          <>
+            {!isZelle ? (
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Details (Excel For Column)</Text>
+                <TextInput
+                  style={[styles.input, styles.textArea]}
+                  value={details}
+                  onChangeText={setDetails}
+                  placeholder="e.g. Monthly rent, utility bill payment"
+                  placeholderTextColor="#94a3b8"
+                  multiline={true}
+                  numberOfLines={2}
+                />
+              </View>
+            ) : (
+              <View style={styles.zelleDetailsContainer}>
+                {/* Zelle Name */}
+                <View style={styles.inputGroup}>
+                  <Text style={styles.label}>Recipient / Sender Name</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={zelleName}
+                    onChangeText={setZelleName}
+                    placeholder="e.g. Jane Smith"
+                    placeholderTextColor="#94a3b8"
+                  />
+                </View>
+
+                {/* Zelle Details */}
+                <View style={styles.inputGroup}>
+                  <Text style={styles.label}>Zelle Details</Text>
+                  <TextInput
+                    style={[styles.input, styles.textArea]}
+                    value={zelleDetails}
+                    onChangeText={setZelleDetails}
+                    placeholder="e.g. Pizza split, concert tickets"
+                    placeholderTextColor="#94a3b8"
+                    multiline={true}
+                    numberOfLines={2}
+                  />
+                </View>
+              </View>
+            )}
+          </>
+        )}
+
         {/* Category Selector */}
         <View style={styles.inputGroup}>
           <Text style={styles.label}>Category</Text>
@@ -169,20 +405,6 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
           >
             <Text style={styles.selectorButtonText}>
               {selectedCategory || 'Select Category'}
-            </Text>
-            <Text style={styles.dropdownArrow}>▼</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Credit Card Selector */}
-        <View style={styles.inputGroup}>
-          <Text style={styles.label}>Payment Card</Text>
-          <TouchableOpacity
-            style={styles.selectorButton}
-            onPress={() => setCardModalVisible(true)}
-          >
-            <Text style={styles.selectorButtonText}>
-              {selectedCard ? `${selectedCard.name} (*${selectedCard.lastFour || '----'})` : 'Select Credit Card'}
             </Text>
             <Text style={styles.dropdownArrow}>▼</Text>
           </TouchableOpacity>
@@ -223,7 +445,7 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
           )}
           <TouchableOpacity style={styles.submitButton} onPress={handleSubmit}>
             <Text style={styles.submitButtonText}>
-              {editingExpense ? 'Update Expense' : 'Add Expense'}
+              {editingExpense ? 'Update' : 'Add'}
             </Text>
           </TouchableOpacity>
         </View>
@@ -240,7 +462,7 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Select Category</Text>
             <FlatList
-              data={categories}
+              data={displayedCategories}
               keyExtractor={item => item.id}
               renderItem={({ item }) => (
                 <TouchableOpacity
@@ -481,5 +703,75 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: 'bold',
     textTransform: 'uppercase',
+  },
+  fromToRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  fromToInput: {
+    flex: 1,
+  },
+  disabledInput: {
+    backgroundColor: '#f1f5f9',
+    color: '#94a3b8',
+  },
+  zelleToggleBtn: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: 38,
+    paddingHorizontal: 16,
+    backgroundColor: '#e2e8f0',
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
+  },
+  activeZelleToggleBtn: {
+    backgroundColor: '#0f172a',
+    borderColor: '#0f172a',
+  },
+  zelleToggleText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#475569',
+  },
+  activeZelleToggleText: {
+    color: '#ffffff',
+  },
+  textArea: {
+    minHeight: 60,
+    textAlignVertical: 'top',
+  },
+  zelleDetailsContainer: {
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    padding: 12,
+    backgroundColor: '#f8fafc',
+    marginBottom: 16,
+    gap: 12,
+  },
+  zelleTypeRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  zelleTypeBtn: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: 36,
+    backgroundColor: '#e2e8f0',
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
+  },
+  activeZelleTypeBtn: {
+    backgroundColor: '#0f172a',
+    borderColor: '#0f172a',
+  },
+  zelleTypeText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#475569',
+  },
+  activeZelleTypeText: {
+    color: '#ffffff',
   },
 });

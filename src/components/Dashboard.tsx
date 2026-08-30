@@ -44,16 +44,27 @@ export const Dashboard: React.FC<DashboardProps> = ({
     return balances;
   }, [expenses, cards]);
 
+  const checkingAccounts = useMemo(() => {
+    return cards.filter(c => c.isChecking);
+  }, [cards]);
+
+  const creditCardsOnly = useMemo(() => {
+    return cards.filter(c => !c.isChecking);
+  }, [cards]);
+
   const checkingBalance = useMemo(() => {
-    const sum = cardBalances['card-chase'] || 0;
-    return -sum;
-  }, [cardBalances]);
+    return checkingAccounts.reduce((sum, account) => {
+      const bal = cardBalances[account.id] || 0;
+      return sum + bal; // Now deposits are positive, withdrawals are negative. So balance = sum(amount)
+    }, 0);
+  }, [cardBalances, checkingAccounts]);
 
   const creditCardDebt = useMemo(() => {
-    return Object.entries(cardBalances)
-      .filter(([cardId]) => cardId !== 'card-chase')
-      .reduce((sum, [_, bal]) => sum + bal, 0);
-  }, [cardBalances]);
+    return creditCardsOnly.reduce((sum, card) => {
+      const bal = cardBalances[card.id] || 0;
+      return sum + bal;
+    }, 0);
+  }, [cardBalances, creditCardsOnly]);
 
   const netBalance = useMemo(() => {
     return checkingBalance - creditCardDebt;
@@ -124,10 +135,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
     setFutureDate('');
   };
 
-  const creditCardsOnly = useMemo(() => {
-    return cards.filter(c => c.id !== 'card-chase');
-  }, [cards]);
-
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer} keyboardShouldPersistTaps="handled">
       <Text style={styles.title}>Financial Summary</Text>
@@ -140,7 +147,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
         </View>
 
         <View style={styles.sheetRow}>
-          <Text style={[styles.sheetCell, { flex: 2 }]}>Checking Balance (Chase)</Text>
+          <Text style={[styles.sheetCell, { flex: 2 }]}>Total Checking Balance</Text>
           <Text style={[styles.sheetCell, { flex: 1, textAlign: 'right' }, styles.monoText, { color: '#16a34a' }]}>
             ${checkingBalance.toFixed(2)}
           </Text>
@@ -161,6 +168,33 @@ export const Dashboard: React.FC<DashboardProps> = ({
         </View>
       </View>
 
+      {/* Checking Accounts List - Spreadsheet Grid Style */}
+      <View style={[styles.sheetGrid, { marginTop: 12 }]}>
+        <View style={styles.sheetHeaderRow}>
+          <Text style={[styles.sheetHeaderCell, { flex: 2 }]}>Checking Accounts Registry</Text>
+          <Text style={[styles.sheetHeaderCell, { flex: 1, textAlign: 'right' }]}>Current Balance</Text>
+        </View>
+        {checkingAccounts.length === 0 ? (
+          <View style={styles.sheetRow}>
+            <Text style={[styles.sheetCell, { flex: 3, textAlign: 'center', color: '#64748b' }]}>
+              No checking accounts configured.
+            </Text>
+          </View>
+        ) : (
+          checkingAccounts.map(account => {
+            const bal = cardBalances[account.id] || 0.0;
+            return (
+              <View key={account.id} style={styles.sheetRow}>
+                <Text style={[styles.sheetCell, { flex: 2 }]}>{account.name} {account.lastFour ? `(*${account.lastFour})` : ''}</Text>
+                <Text style={[styles.sheetCell, { flex: 1, textAlign: 'right' }, styles.monoText, bal >= 0 ? { color: '#16a34a' } : { color: '#dc2626' }]}>
+                  ${bal.toFixed(2)}
+                </Text>
+              </View>
+            );
+          })
+        )}
+      </View>
+
       {/* Credit Card List - Spreadsheet Grid Style */}
       <View style={[styles.sheetGrid, { marginTop: 12 }]}>
         <View style={styles.sheetHeaderRow}>
@@ -178,7 +212,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
             const bal = cardBalances[card.id] || 0.0;
             return (
               <View key={card.id} style={styles.sheetRow}>
-                <Text style={[styles.sheetCell, { flex: 2 }]}>{card.name} (*{card.lastFour || '----'})</Text>
+                <Text style={[styles.sheetCell, { flex: 2 }]}>{card.name} {card.lastFour ? `(*${card.lastFour})` : ''}</Text>
                 <Text style={[styles.sheetCell, { flex: 1, textAlign: 'right' }, styles.monoText, bal > 0 && { color: '#dc2626' }]}>
                   {bal >= 0 ? `$${bal.toFixed(2)}` : `-$${Math.abs(bal).toFixed(2)}`}
                 </Text>

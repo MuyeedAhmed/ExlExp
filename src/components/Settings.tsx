@@ -33,6 +33,10 @@ export const Settings: React.FC<SettingsProps> = ({
   const [cardName, setCardName] = useState('');
   const [lastFour, setLastFour] = useState('');
 
+  // New Checking Account Form State
+  const [checkingName, setCheckingName] = useState('');
+  const [checkingLastFour, setCheckingLastFour] = useState('');
+
   // New Category Form State
   const [categoryName, setCategoryName] = useState('');
 
@@ -49,10 +53,31 @@ export const Settings: React.FC<SettingsProps> = ({
     onAddCard({
       name: cardName.trim(),
       lastFour: lastFour.trim() || undefined,
+      isChecking: false,
     });
 
     setCardName('');
     setLastFour('');
+  };
+
+  const handleAddChecking = () => {
+    if (!checkingName.trim()) {
+      showAlert('Error', 'Please enter a checking account name.');
+      return;
+    }
+    if (checkingLastFour && (checkingLastFour.length !== 4 || isNaN(Number(checkingLastFour)))) {
+      showAlert('Error', 'Last 4 digits must be exactly 4 numbers.');
+      return;
+    }
+
+    onAddCard({
+      name: checkingName.trim(),
+      lastFour: checkingLastFour.trim() || undefined,
+      isChecking: true,
+    });
+
+    setCheckingName('');
+    setCheckingLastFour('');
   };
 
   const handleAddCategory = () => {
@@ -133,10 +158,63 @@ export const Settings: React.FC<SettingsProps> = ({
     }
   };
 
+  const creditCardsOnly = cards.filter(c => !c.isChecking);
+  const checkingAccountsOnly = cards.filter(c => c.isChecking);
+
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
       <Text style={styles.title}>Settings & Customization</Text>
  
+      {/* Checking Accounts Management */}
+      <View style={styles.sectionCard}>
+        <Text style={styles.sectionTitle}>Manage Checking Accounts</Text>
+ 
+        {/* Add Checking Form */}
+        <View style={styles.formContainer}>
+          <TextInput
+            style={styles.input}
+            value={checkingName}
+            onChangeText={setCheckingName}
+            placeholder="Checking Name (e.g. Chase Checking)"
+            placeholderTextColor="#94a3b8"
+          />
+          <TextInput
+            style={[styles.input, styles.shortInput]}
+            value={checkingLastFour}
+            onChangeText={setCheckingLastFour}
+            placeholder="Last 4 (e.g. 0000)"
+            placeholderTextColor="#94a3b8"
+            keyboardType="number-pad"
+            maxLength={4}
+          />
+          <TouchableOpacity style={styles.addButton} onPress={handleAddChecking}>
+            <Text style={styles.addButtonText}>Add Account</Text>
+          </TouchableOpacity>
+        </View>
+ 
+        {/* Checking List */}
+        <View style={styles.listContainer}>
+          {checkingAccountsOnly.length === 0 ? (
+            <Text style={styles.emptyText}>No checking accounts configured.</Text>
+          ) : (
+            checkingAccountsOnly.map(card => (
+              <View key={card.id} style={styles.listItem}>
+                <View style={styles.listItemTextContainer}>
+                  <Text style={styles.listItemTitle}>{card.name}</Text>
+                  {card.lastFour && <Text style={styles.listItemSub}>Ending in *{card.lastFour}</Text>}
+                </View>
+                <TouchableOpacity
+                  style={styles.deleteButton}
+                  onPress={() => confirmDeleteCard(card.id, card.name)}
+                >
+                  <Text style={styles.deleteButtonText}>Remove</Text>
+                </TouchableOpacity>
+              </View>
+            ))
+          )}
+        </View>
+      </View>
+
       {/* Credit Cards Management */}
       <View style={styles.sectionCard}>
         <Text style={styles.sectionTitle}>Manage Credit Cards</Text>
@@ -166,20 +244,24 @@ export const Settings: React.FC<SettingsProps> = ({
  
         {/* Cards List */}
         <View style={styles.listContainer}>
-          {cards.map(card => (
-            <View key={card.id} style={styles.listItem}>
-              <View style={styles.listItemTextContainer}>
-                <Text style={styles.listItemTitle}>{card.name}</Text>
-                {card.lastFour && <Text style={styles.listItemSub}>Ending in *{card.lastFour}</Text>}
+          {creditCardsOnly.length === 0 ? (
+            <Text style={styles.emptyText}>No credit cards configured.</Text>
+          ) : (
+            creditCardsOnly.map(card => (
+              <View key={card.id} style={styles.listItem}>
+                <View style={styles.listItemTextContainer}>
+                  <Text style={styles.listItemTitle}>{card.name}</Text>
+                  {card.lastFour && <Text style={styles.listItemSub}>Ending in *{card.lastFour}</Text>}
+                </View>
+                <TouchableOpacity
+                  style={styles.deleteButton}
+                  onPress={() => confirmDeleteCard(card.id, card.name)}
+                >
+                  <Text style={styles.deleteButtonText}>Remove</Text>
+                </TouchableOpacity>
               </View>
-              <TouchableOpacity
-                style={styles.deleteButton}
-                onPress={() => confirmDeleteCard(card.id, card.name)}
-              >
-                <Text style={styles.deleteButtonText}>Remove</Text>
-              </TouchableOpacity>
-            </View>
-          ))}
+            ))
+          )}
         </View>
       </View>
  
@@ -327,5 +409,11 @@ const styles = StyleSheet.create({
     color: '#dc2626',
     fontWeight: '600',
     fontSize: 12,
+  },
+  emptyText: {
+    padding: 12,
+    color: '#64748b',
+    textAlign: 'center',
+    fontSize: 13,
   },
 });

@@ -48,14 +48,15 @@
     {
       "id": "card-chase",
       "name": "Chase Checking",
-      "lastFour": "0000"
+      "lastFour": "0000",
+      "isChecking": true
     }
   ],
   "expenses": [
     {
       "id": "exp-9cig1iwsl",
       "description": "Metro By T-Mobile",
-      "amount": 30.0,
+      "amount": 30,
       "category": "Rent & Utilities",
       "creditCardId": "card-citidb",
       "date": "2024-02-20"
@@ -63,7 +64,7 @@
     {
       "id": "exp-gnsjgnkcs",
       "description": "Chat-GPT",
-      "amount": 20.0,
+      "amount": 20,
       "category": "Others",
       "creditCardId": "card-citidb",
       "date": "2025-01-03"
@@ -71,7 +72,7 @@
     {
       "id": "exp-thuxkr6u2",
       "description": "Credit Card Payment",
-      "amount": -20.0,
+      "amount": -20,
       "category": "Others",
       "creditCardId": "card-citidb",
       "date": "2025-01-10"
@@ -79,7 +80,7 @@
     {
       "id": "exp-bn3iohs9z",
       "description": "Solomons Auto Repair",
-      "amount": 60.0,
+      "amount": 60,
       "category": "Transportation",
       "creditCardId": "card-citidb",
       "date": "2025-01-10"
@@ -95,7 +96,7 @@
     {
       "id": "exp-8okf10cx0",
       "description": "Chat-GPT",
-      "amount": 20.0,
+      "amount": 20,
       "category": "Others",
       "creditCardId": "card-citidb",
       "date": "2025-03-04"
@@ -175,7 +176,7 @@
     {
       "id": "exp-saunb3l6a",
       "description": "Mochi Mochi Kai Sweets",
-      "amount": 5.0,
+      "amount": 5,
       "category": "Food & Dining",
       "creditCardId": "card-citistrata",
       "date": "2025-10-20"
@@ -215,7 +216,7 @@
     {
       "id": "exp-mg4fuf6jt",
       "description": "Gas - Wawa",
-      "amount": 25.0,
+      "amount": 25,
       "category": "Transportation",
       "creditCardId": "card-citistrata",
       "date": "2025-10-25"
@@ -391,7 +392,7 @@
     {
       "id": "exp-8cbg2qtn6",
       "description": "Credit Card Payment",
-      "amount": -100.0,
+      "amount": -100,
       "category": "Others",
       "creditCardId": "card-citistrata",
       "date": "2025-11-17"
@@ -431,7 +432,7 @@
     {
       "id": "exp-aulpk5uk0",
       "description": "Car Insurance - Geico",
-      "amount": 800.0,
+      "amount": 800,
       "category": "Transportation",
       "creditCardId": "card-citistrata",
       "date": "2025-11-20"
@@ -455,7 +456,7 @@
     {
       "id": "exp-zpz832jyq",
       "description": "US Mobile",
-      "amount": 175.0,
+      "amount": 175,
       "category": "Rent & Utilities",
       "creditCardId": "card-bofa",
       "date": "2026-03-13"
@@ -463,7 +464,7 @@
     {
       "id": "exp-gl20kncuj",
       "description": "Minnewaska Entry",
-      "amount": 10.0,
+      "amount": 10,
       "category": "Others",
       "creditCardId": "card-bofa",
       "date": "2026-05-02"
@@ -471,7 +472,7 @@
     {
       "id": "exp-i1krt2xfc",
       "description": "NJIT MKPLACE (Rifath)",
-      "amount": 200.0,
+      "amount": 200,
       "category": "Others",
       "creditCardId": "card-bofa",
       "date": "2026-05-04"
@@ -519,7 +520,7 @@
     {
       "id": "exp-9wrys168g",
       "description": "Credit Card Payment",
-      "amount": -50.0,
+      "amount": -50,
       "category": "Others",
       "creditCardId": "card-bofa",
       "date": "2026-05-08"
@@ -599,7 +600,7 @@
     {
       "id": "exp-bzh8zjqfl",
       "description": "Credit Card Payment",
-      "amount": -800.0,
+      "amount": -800,
       "category": "Others",
       "creditCardId": "card-bofa",
       "date": "2026-05-12"
@@ -639,7 +640,7 @@
     {
       "id": "exp-yg9klg91c",
       "description": "Credit Card Payment",
-      "amount": -400.0,
+      "amount": -400,
       "category": "Others",
       "creditCardId": "card-bofa",
       "date": "2026-05-18"
@@ -647,7 +648,7 @@
     {
       "id": "exp-fcajwp3f7",
       "description": "Car Wash",
-      "amount": 9.0,
+      "amount": 9,
       "category": "Transportation",
       "creditCardId": "card-bofa",
       "date": "2026-05-20"
@@ -663,7 +664,7 @@
     {
       "id": "exp-2pslf1trl",
       "description": "7-Eleven",
-      "amount": 6.0,
+      "amount": 6,
       "category": "Others",
       "creditCardId": "card-bofa",
       "date": "2026-05-20"
@@ -703,7 +704,7 @@
     {
       "id": "exp-1836u9xun",
       "description": "Credit Card Payment",
-      "amount": -170.0,
+      "amount": -170,
       "category": "Others",
       "creditCardId": "card-bofa",
       "date": "2026-05-27"
@@ -735,7 +736,7 @@
     {
       "id": "exp-wanf36eld",
       "description": "Self",
-      "amount": -100.0,
+      "amount": 100,
       "category": "Others",
       "creditCardId": "card-chase",
       "date": "2021-01-16"
@@ -743,7 +744,7 @@
     {
       "id": "exp-gfffj6o7l",
       "description": "Zelle",
-      "amount": 60.0,
+      "amount": -60,
       "category": "Others",
       "creditCardId": "card-chase",
       "date": "2021-01-22"
@@ -751,7 +752,7 @@
     {
       "id": "exp-aptaqlhwz",
       "description": "NJIT",
-      "amount": -1181.77,
+      "amount": 1181.77,
       "category": "Others",
       "creditCardId": "card-chase",
       "date": "2021-01-22"
@@ -759,7 +760,7 @@
     {
       "id": "exp-12nt1swua",
       "description": "Sav Account",
-      "amount": 20.0,
+      "amount": -20,
       "category": "Others",
       "creditCardId": "card-chase",
       "date": "2021-01-23"
@@ -767,7 +768,7 @@
     {
       "id": "exp-k7jkwbbn6",
       "description": "Debit",
-      "amount": 40.0,
+      "amount": -40,
       "category": "Others",
       "creditCardId": "card-chase",
       "date": "2021-01-23"
@@ -775,7 +776,7 @@
     {
       "id": "exp-x9opqmg2i",
       "description": "Zelle",
-      "amount": 20.0,
+      "amount": -20,
       "category": "Others",
       "creditCardId": "card-chase",
       "date": "2021-01-24"
@@ -783,7 +784,7 @@
     {
       "id": "exp-49bvqrmeu",
       "description": "Sav Account",
-      "amount": 180.0,
+      "amount": -180,
       "category": "Others",
       "creditCardId": "card-chase",
       "date": "2021-01-26"
@@ -791,7 +792,7 @@
     {
       "id": "exp-skhmnklb1",
       "description": "Debit",
-      "amount": 40.0,
+      "amount": -40,
       "category": "Others",
       "creditCardId": "card-chase",
       "date": "2021-01-30"
@@ -799,7 +800,7 @@
     {
       "id": "exp-sqty4mnsk",
       "description": "Debit",
-      "amount": 55.65,
+      "amount": -55.65,
       "category": "Others",
       "creditCardId": "card-chase",
       "date": "2021-01-30"
@@ -807,7 +808,7 @@
     {
       "id": "exp-hhcn1ej4p",
       "description": "Debit",
-      "amount": 107.23,
+      "amount": -107.23,
       "category": "Others",
       "creditCardId": "card-chase",
       "date": "2021-01-30"
@@ -815,7 +816,7 @@
     {
       "id": "exp-g4cg3row4",
       "description": "Zelle",
-      "amount": -35.73,
+      "amount": 35.73,
       "category": "Others",
       "creditCardId": "card-chase",
       "date": "2021-01-31"
@@ -823,7 +824,7 @@
     {
       "id": "exp-jqs3k7bo9",
       "description": "Zelle",
-      "amount": 8.0,
+      "amount": -8,
       "category": "Others",
       "creditCardId": "card-chase",
       "date": "2021-02-01"
@@ -831,7 +832,7 @@
     {
       "id": "exp-kmvx7w3z5",
       "description": "Zelle (420)",
-      "amount": 515.0,
+      "amount": -515,
       "category": "Others",
       "creditCardId": "card-chase",
       "date": "2021-02-02"
@@ -839,7 +840,7 @@
     {
       "id": "exp-p72bj35cn",
       "description": "NJIT",
-      "amount": -1181.77,
+      "amount": 1181.77,
       "category": "Others",
       "creditCardId": "card-chase",
       "date": "2021-02-05"
@@ -847,7 +848,7 @@
     {
       "id": "exp-p1kupmvnh",
       "description": "Sav Account",
-      "amount": 100.0,
+      "amount": -100,
       "category": "Others",
       "creditCardId": "card-chase",
       "date": "2021-02-05"
@@ -855,7 +856,7 @@
     {
       "id": "exp-dsavpe73x",
       "description": "Sav Account",
-      "amount": 100.0,
+      "amount": -100,
       "category": "Others",
       "creditCardId": "card-chase",
       "date": "2021-02-06"
@@ -863,7 +864,7 @@
     {
       "id": "exp-kauhy5o4e",
       "description": "Zelle",
-      "amount": 33.3,
+      "amount": -33.3,
       "category": "Others",
       "creditCardId": "card-chase",
       "date": "2021-02-07"
@@ -871,7 +872,7 @@
     {
       "id": "exp-lwncdutft",
       "description": "Zelle",
-      "amount": -2.6,
+      "amount": 2.6,
       "category": "Others",
       "creditCardId": "card-chase",
       "date": "2021-02-07"
@@ -879,7 +880,7 @@
     {
       "id": "exp-51grtfit6",
       "description": "Zelle",
-      "amount": -6.43,
+      "amount": 6.43,
       "category": "Others",
       "creditCardId": "card-chase",
       "date": "2021-02-07"
@@ -887,7 +888,7 @@
     {
       "id": "exp-6yqxmfxht",
       "description": "Debit",
-      "amount": 56.95,
+      "amount": -56.95,
       "category": "Others",
       "creditCardId": "card-chase",
       "date": "2021-02-08"
@@ -895,7 +896,7 @@
     {
       "id": "exp-hxhkmc4k2",
       "description": "Debit",
-      "amount": 56.1,
+      "amount": -56.1,
       "category": "Others",
       "creditCardId": "card-chase",
       "date": "2021-02-10"
@@ -903,7 +904,7 @@
     {
       "id": "exp-6f2uz17ic",
       "description": "Zelle (188.46)",
-      "amount": 188.46,
+      "amount": -188.46,
       "category": "Others",
       "creditCardId": "card-chase",
       "date": "2021-02-12"
@@ -911,7 +912,7 @@
     {
       "id": "exp-znponaah1",
       "description": "Debit",
-      "amount": 23.49,
+      "amount": -23.49,
       "category": "Others",
       "creditCardId": "card-chase",
       "date": "2021-02-13"
@@ -919,7 +920,7 @@
     {
       "id": "exp-zpvax50pt",
       "description": "Zelle",
-      "amount": 3.0,
+      "amount": -3,
       "category": "Others",
       "creditCardId": "card-chase",
       "date": "2021-02-13"
@@ -927,7 +928,7 @@
     {
       "id": "exp-sdyrhzmpx",
       "description": "Zelle",
-      "amount": 3.0,
+      "amount": -3,
       "category": "Others",
       "creditCardId": "card-chase",
       "date": "2021-02-14"
@@ -935,7 +936,7 @@
     {
       "id": "exp-aztimj6nq",
       "description": "Zelle (30)",
-      "amount": 90.15,
+      "amount": -90.15,
       "category": "Others",
       "creditCardId": "card-chase",
       "date": "2021-02-15"
@@ -943,7 +944,7 @@
     {
       "id": "exp-yi8w803rd",
       "description": "CHASE",
-      "amount": -200.0,
+      "amount": 200,
       "category": "Others",
       "creditCardId": "card-chase",
       "date": "2021-02-16"
@@ -951,7 +952,7 @@
     {
       "id": "exp-4lhjhemjj",
       "description": "Bank",
-      "amount": 48.0,
+      "amount": -48,
       "category": "Others",
       "creditCardId": "card-chase",
       "date": "2021-02-16"
@@ -959,7 +960,7 @@
     {
       "id": "exp-9wem5tutv",
       "description": "Debit",
-      "amount": 40.0,
+      "amount": -40,
       "category": "Others",
       "creditCardId": "card-chase",
       "date": "2021-02-17"
@@ -967,7 +968,7 @@
     {
       "id": "exp-damekg8pu",
       "description": "Zelle",
-      "amount": -2.0,
+      "amount": 2,
       "category": "Others",
       "creditCardId": "card-chase",
       "date": "2021-02-17"
@@ -975,7 +976,7 @@
     {
       "id": "exp-escgcosnk",
       "description": "Zelle",
-      "amount": -4.33,
+      "amount": 4.33,
       "category": "Others",
       "creditCardId": "card-chase",
       "date": "2021-02-18"
@@ -983,7 +984,7 @@
     {
       "id": "exp-03vjjlsyo",
       "description": "Zelle",
-      "amount": 5.81,
+      "amount": -5.81,
       "category": "Others",
       "creditCardId": "card-chase",
       "date": "2026-08-18"
@@ -991,7 +992,7 @@
     {
       "id": "exp-mjwuzjuta",
       "description": "Verizon",
-      "amount": 74.99,
+      "amount": -74.99,
       "category": "Rent & Utilities",
       "creditCardId": "card-chase",
       "date": "2026-08-18"
@@ -999,7 +1000,7 @@
     {
       "id": "exp-fn6c37lav",
       "description": "Zelle",
-      "amount": 6.05,
+      "amount": -6.05,
       "category": "Others",
       "creditCardId": "card-chase",
       "date": "2026-08-18"
@@ -1007,7 +1008,7 @@
     {
       "id": "exp-0338p7l89",
       "description": "Zelle",
-      "amount": -18.33,
+      "amount": 18.33,
       "category": "Others",
       "creditCardId": "card-chase",
       "date": "2026-08-18"
@@ -1015,7 +1016,7 @@
     {
       "id": "exp-l70lgm2ih",
       "description": "Zelle",
-      "amount": -36.0,
+      "amount": 36,
       "category": "Others",
       "creditCardId": "card-chase",
       "date": "2026-08-18"
@@ -1023,7 +1024,7 @@
     {
       "id": "exp-2us5bxn5m",
       "description": "Zelle",
-      "amount": -12.45,
+      "amount": 12.45,
       "category": "Others",
       "creditCardId": "card-chase",
       "date": "2026-08-22"
@@ -1031,7 +1032,7 @@
     {
       "id": "exp-iwlnxlt7h",
       "description": "Zelle",
-      "amount": -43.07,
+      "amount": 43.07,
       "category": "Others",
       "creditCardId": "card-chase",
       "date": "2026-08-22"
@@ -1039,7 +1040,7 @@
     {
       "id": "exp-9i2nakbq7",
       "description": "Zelle",
-      "amount": -364.79,
+      "amount": 364.79,
       "category": "Others",
       "creditCardId": "card-chase",
       "date": "2026-08-22"
@@ -1047,7 +1048,7 @@
     {
       "id": "exp-peabyxkbc",
       "description": "Deposit",
-      "amount": -300.0,
+      "amount": 300,
       "category": "Others",
       "creditCardId": "card-chase",
       "date": "2026-08-24"
@@ -1055,7 +1056,7 @@
     {
       "id": "exp-ucvsnw6z3",
       "description": "Zelle",
-      "amount": -300.0,
+      "amount": 300,
       "category": "Others",
       "creditCardId": "card-chase",
       "date": "2026-08-24"
@@ -1063,7 +1064,7 @@
     {
       "id": "exp-ednaq5esd",
       "description": "PNC Car",
-      "amount": 478.08,
+      "amount": -478.08,
       "category": "Transportation",
       "creditCardId": "card-chase",
       "date": "2026-08-26"
@@ -1071,7 +1072,7 @@
     {
       "id": "exp-4hgm8ctz9",
       "description": "Zelle",
-      "amount": -24.22,
+      "amount": 24.22,
       "category": "Others",
       "creditCardId": "card-chase",
       "date": "2026-08-27"
@@ -1079,7 +1080,7 @@
     {
       "id": "exp-e1bo6tqu3",
       "description": "NJIT",
-      "amount": -1383.21,
+      "amount": 1383.21,
       "category": "Others",
       "creditCardId": "card-chase",
       "date": "2026-08-28"
@@ -1087,7 +1088,7 @@
     {
       "id": "exp-necdmnwtd",
       "description": "Robinhood Gold",
-      "amount": 668.31,
+      "amount": -668.31,
       "category": "Others",
       "creditCardId": "card-chase",
       "date": "2026-08-28"
@@ -1095,7 +1096,7 @@
     {
       "id": "exp-zeisg8uzl",
       "description": "AmEx Savings",
-      "amount": 1000.0,
+      "amount": -1000,
       "category": "Others",
       "creditCardId": "card-chase",
       "date": "2026-08-28"
@@ -1103,7 +1104,7 @@
     {
       "id": "exp-bvx20oqre",
       "description": "Robinhood",
-      "amount": 1100.0,
+      "amount": -1100,
       "category": "Others",
       "creditCardId": "card-chase",
       "date": "2026-08-28"
@@ -1111,7 +1112,7 @@
     {
       "id": "exp-5jut4poq4",
       "description": "Schwab",
-      "amount": -1000.0,
+      "amount": 1000,
       "category": "Others",
       "creditCardId": "card-chase",
       "date": "2026-08-28"
