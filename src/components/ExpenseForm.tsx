@@ -64,7 +64,9 @@ const CATEGORIES = [
   'Eating Out',
   'Necessary Purchases',
   'Luxary Purchases',
-  'Others'
+  'Others',
+  'Salary',
+  'Transfer'
 ];
 
 export const ExpenseForm: React.FC<ExpenseFormProps> = ({

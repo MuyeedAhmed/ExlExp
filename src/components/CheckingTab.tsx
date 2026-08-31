@@ -334,7 +334,7 @@ export const CheckingTab: React.FC<CheckingTabProps> = ({
 
                     return (
                       <View key={item.id} style={styles.tableRow}>
-                        <Text style={[styles.cell, { width: 90 }, styles.monoText]}>{item.date}</Text>
+                        <Text style={[styles.cell, { width: 90 }, styles.monoText]}>{item.date ? item.date.substring(5) : ''}</Text>
                         <Text style={[styles.cell, { width: 180 }]} numberOfLines={1}>
                           {item.fromTo || item.description || ''}
                         </Text>

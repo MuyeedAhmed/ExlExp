@@ -7,6 +7,13 @@ const formatCurrency = (val: number): string => {
   return val.toFixed(2);
 };
 
+const formatSpending = (val: number): string => {
+  if (val < -0.005) {
+    return `-$${formatCurrency(Math.abs(val))}`;
+  }
+  return `$${formatCurrency(val)}`;
+};
+
 interface DashboardProps {
   expenses: Expense[];
   cards: CreditCard[];
@@ -44,7 +51,10 @@ export const Dashboard: React.FC<DashboardProps> = ({
     return Array.from(monthsSet).sort().reverse();
   }, [expenses]);
 
-  const [selectedMonth, setSelectedMonth] = useState<string>('');
+  const [selectedMonth, setSelectedMonth] = useState<string>(() => {
+    const today = new Date();
+    return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+  });
   const activeMonth = selectedMonth || availableMonths[0] || '';
 
   const formatMonthLabel = (monthStr: string) => {
@@ -114,8 +124,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
   const categorySpending = useMemo(() => {
     const sums: { [category: string]: number } = {};
     expenses.forEach(e => {
-      // Exclude transfers
-      if (e.isTransfer) return;
+      // Exclude transfers and salaries from spending analytics
+      if (e.isTransfer || e.category === 'Transfer' || e.category === 'Salary') return;
 
       // Filter by selected month
       if (!e.date || !e.date.startsWith(activeMonth)) return;
@@ -127,8 +137,11 @@ export const Dashboard: React.FC<DashboardProps> = ({
       let spendAmt = 0;
       if (isDeposit) {
         // For checking/savings/brokerage, spending is money going out (negative amount)
+        // Positive deposits (like roommate paybacks or refunds) offset the spending
         if (e.amount < 0 && !e.isInterest) {
           spendAmt = Math.abs(e.amount);
+        } else if (e.amount > 0) {
+          spendAmt = -e.amount;
         }
       } else {
         // For credit cards, spending is money charged (positive amount)
@@ -137,10 +150,13 @@ export const Dashboard: React.FC<DashboardProps> = ({
         } else if (e.isFee && e.amount > 0) {
           // Count fees as spending too
           spendAmt = e.amount;
+        } else if (e.amount < 0) {
+          // Refunds or credits offset the credit card spend
+          spendAmt = e.amount;
         }
       }
       
-      if (spendAmt > 0) {
+      if (spendAmt !== 0) {
         const cat = e.category || 'Others';
         sums[cat] = (sums[cat] || 0) + spendAmt;
       }
@@ -149,6 +165,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
     // Convert to sorted array
     return Object.entries(sums)
       .map(([name, amount]) => ({ name, amount }))
+      .filter(item => Math.abs(item.amount) >= 0.005)
       .sort((a, b) => b.amount - a.amount);
   }, [expenses, cardMap, activeMonth]);
 
@@ -361,7 +378,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
             Category Spending - {formatMonthLabel(activeMonth)}
           </Text>
           <Text style={[styles.sheetHeaderCell, { flex: 1, textAlign: 'right' }]}>
-            Total: ${formatCurrency(categorySpending.reduce((sum, item) => sum + item.amount, 0))}
+            Total: {formatSpending(categorySpending.reduce((sum, item) => sum + item.amount, 0))}
           </Text>
         </View>
         {categorySpending.length === 0 ? (
@@ -374,8 +391,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
           categorySpending.map(cat => (
             <View key={cat.name} style={styles.sheetRow}>
               <Text style={[styles.sheetCell, { flex: 2 }]}>{cat.name}</Text>
-              <Text style={[styles.sheetCell, { flex: 1, textAlign: 'right' }, styles.monoText]}>
-                ${formatCurrency(cat.amount)}
+              <Text style={[styles.sheetCell, { flex: 1, textAlign: 'right' }, styles.monoText, cat.amount < -0.005 && { color: '#16a34a' }]}>
+                {formatSpending(cat.amount)}
               </Text>
             </View>
           ))
