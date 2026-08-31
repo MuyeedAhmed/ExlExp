@@ -18,6 +18,8 @@ interface SettingsProps {
   onRenameCard: (id: string, name: string) => void;
   onMoveCard: (id: string, direction: 'up' | 'down') => void;
   onToggleCardVisibility: (id: string) => void;
+  username: string;
+  onLogout: () => void;
 }
 
 export const Settings: React.FC<SettingsProps> = ({
@@ -27,6 +29,8 @@ export const Settings: React.FC<SettingsProps> = ({
   onRenameCard,
   onMoveCard,
   onToggleCardVisibility,
+  username,
+  onLogout,
 }) => {
   // New Card Form State
   const [cardName, setCardName] = useState('');
@@ -364,6 +368,20 @@ export const Settings: React.FC<SettingsProps> = ({
             ))
           )}
         </View>
+      </View>
+
+      {/* Account Section & Logout */}
+      <View style={styles.sectionCard}>
+        <Text style={styles.sectionTitle}>User Account</Text>
+        <Text style={{ fontSize: 14, color: '#0f172a', marginBottom: 12 }}>
+          Logged in as: <Text style={{ fontWeight: 'bold' }}>{username}</Text>
+        </Text>
+        <TouchableOpacity
+          style={[styles.addButton, { backgroundColor: '#dc2626', height: 40 }]}
+          onPress={onLogout}
+        >
+          <Text style={styles.addButtonText}>Log Out</Text>
+        </TouchableOpacity>
       </View>
     </ScrollView>
   );
