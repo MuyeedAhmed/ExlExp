@@ -346,7 +346,7 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
       onSubmit([sourceTx, targetTx]);
       resetForm();
       setShowToast(true);
-      setTimeout(() => setShowToast(false), 3000);
+      setTimeout(() => setShowToast(false), 2000);
     } else {
       // 2. Transaction Submit Validation
       if (!selectedCardId) {
