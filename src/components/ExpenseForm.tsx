@@ -63,6 +63,7 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
   onCancelEditing,
 }) => {
   const [logType, setLogType] = useState<'transaction' | 'transfer'>('transaction');
+  const [showToast, setShowToast] = useState(false);
 
   // Common Form States
   const [amount, setAmount] = useState('');
@@ -344,6 +345,8 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
 
       onSubmit([sourceTx, targetTx]);
       resetForm();
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 2000);
     } else {
       // 2. Transaction Submit Validation
       if (!selectedCardId) {
@@ -442,6 +445,8 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
       });
 
       resetForm();
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 3000);
     }
   };
 
@@ -475,6 +480,11 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
 
   return (
     <ScrollView style={styles.container} keyboardShouldPersistTaps="handled">
+      {showToast && (
+        <View style={styles.toastContainer}>
+          <Text style={styles.toastText}>✓ Log successfully added!</Text>
+        </View>
+      )}
       <View style={styles.formCard}>
         <Text style={styles.formTitle}>
           {editingExpense ? 'Edit Log Entry' : 'Log New Entry'}
@@ -1364,5 +1374,21 @@ const styles = StyleSheet.create({
   },
   activeCcBillPayTagText: {
     color: '#ffffff',
+  },
+  toastContainer: {
+    backgroundColor: '#dcfce7',
+    borderColor: '#86efac',
+    borderWidth: 1,
+    padding: 12,
+    borderRadius: 8,
+    marginHorizontal: 16,
+    marginTop: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  toastText: {
+    color: '#15803d',
+    fontWeight: '700',
+    fontSize: 14,
   },
 });
