@@ -469,11 +469,11 @@ const styles = StyleSheet.create({
   },
   tabBar: {
     flexDirection: 'row',
-    height: Platform.OS === 'android' ? 68 : 48,
+    height: Platform.OS === 'android' ? 96 : 48,
     borderTopWidth: 1,
     borderTopColor: '#e2e8f0',
     backgroundColor: '#ffffff',
-    paddingBottom: Platform.OS === 'android' ? 16 : 0,
+    alignItems: 'flex-start',
   },
   tabBarWeb: {
     maxWidth: 600,
@@ -487,6 +487,7 @@ const styles = StyleSheet.create({
   },
   tabButton: {
     flex: 1,
+    height: 48,
     justifyContent: 'center',
     alignItems: 'center',
   },
