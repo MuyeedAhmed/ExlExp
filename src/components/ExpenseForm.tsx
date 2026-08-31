@@ -55,6 +55,20 @@ const getCardTextColor = (item: CreditCard) => {
   return '#ffffff'; // White text for dark backgrounds
 };
 
+const CATEGORIES = [
+  'Rent',
+  'Utilities',
+  'Car Payment',
+  'Transportation',
+  'Grocery',
+  'Eating Out',
+  'Necessary Purchases',
+  'Luxary Purchases',
+  'Others',
+  'Salary',
+  'Transfer'
+];
+
 export const ExpenseForm: React.FC<ExpenseFormProps> = ({
   cards,
   expenses,
@@ -96,10 +110,14 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
   const [transferDetails, setTransferDetails] = useState('');
   const [isCcBillPay, setIsCcBillPay] = useState(false);
 
+  // Category States
+  const [category, setCategory] = useState('Others');
+
   // Modals Visibility
   const [cardModalVisible, setCardModalVisible] = useState(false);
   const [sourceModalVisible, setSourceModalVisible] = useState(false);
   const [targetModalVisible, setTargetModalVisible] = useState(false);
+  const [categoryModalVisible, setCategoryModalVisible] = useState(false);
 
   // Helper for dates formatted as YYYY-MM-DD
   const getTodayString = () => {
@@ -197,6 +215,7 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
         setRewardType(editingExpense.rewardType || 'cashback');
         setRewardValue(editingExpense.rewardValue ? editingExpense.rewardValue.toString() : '');
         setIsInterest(!!editingExpense.isInterest);
+        setCategory(editingExpense.category || 'Others');
 
         const card = cards.find(c => c.id === editingExpense.creditCardId);
         const isDepositAcc = !!(card?.isChecking || card?.isSaving || card?.isBrokerage);
@@ -270,6 +289,7 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
     setRewardType('cashback');
     setRewardValue('');
     setIsInterest(false);
+    setCategory('Others');
 
     // Transfer resets
     const depositAccs = activeCards.filter(c => c.isChecking || c.isSaving || c.isBrokerage);
@@ -326,6 +346,7 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
         amount: -parsedAmount,
         description: `Transfer to ${targetName}`,
         date,
+        category: 'Transfer',
         fromTo: targetName,
         details: finalDetails,
         isTransfer: true,
@@ -338,6 +359,7 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
         amount: targetIsDeposit ? parsedAmount : -parsedAmount, // paying credit card is negative (reduces balance owed)
         description: `Transfer from ${sourceName}`,
         date,
+        category: 'Transfer',
         fromTo: sourceName,
         details: finalDetails,
         isTransfer: true,
@@ -435,6 +457,7 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
         amount: finalAmount,
         creditCardId: selectedCardId,
         date,
+        category: category || 'Others',
         fromTo: finalFromTo,
         details: finalDetails,
         isFee: !isCheckingSelected ? isFee : undefined,
@@ -601,9 +624,17 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
               </TouchableOpacity>
             </View>
 
-
-
-
+            {/* Category Selector */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Category</Text>
+              <TouchableOpacity
+                style={styles.selectorButton}
+                onPress={() => setCategoryModalVisible(true)}
+              >
+                <Text style={styles.selectorButtonText}>{category}</Text>
+                <Text style={styles.dropdownArrow}>▼</Text>
+              </TouchableOpacity>
+            </View>
 
             {/* Description or From/To Name */}
             {!isCheckingSelected ? (
@@ -911,6 +942,46 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
               )}
             />
             <TouchableOpacity style={styles.modalCloseButton} onPress={() => setCardModalVisible(false)}>
+              <Text style={styles.modalCloseButtonText}>Close</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Category Modal Picker */}
+      <Modal
+        visible={categoryModalVisible}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setCategoryModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Select Category</Text>
+            <FlatList
+              data={CATEGORIES}
+              keyExtractor={item => item}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={[
+                    styles.modalItem,
+                    category === item && styles.modalItemSelected
+                  ]}
+                  onPress={() => {
+                    setCategory(item);
+                    setCategoryModalVisible(false);
+                  }}
+                >
+                  <Text style={[
+                    styles.modalItemText,
+                    category === item && styles.modalItemTextSelected
+                  ]}>
+                    {item}
+                  </Text>
+                </TouchableOpacity>
+              )}
+            />
+            <TouchableOpacity style={styles.modalCloseButton} onPress={() => setCategoryModalVisible(false)}>
               <Text style={styles.modalCloseButtonText}>Close</Text>
             </TouchableOpacity>
           </View>

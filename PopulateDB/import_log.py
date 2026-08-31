@@ -23,6 +23,112 @@ def clean_float(val):
     except:
         return 0.0
 
+def get_category(description, details="", is_transfer=False, amount=0.0):
+    desc = str(description or '').lower().strip()
+    det = str(details or '').lower().strip()
+    
+    if is_transfer:
+        return 'Transfer'
+        
+    transfer_keywords = [
+        'credit card bill pay', 'credit card payment', 'cc payment', 'cc bill pay', 'cc billpay',
+        'transfer', 'payment received', 'payment - thank you', 'payment thank you', 'autopay', 'auto-pay',
+        'payment to', 'from checking', 'to checking', 'from savings', 'to savings',
+        'from chase', 'to chase', 'from santander', 'to santander', 'from sofi', 'to sofi',
+        'from citizens', 'to citizens', 'from upgrade', 'to upgrade', 'from mspbna', 'to mspbna',
+        'from robinhood', 'to robinhood', 'from schwab', 'to schwab', 'from webull', 'to webull',
+        'from etoro', 'to etoro', 'from gemini', 'to gemini', 'from paypal', 'to paypal',
+        'from venmo', 'to venmo', 'imported balance', 'calculated from transfer logs', 'zelle from paypal',
+        'zelle to paypal', 'current balance'
+    ]
+    
+    account_keywords = [
+        'amex', 'chase', 'citi', 'boa', 'bofat', 'bofa', 'hood-g', 'delta-g', 'delta gold',
+        'robinhood', 'schwab', 'webull', 'gemini', 'etoro', 'santander', 'sofi', 'upgrade',
+        'citizens', 'mspbna', 'closed-chasesav', 'amex-hysa', 'closed-dsrv', 'closed-wf-aj',
+        'savings', 'checking', 'saving', 'chultd', 'chsdt', 'chsap', 'chflx', 'freedom unlimited',
+        'sapphire', 'freedom flex', 'gold card', 'blue cash'
+    ]
+    
+    # Catch any transfer/payment indicating known accounts
+    is_account_involved = any(acc in desc or acc in det for acc in account_keywords)
+    has_transfer_action = any(act in desc or act in det for act in ['to ', 'from ', 'payment', 'bill', 'deposit', 'withdraw', 'transfer', 'zelle', 'split', 'pay', 'receive'])
+    
+    if is_account_involved and has_transfer_action:
+        return 'Transfer'
+        
+    if any(desc == acc or det == acc for acc in account_keywords):
+        return 'Transfer'
+        
+    if any(k in desc or k in det for k in transfer_keywords):
+        return 'Transfer'
+        
+    rent_keywords = ['rent', 'landlord', '11 fer blvd', '11ferblvd', 'faiaz rent', 'mouinul rent']
+    if any(k in desc or k in det for k in rent_keywords):
+        return 'Rent'
+        
+    utility_keywords = [
+        'utility', 'utilities', 'wifi', 'wi-fi', 'internet', 'electric', 'electricity', 
+        'water bill', 'pse&g', 'pseg', 'comcast', 'xfinity', 'verizon', 'spectrum', 'optimum'
+    ]
+    if any(k in desc or k in det for k in utility_keywords):
+        return 'Utilities (inc. WiFi)'
+        
+    car_keywords = ['car loan', 'car payment', 'car finance', 'honda financial', 'toyota financial', 'chase auto']
+    if any(k in desc or k in det for k in car_keywords):
+        return 'Car Payment'
+        
+    trans_keywords = [
+        'gas', 'toll', 'e-zpass', 'ezpass', 'mta', 'subway', 'bus', 'uber', 'lyft', 'train', 
+        'transit', 'parking', 'parking fee', 'american dream parking', 'acura rallye'
+    ]
+    if any(k in desc or k in det for k in trans_keywords) and not ('gas bill' in desc or 'gas bill' in det or 'electric & gas' in det):
+        return 'Transportation (Gas/Toll)'
+        
+    grocery_keywords = [
+        'grocery', 'groceries', 'supermarket', 'market', 'walmart', 'target', 'costco', 'aldi', 
+        'kroger', 'whole foods', 'trader joe', 'apna bazar', '99 ranch', 'patel brothers', 
+        'aarong', 'h-mart', 'hmart', 'shoprite', 'stop & shop', 'stop and shop', '7-eleven', '7 eleven'
+    ]
+    if any(k in desc or k in det for k in grocery_keywords):
+        return 'Grocery'
+        
+    eat_keywords = [
+        'restaurant', 'diner', 'cafe', 'coffee', 'starbucks', 'dunkin', 'pizza', 'burger', 
+        'mcdonald', 'taco bell', 'sweetgreen', 'chipotle', 'eating out', 'food', 'bakery', 
+        'umacha', 'mochi mochi', 'omusubi', 'taskin bakery', 'nathans', 'sprite', 'grill', 'sushi', 
+        'boba', 'uber eats', 'doordash', 'grubhub', 'seamless', 'almas', 'dunkin donuts'
+    ]
+    if any(k in desc or k in det for k in eat_keywords):
+        return 'Eating Out'
+        
+    necessary_keywords = [
+        'laptop', 'computer', 'monitor', 'desk', 'keyboard', 'mouse', 'software', 'subscription', 
+        'aws', 'google cloud', 'openai', 'anthropic', 'github', 'microsoft', 'apple', 'insurance', 
+        'medical', 'dentist', 'doctor', 'copay', 'pharmacy', 'cvs', 'walgreens', 'textbook', 
+        'njit', 'tuition', 'fee', 'annual fee', 'progressive', 'united health'
+    ]
+    if any(k in desc or k in det for k in necessary_keywords):
+        return 'Necessary Others'
+        
+    lux_keywords = [
+        'vacation', 'hotel', 'flight', 'airline', 'air fare', 'airbnb', 'travel', 'cruise', 
+        'ticketmaster', 'concert', 'amc', 'movie', 'cinema', 'theatre', 'disney', 'universal studios', 
+        'resort', 'vacation', 'trip', 'alaska air', 'united air', 'delta air', 'american airlines', 
+        'jetblue', 'top gun', 'billiards', 'airalo', 'airgsm', 'hotel v'
+    ]
+    if any(k in desc or k in det for k in lux_keywords):
+        return 'Lux Others'
+        
+    salary_keywords = ['salary', 'paycheck', 'payroll', 'direct deposit', 'account open bonus', 'account opening bonus', 'bank bonus']
+    if any(k in desc or k in det for k in salary_keywords):
+        return 'Salary'
+        
+    if 'zelle' in desc or 'zelle' in det:
+        return 'Transfer'
+        
+    return 'Others'
+
 def main():
     if not os.path.exists(EXCEL_PATH):
         print(f"Error: {EXCEL_PATH} not found.")
@@ -222,6 +328,7 @@ def main():
                     "amount": round(spend_val, 2),
                     "creditCardId": card_id,
                     "date": current_date,
+                    "category": get_category(merchant, '', False, spend_val),
                     "isReward": False,
                     "rewardType": None,
                     "rewardValue": None
@@ -236,6 +343,7 @@ def main():
                     "amount": round(-return_val if return_val > 0 else return_val, 2),
                     "creditCardId": card_id,
                     "date": current_date,
+                    "category": get_category(merchant, '', False, -return_val),
                     "isReward": False,
                     "rewardType": None,
                     "rewardValue": None
@@ -250,6 +358,7 @@ def main():
                     "amount": 0.0,  # reward transactions always have 0 amount (statement credits are handled in return column)
                     "creditCardId": card_id,
                     "date": current_date,
+                    "category": get_category(merchant, '', False, 0.0),
                     "isReward": True,
                     "rewardType": reward_type,
                     "rewardValue": round(reward_val, 2)
@@ -338,12 +447,14 @@ def main():
                     pass
             
             # Salary/Deposit represents income (positive expense)
+            is_salary_tx = False
             if not is_valid and sal is not None:
                 try:
                     val = float(sal)
                     if val > 0:
                         amount = val
                         is_valid = True
+                        is_salary_tx = True
                         # Track brokerage transfer
                         track_brokerage_transfer(from_to_val, details_val, val, is_deposit=True)
                 except ValueError:
@@ -369,6 +480,7 @@ def main():
                 "amount": round(amount, 2),
                 "creditCardId": card_id,
                 "date": current_date,
+                "category": 'Salary' if is_salary_tx else get_category(from_to_val, details_val, False, amount),
                 "fromTo": from_to_val,
                 "details": details_val
             })
@@ -486,6 +598,7 @@ def main():
                 "amount": round(amount, 2),
                 "creditCardId": card_id,
                 "date": current_date,
+                "category": "Others" if is_interest else get_category(details_val, details_val, False, amount),
                 "fromTo": "Interest" if is_interest else details_val,
                 "details": details_val,
                 "isInterest": is_interest
@@ -518,6 +631,7 @@ def main():
             "amount": round(balance, 2),
             "creditCardId": meta['id'],
             "date": "2026-08-30",  # current date
+            "category": "Transfer",
             "fromTo": "Imported Balance",
             "details": "Calculated from transfer logs"
         })
@@ -574,7 +688,7 @@ def main():
     # Write Transactions sheet (Fee column is excluded)
     tx_headers = [
         "ID", "Date", "Account Name", "Account ID", "Description/FromTo", "Details",
-        "Amount", "Is Reward", "Reward Value", "Is Interest"
+        "Category", "Amount", "Is Reward", "Reward Value", "Is Interest"
     ]
     ws_tx.append(tx_headers)
     for col_idx in range(1, len(tx_headers) + 1):
@@ -593,6 +707,7 @@ def main():
             exp.get("creditCardId"),
             exp.get("fromTo") or exp.get("description") or "",
             exp.get("details") or "",
+            exp.get("category") or "Others",
             round(exp.get("amount", 0.0), 2),
             "TRUE" if exp.get("isReward") else "FALSE",
             round(exp.get("rewardValue"), 2) if exp.get("rewardValue") is not None else "",

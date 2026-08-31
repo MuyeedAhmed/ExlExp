@@ -48,21 +48,22 @@ def main():
         if not row[0]:
             continue
             
-        # Headers: ["ID", "Date", "Account Name", "Account ID", "Description/FromTo", "Details", "Amount", "Is Reward", "Reward Value", "Is Interest"]
+        # Headers: ["ID", "Date", "Account Name", "Account ID", "Description/FromTo", "Details", "Category", "Amount", "Is Reward", "Reward Value", "Is Interest"]
         e_id = row[0]
         e_date = str(row[1]).split(" ")[0] if row[1] else "" # strip time
         c_id = row[3]
         desc = row[4] or ""
         details = row[5] or ""
-        amount = round(float(row[6]), 2) if row[6] is not None else 0.0
-        is_reward = str(row[7]).upper() == "TRUE"
+        category = row[6] or "Others"
+        amount = round(float(row[7]), 2) if row[7] is not None else 0.0
+        is_reward = str(row[8]).upper() == "TRUE"
         
         try:
-            reward_value = round(float(row[8]), 2) if row[8] is not None and str(row[8]).strip() != "" and str(row[8]).strip() != "None" else None
+            reward_value = round(float(row[9]), 2) if row[9] is not None and str(row[9]).strip() != "" and str(row[9]).strip() != "None" else None
         except ValueError:
             reward_value = None
             
-        is_interest = str(row[9]).upper() == "TRUE"
+        is_interest = str(row[10]).upper() == "TRUE"
         
         exp_obj = {
             "id": e_id,
@@ -70,6 +71,7 @@ def main():
             "creditCardId": c_id,
             "description": desc,
             "amount": amount,
+            "category": category,
             "isFee": False,
             "isReward": is_reward,
         }

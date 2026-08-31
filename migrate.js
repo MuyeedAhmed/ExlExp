@@ -50,7 +50,8 @@ async function runMigration() {
         }
         return {
           ...rest,
-          description: desc
+          description: desc,
+          category: e.isTransfer ? 'Transfer' : (e.category || 'Others')
         };
       });
       const { error: err } = await supabase.from('expenses').insert(expensesToInsert);

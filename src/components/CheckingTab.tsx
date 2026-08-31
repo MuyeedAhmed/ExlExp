@@ -301,7 +301,7 @@ export const CheckingTab: React.FC<CheckingTabProps> = ({
             </>
           ) : (
             <>
-              {/* Table Headers */}
+               {/* Table Headers */}
               <View style={styles.tableRowHeader}>
                 <Text style={[styles.headerCell, { width: 90 }]}>Date</Text>
                 <Text style={[styles.headerCell, { width: 180 }]}>From/To</Text>
@@ -309,14 +309,15 @@ export const CheckingTab: React.FC<CheckingTabProps> = ({
                   <>
                     <Text style={[styles.headerCell, { width: 110, textAlign: 'right' }]}>Amount</Text>
                     <Text style={[styles.headerCell, { width: 110, textAlign: 'right' }]}>Interest</Text>
-                    <Text style={[styles.headerCell, { width: 200 }]}>Details</Text>
+                    <Text style={[styles.headerCell, { width: 120 }]}>Details</Text>
                   </>
                 ) : (
                   <>
                     <Text style={[styles.headerCell, { width: 110, textAlign: 'right' }]}>Amount</Text>
-                    <Text style={[styles.headerCell, { width: 310 }]}>Details</Text>
+                    <Text style={[styles.headerCell, { width: 200 }]}>Details</Text>
                   </>
                 )}
+                <Text style={[styles.headerCell, { width: 110 }]}>Category</Text>
                 <Text style={[styles.headerCell, { width: 100, textAlign: 'center' }]}>Actions</Text>
               </View>
 
@@ -333,7 +334,7 @@ export const CheckingTab: React.FC<CheckingTabProps> = ({
 
                     return (
                       <View key={item.id} style={styles.tableRow}>
-                        <Text style={[styles.cell, { width: 90 }, styles.monoText]}>{item.date}</Text>
+                        <Text style={[styles.cell, { width: 90 }, styles.monoText]}>{item.date ? item.date.substring(5) : ''}</Text>
                         <Text style={[styles.cell, { width: 180 }]} numberOfLines={1}>
                           {item.fromTo || item.description || ''}
                         </Text>
@@ -359,7 +360,7 @@ export const CheckingTab: React.FC<CheckingTabProps> = ({
                             >
                               {item.isInterest ? formattedAmount : '-'}
                             </Text>
-                            <Text style={[styles.cell, { width: 200 }]} numberOfLines={1}>
+                            <Text style={[styles.cell, { width: 120 }]} numberOfLines={1}>
                               {item.details || ''}
                             </Text>
                           </>
@@ -375,11 +376,14 @@ export const CheckingTab: React.FC<CheckingTabProps> = ({
                             >
                               {formattedAmount}
                             </Text>
-                            <Text style={[styles.cell, { width: 310 }]} numberOfLines={1}>
+                            <Text style={[styles.cell, { width: 200 }]} numberOfLines={1}>
                               {item.details || ''}
                             </Text>
                           </>
                         )}
+                        <Text style={[styles.cell, { width: 110 }]} numberOfLines={1}>
+                          {item.category || 'Others'}
+                        </Text>
                         <View style={[styles.cellActions, { width: 100 }]}>
                           <TouchableOpacity style={styles.actionBtn} onPress={() => onEdit(item)}>
                             <Text style={styles.editBtnText}>Edit</Text>

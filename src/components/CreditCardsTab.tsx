@@ -149,10 +149,11 @@ export const CreditCardsTab: React.FC<CreditCardsTabProps> = ({
           {/* Table Headers */}
           <View style={styles.tableRowHeader}>
             <Text style={[styles.headerCell, { width: 90 }]}>Date</Text>
-            <Text style={[styles.headerCell, { width: 200 }]}>Description</Text>
+            <Text style={[styles.headerCell, { width: 150 }]}>Description</Text>
             <Text style={[styles.headerCell, { width: 90, textAlign: 'right' }]}>Spend</Text>
             <Text style={[styles.headerCell, { width: 90, textAlign: 'right' }]}>Paid</Text>
-            <Text style={[styles.headerCell, { width: 100, textAlign: 'right' }]}>Rewards</Text>
+            <Text style={[styles.headerCell, { width: 90, textAlign: 'right' }]}>Rewards</Text>
+            <Text style={[styles.headerCell, { width: 110 }]}>Category</Text>
             <Text style={[styles.headerCell, { width: 100, textAlign: 'center' }]}>Actions</Text>
           </View>
 
@@ -181,8 +182,8 @@ export const CreditCardsTab: React.FC<CreditCardsTabProps> = ({
 
                 return (
                   <View key={item.id} style={styles.tableRow}>
-                    <Text style={[styles.cell, { width: 90 }, styles.monoText]}>{item.date}</Text>
-                    <Text style={[styles.cell, { width: 200 }]} numberOfLines={1}>
+                    <Text style={[styles.cell, { width: 90 }, styles.monoText]}>{item.date ? item.date.substring(5) : ''}</Text>
+                    <Text style={[styles.cell, { width: 150 }]} numberOfLines={1}>
                       {item.description}
                     </Text>
                     
@@ -193,8 +194,12 @@ export const CreditCardsTab: React.FC<CreditCardsTabProps> = ({
                     <Text style={[styles.cell, { width: 90, textAlign: 'right' }, styles.monoText, paidVal !== '-' && { color: '#16a34a' }]}>
                       {paidVal}
                     </Text>
-                    <Text style={[styles.cell, { width: 100, textAlign: 'right' }, styles.monoText, rewardsVal !== '-' && { color: '#16a34a' }]}>
+                    <Text style={[styles.cell, { width: 90, textAlign: 'right' }, styles.monoText, rewardsVal !== '-' && { color: '#16a34a' }]}>
                       {rewardsVal}
+                    </Text>
+                    
+                    <Text style={[styles.cell, { width: 110 }]} numberOfLines={1}>
+                      {item.category || 'Others'}
                     </Text>
                     
                     <View style={[styles.cellActions, { width: 100 }]}>

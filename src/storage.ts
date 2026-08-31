@@ -99,7 +99,8 @@ export const saveExpenses = async (expenses: Expense[]): Promise<void> => {
       }
       return {
         ...rest,
-        description: desc
+        description: desc,
+        category: e.isTransfer ? 'Transfer' : (e.category || 'Others')
       };
     });
 
@@ -124,6 +125,7 @@ export const saveExpenses = async (expenses: Expense[]): Promise<void> => {
         !!dbItem.isReward !== !!e.isReward ||
         !!dbItem.isTransfer !== !!e.isTransfer ||
         dbItem.transferLinkId !== e.transferLinkId ||
+        dbItem.category !== e.category ||
         !!dbItem.isInterest !== !!e.isInterest
       );
     });
