@@ -30,6 +30,30 @@ export const Dashboard: React.FC<DashboardProps> = ({
   const [futureAmount, setFutureAmount] = useState('');
   const [futureDate, setFutureDate] = useState('');
 
+  // Month selector states
+  const availableMonths = useMemo(() => {
+    const monthsSet = new Set<string>();
+    const today = new Date();
+    const currentMonthStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+    monthsSet.add(currentMonthStr);
+    expenses.forEach(e => {
+      if (e.date && e.date.length >= 7) {
+        monthsSet.add(e.date.substring(0, 7));
+      }
+    });
+    return Array.from(monthsSet).sort().reverse();
+  }, [expenses]);
+
+  const [selectedMonth, setSelectedMonth] = useState<string>('');
+  const activeMonth = selectedMonth || availableMonths[0] || '';
+
+  const formatMonthLabel = (monthStr: string) => {
+    if (!monthStr) return '';
+    const [year, month] = monthStr.split('-');
+    const date = new Date(parseInt(year), parseInt(month) - 1, 1);
+    return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  };
+
   // Helpers to get card name by ID
   const cardMap = useMemo(() => new Map(cards.map(c => [c.id, c])), [cards]);
 
@@ -86,6 +110,47 @@ export const Dashboard: React.FC<DashboardProps> = ({
   const netBalance = useMemo(() => {
     return checkingBalance - creditCardDebt - futureExpensesTotal;
   }, [checkingBalance, creditCardDebt, futureExpensesTotal]);
+
+  const categorySpending = useMemo(() => {
+    const sums: { [category: string]: number } = {};
+    expenses.forEach(e => {
+      // Exclude transfers
+      if (e.isTransfer) return;
+
+      // Filter by selected month
+      if (!e.date || !e.date.startsWith(activeMonth)) return;
+      
+      const card = cardMap.get(e.creditCardId);
+      const isDeposit = card?.isChecking || card?.isSaving || card?.isBrokerage;
+      
+      // Determine if it is a spending transaction and get the positive amount
+      let spendAmt = 0;
+      if (isDeposit) {
+        // For checking/savings/brokerage, spending is money going out (negative amount)
+        if (e.amount < 0 && !e.isInterest) {
+          spendAmt = Math.abs(e.amount);
+        }
+      } else {
+        // For credit cards, spending is money charged (positive amount)
+        if (e.amount > 0 && !e.isFee && !e.isReward) {
+          spendAmt = e.amount;
+        } else if (e.isFee && e.amount > 0) {
+          // Count fees as spending too
+          spendAmt = e.amount;
+        }
+      }
+      
+      if (spendAmt > 0) {
+        const cat = e.category || 'Others';
+        sums[cat] = (sums[cat] || 0) + spendAmt;
+      }
+    });
+    
+    // Convert to sorted array
+    return Object.entries(sums)
+      .map(([name, amount]) => ({ name, amount }))
+      .sort((a, b) => b.amount - a.amount);
+  }, [expenses, cardMap, activeMonth]);
 
   const handleAddFutureExpense = () => {
     if (!futureDesc.trim()) return alert('Please enter a description');
@@ -264,6 +329,58 @@ export const Dashboard: React.FC<DashboardProps> = ({
           ))
         )}
       </View>
+
+      {/* Month Selector Row */}
+      <View style={styles.monthSelectorRow}>
+        <Text style={styles.monthSelectorLabel}>Month:</Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.monthSelectorScroll}>
+          {availableMonths.map(month => (
+            <TouchableOpacity
+              key={month}
+              style={[
+                styles.monthTab,
+                activeMonth === month && styles.activeMonthTab
+              ]}
+              onPress={() => setSelectedMonth(month)}
+            >
+              <Text style={[
+                styles.monthTabText,
+                activeMonth === month && styles.activeMonthTabText
+              ]}>
+                {formatMonthLabel(month)}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </View>
+
+      {/* Category Spending Breakdown - Spreadsheet Grid Style */}
+      <View style={[styles.sheetGrid, { marginTop: 0 }]}>
+        <View style={styles.sheetHeaderRow}>
+          <Text style={[styles.sheetHeaderCell, { flex: 2 }]}>
+            Category Spending - {formatMonthLabel(activeMonth)}
+          </Text>
+          <Text style={[styles.sheetHeaderCell, { flex: 1, textAlign: 'right' }]}>
+            Total: ${formatCurrency(categorySpending.reduce((sum, item) => sum + item.amount, 0))}
+          </Text>
+        </View>
+        {categorySpending.length === 0 ? (
+          <View style={styles.sheetRow}>
+            <Text style={[styles.sheetCell, { flex: 3, textAlign: 'center', color: '#64748b' }]}>
+              No categorized spending logged for this month.
+            </Text>
+          </View>
+        ) : (
+          categorySpending.map(cat => (
+            <View key={cat.name} style={styles.sheetRow}>
+              <Text style={[styles.sheetCell, { flex: 2 }]}>{cat.name}</Text>
+              <Text style={[styles.sheetCell, { flex: 1, textAlign: 'right' }, styles.monoText]}>
+                ${formatCurrency(cat.amount)}
+              </Text>
+            </View>
+          ))
+        )}
+      </View>
     </ScrollView>
   );
 };
@@ -410,5 +527,51 @@ const styles = StyleSheet.create({
   },
   barFill: {
     height: '100%',
+  },
+  monthSelectorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f1f5f9',
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
+    paddingHorizontal: 12,
+    height: 38,
+    marginTop: 16,
+  },
+  monthSelectorLabel: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: '#64748b',
+    marginRight: 8,
+    textTransform: 'uppercase',
+  },
+  monthSelectorScroll: {
+    alignItems: 'flex-end',
+    height: '100%',
+  },
+  monthTab: {
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    backgroundColor: '#e2e8f0',
+    borderTopLeftRadius: 4,
+    borderTopRightRadius: 4,
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
+    borderBottomWidth: 0,
+    marginRight: 6,
+    bottom: -1,
+  },
+  activeMonthTab: {
+    backgroundColor: '#ffffff',
+    borderBottomColor: '#ffffff',
+  },
+  monthTabText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#64748b',
+  },
+  activeMonthTabText: {
+    color: '#0f172a',
+    fontWeight: 'bold',
   },
 });

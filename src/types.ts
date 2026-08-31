@@ -13,6 +13,7 @@ export interface Expense {
   isTransfer?: boolean; // transfer marker
   transferLinkId?: string; // linked transfer transaction ID
   isInterest?: boolean; // interest marker for savings accounts
+  category?: string; // transaction category (defaults to 'Others')
 }
 
 export interface CreditCard {
