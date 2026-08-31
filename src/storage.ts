@@ -65,38 +65,26 @@ export const getExpenses = async (username: string): Promise<Expense[]> => {
 };
 
 export const saveExpenses = async (expenses: Expense[], username: string): Promise<void> => {
-  // 1. Save to local AsyncStorage first
+  // 1. Fetch previous expenses from local AsyncStorage to compute delta
+  let oldExpenses: Expense[] = [];
+  try {
+    const data = await AsyncStorage.getItem(`@ExlExp:${username}:expenses`);
+    oldExpenses = data ? JSON.parse(data) : [];
+  } catch (e) {
+    console.error('Error fetching old expenses from AsyncStorage:', e);
+  }
+
+  // 2. Save new list to local AsyncStorage
   try {
     await AsyncStorage.setItem(`@ExlExp:${username}:expenses`, JSON.stringify(expenses));
   } catch (e) {
     console.error('Error saving expenses to AsyncStorage:', e);
   }
 
-  // 2. Perform delta sync to Supabase (no table wipes!)
+  // 3. Perform targeted CRUD delta sync to Supabase (avoid downloading the DB!)
   try {
-    // Fetch current expenses in Supabase to compare
-    let dbExpenses: any[] = [];
-    let from = 0;
-    const limit = 1000;
-    let hasMore = true;
-    while (hasMore) {
-      const { data, error } = await supabase
-        .from('expenses')
-        .select('*')
-        .eq('username', username)
-        .range(from, from + limit - 1);
-      if (error) throw error;
-      if (data && data.length > 0) {
-        dbExpenses = [...dbExpenses, ...data];
-        from += limit;
-        if (data.length < limit) hasMore = false;
-      } else {
-        hasMore = false;
-      }
-    }
-
-    // Map new client expenses for insertion/comparison
-    const clientExpensesMapped = expenses.map(e => {
+    // Map expenses to database format
+    const mapExpense = (e: Expense) => {
       const { fromTo, details, ...rest } = e;
       let desc = e.description;
       if (fromTo || details) {
@@ -108,31 +96,33 @@ export const saveExpenses = async (expenses: Expense[], username: string): Promi
         category: e.isTransfer ? 'Transfer' : (e.category || 'Others'),
         username: username
       };
-    });
+    };
 
-    // Find items to delete: in DB but not in Client
-    const clientIds = new Set(expenses.map(e => e.id));
-    const toDeleteIds = dbExpenses.filter(e => !clientIds.has(e.id)).map(e => e.id);
+    const newExpensesMapped = expenses.map(mapExpense);
+    const oldExpensesMapped = oldExpenses.map(mapExpense);
 
-    // Find items to insert: in Client but not in DB
-    const dbIds = new Set(dbExpenses.map(e => e.id));
-    const toInsert = clientExpensesMapped.filter(e => !dbIds.has(e.id));
+    const newIds = new Set(expenses.map(e => e.id));
+    const oldIds = new Set(oldExpenses.map(e => e.id));
 
-    // Find items to update: in both, but content changed
-    const toUpdate = clientExpensesMapped.filter(e => {
-      const dbItem = dbExpenses.find(d => d.id === e.id);
-      if (!dbItem) return false;
+    // Deletes: Present in old but missing in new
+    const toDeleteIds = oldExpenses.filter(e => !newIds.has(e.id)).map(e => e.id);
+
+    // Upserts (Inserts/Updates): Present in new, but either absent from old or changed
+    const toUpsert = newExpensesMapped.filter(e => {
+      const oldItem = oldExpensesMapped.find(o => o.id === e.id);
+      if (!oldItem) return true; // New transaction (Insert)
+      // Check if any fields changed (Update)
       return (
-        dbItem.description !== e.description ||
-        dbItem.amount !== e.amount ||
-        dbItem.date !== e.date ||
-        dbItem.creditCardId !== e.creditCardId ||
-        !!dbItem.isFee !== !!e.isFee ||
-        !!dbItem.isReward !== !!e.isReward ||
-        !!dbItem.isTransfer !== !!e.isTransfer ||
-        dbItem.transferLinkId !== e.transferLinkId ||
-        dbItem.category !== e.category ||
-        !!dbItem.isInterest !== !!e.isInterest
+        oldItem.description !== e.description ||
+        oldItem.amount !== e.amount ||
+        oldItem.date !== e.date ||
+        oldItem.creditCardId !== e.creditCardId ||
+        !!oldItem.isFee !== !!e.isFee ||
+        !!oldItem.isReward !== !!e.isReward ||
+        !!oldItem.isTransfer !== !!e.isTransfer ||
+        oldItem.transferLinkId !== e.transferLinkId ||
+        oldItem.category !== e.category ||
+        !!oldItem.isInterest !== !!e.isInterest
       );
     });
 
@@ -140,30 +130,27 @@ export const saveExpenses = async (expenses: Expense[], username: string): Promi
     if (toDeleteIds.length > 0) {
       for (let i = 0; i < toDeleteIds.length; i += 100) {
         const chunk = toDeleteIds.slice(i, i + 100);
-        const { error } = await supabase.from('expenses').delete().eq('username', username).in('id', chunk);
+        const { error } = await supabase
+          .from('expenses')
+          .delete()
+          .eq('username', username)
+          .in('id', chunk);
         if (error) throw error;
       }
     }
 
-    // Execute inserts in chunks of 100
-    if (toInsert.length > 0) {
-      for (let i = 0; i < toInsert.length; i += 100) {
-        const chunk = toInsert.slice(i, i + 100);
-        const { error } = await supabase.from('expenses').insert(chunk);
+    // Execute upserts in chunks of 100
+    if (toUpsert.length > 0) {
+      for (let i = 0; i < toUpsert.length; i += 100) {
+        const chunk = toUpsert.slice(i, i + 100);
+        const { error } = await supabase
+          .from('expenses')
+          .upsert(chunk);
         if (error) throw error;
       }
     }
-
-    // Execute updates
-    if (toUpdate.length > 0) {
-      for (const item of toUpdate) {
-        const { error } = await supabase.from('expenses').update(item).eq('username', username).eq('id', item.id);
-        if (error) throw error;
-      }
-    }
-
   } catch (error) {
-    console.log('Supabase offline or error, saving expenses to local AsyncStorage:', error);
+    console.log('Supabase offline or error, could not sync expenses delta to cloud database:', error);
   }
 };
 

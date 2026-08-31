@@ -28,12 +28,20 @@ export const CreditCardsTab: React.FC<CreditCardsTabProps> = ({
   // Active card tab state
   const [selectedCardId, setSelectedCardId] = useState<string>('');
 
+  // Pagination state for transactions
+  const [visibleCount, setVisibleCount] = useState<number>(25);
+
   // Sync state if cards load or change
   useEffect(() => {
     if (creditCardsOnly.length > 0 && (!selectedCardId || !creditCardsOnly.some(c => c.id === selectedCardId))) {
       setSelectedCardId(creditCardsOnly[0].id);
     }
   }, [creditCardsOnly, selectedCardId]);
+
+  // Reset pagination count when selected card changes
+  useEffect(() => {
+    setVisibleCount(25);
+  }, [selectedCardId]);
 
   const activeCard = useMemo(() => {
     return creditCardsOnly.find(c => c.id === selectedCardId) || null;
@@ -162,57 +170,69 @@ export const CreditCardsTab: React.FC<CreditCardsTabProps> = ({
             {cardExpenses.length === 0 ? (
               <Text style={styles.emptyText}>No transactions recorded for this card.</Text>
             ) : (
-              cardExpenses.map(item => {
-                const amt = Number(item.amount) || 0;
+              <>
+                {cardExpenses.slice(0, visibleCount).map(item => {
+                  const amt = Number(item.amount) || 0;
 
-                let spendVal = '-';
-                let paidVal = '-';
-                let rewardsVal = '-';
+                  let spendVal = '-';
+                  let paidVal = '-';
+                  let rewardsVal = '-';
 
-                if (item.isReward) {
-                  if (amt < 0) {
+                  if (item.isReward) {
+                    if (amt < 0) {
+                      paidVal = `$${formatCurrency(Math.abs(amt))}`;
+                    }
+                    rewardsVal = `$${formatCurrency(item.rewardValue || 0)}`;
+                  } else if (amt > 0) {
+                    spendVal = `$${formatCurrency(amt)}`;
+                  } else if (amt < 0) {
                     paidVal = `$${formatCurrency(Math.abs(amt))}`;
                   }
-                  rewardsVal = `$${formatCurrency(item.rewardValue || 0)}`;
-                } else if (amt > 0) {
-                  spendVal = `$${formatCurrency(amt)}`;
-                } else if (amt < 0) {
-                  paidVal = `$${formatCurrency(Math.abs(amt))}`;
-                }
 
-                return (
-                  <View key={item.id} style={styles.tableRow}>
-                    <Text style={[styles.cell, { width: 90 }, styles.monoText]}>{item.date ? item.date.substring(5) : ''}</Text>
-                    <Text style={[styles.cell, { width: 150 }]} numberOfLines={1}>
-                      {item.description}
-                    </Text>
-                    
-                    {/* Columns matching spreadsheet values */}
-                    <Text style={[styles.cell, { width: 90, textAlign: 'right' }, styles.monoText]}>
-                      {spendVal}
-                    </Text>
-                    <Text style={[styles.cell, { width: 90, textAlign: 'right' }, styles.monoText, paidVal !== '-' && { color: '#16a34a' }]}>
-                      {paidVal}
-                    </Text>
-                    <Text style={[styles.cell, { width: 90, textAlign: 'right' }, styles.monoText, rewardsVal !== '-' && { color: '#16a34a' }]}>
-                      {rewardsVal}
-                    </Text>
-                    
-                    <Text style={[styles.cell, { width: 110 }]} numberOfLines={1}>
-                      {item.category || 'Others'}
-                    </Text>
-                    
-                    <View style={[styles.cellActions, { width: 100 }]}>
-                      <TouchableOpacity style={styles.actionBtn} onPress={() => onEdit(item)}>
-                        <Text style={styles.editBtnText}>Edit</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity style={styles.actionBtn} onPress={() => confirmDelete(item.id)}>
-                        <Text style={styles.deleteBtnText}>Del</Text>
-                      </TouchableOpacity>
+                  return (
+                    <View key={item.id} style={styles.tableRow}>
+                      <Text style={[styles.cell, { width: 90 }, styles.monoText]}>{item.date ? item.date.substring(5) : ''}</Text>
+                      <Text style={[styles.cell, { width: 150 }]} numberOfLines={1}>
+                        {item.description}
+                      </Text>
+                      
+                      {/* Columns matching spreadsheet values */}
+                      <Text style={[styles.cell, { width: 90, textAlign: 'right' }, styles.monoText]}>
+                        {spendVal}
+                      </Text>
+                      <Text style={[styles.cell, { width: 90, textAlign: 'right' }, styles.monoText, paidVal !== '-' && { color: '#16a34a' }]}>
+                        {paidVal}
+                      </Text>
+                      <Text style={[styles.cell, { width: 90, textAlign: 'right' }, styles.monoText, rewardsVal !== '-' && { color: '#16a34a' }]}>
+                        {rewardsVal}
+                      </Text>
+                      
+                      <Text style={[styles.cell, { width: 110 }]} numberOfLines={1}>
+                        {item.category || 'Others'}
+                      </Text>
+                      
+                      <View style={[styles.cellActions, { width: 100 }]}>
+                        <TouchableOpacity style={styles.actionBtn} onPress={() => onEdit(item)}>
+                          <Text style={styles.editBtnText}>Edit</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity style={styles.actionBtn} onPress={() => confirmDelete(item.id)}>
+                          <Text style={styles.deleteBtnText}>Del</Text>
+                        </TouchableOpacity>
+                      </View>
                     </View>
-                  </View>
-                );
-              })
+                  );
+                })}
+                {cardExpenses.length > visibleCount && (
+                  <TouchableOpacity
+                    style={[styles.loadMoreRow, { width: 720 }]}
+                    onPress={() => setVisibleCount(prev => prev + 25)}
+                  >
+                    <Text style={styles.loadMoreText}>
+                      Show More (showing {visibleCount} of {cardExpenses.length})
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              </>
             )}
           </ScrollView>
         </View>
@@ -368,6 +388,20 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#dc2626',
     fontWeight: '600',
+  },
+  loadMoreRow: {
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#f8fafc',
+    borderBottomWidth: 1,
+    borderBottomColor: '#cbd5e1',
+  },
+  loadMoreText: {
+    fontSize: 13,
+    color: '#3b82f6',
+    fontWeight: '700',
+    fontFamily: Platform.OS === 'ios' ? 'Courier New' : 'monospace',
   },
   emptyText: {
     padding: 20,

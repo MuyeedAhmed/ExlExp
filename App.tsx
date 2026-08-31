@@ -60,7 +60,7 @@ export default function App() {
     checkSession();
   }, []);
 
-  // Load user data when currentUser changes
+  // Load user data when currentUser changes (SWR caching + background sync)
   useEffect(() => {
     if (!currentUser) {
       setExpenses([]);
@@ -73,19 +73,54 @@ export default function App() {
     const username = currentUser;
 
     async function loadData() {
-      setLoading(true);
+      // 1. Load cached data from AsyncStorage first for instant startup
+      let cachedExpenses: Expense[] = [];
+      let cachedCards: CreditCard[] = [];
+      let cachedFutureExpenses: FutureExpense[] = [];
+      
       try {
-        const loadedExpenses = await getExpenses(username);
-        const loadedCards = await getCreditCards(username);
-        const loadedFutureExpenses = await getFutureExpenses(username);
-        
-        setExpenses(loadedExpenses);
-        setCards(loadedCards);
-        setFutureExpenses(loadedFutureExpenses);
-      } catch (error) {
-        console.error('Failed to load user data:', error);
+        const [expData, cardData, futureData] = await Promise.all([
+          AsyncStorage.getItem(`@ExlExp:${username}:expenses`),
+          AsyncStorage.getItem(`@ExlExp:${username}:credit_cards`),
+          AsyncStorage.getItem(`@ExlExp:${username}:future_expenses`),
+        ]);
+
+        if (expData) cachedExpenses = JSON.parse(expData);
+        if (cardData) cachedCards = JSON.parse(cardData);
+        if (futureData) cachedFutureExpenses = JSON.parse(futureData);
+
+        if (expData || cardData || futureData) {
+          setExpenses(cachedExpenses);
+          setCards(cachedCards);
+          setFutureExpenses(cachedFutureExpenses);
+          setLoading(false); // Render dashboard instantly
+        }
+      } catch (cacheError) {
+        console.warn('Failed to load cached data from AsyncStorage:', cacheError);
+      }
+
+      // 2. Perform background sync from Supabase
+      try {
+        const [freshExpenses, freshCards, freshFutureExpenses] = await Promise.all([
+          getExpenses(username),
+          getCreditCards(username),
+          getFutureExpenses(username),
+        ]);
+
+        setExpenses(freshExpenses);
+        setCards(freshCards);
+        setFutureExpenses(freshFutureExpenses);
+
+        // Update local cache
+        await Promise.all([
+          AsyncStorage.setItem(`@ExlExp:${username}:expenses`, JSON.stringify(freshExpenses)),
+          AsyncStorage.setItem(`@ExlExp:${username}:credit_cards`, JSON.stringify(freshCards)),
+          AsyncStorage.setItem(`@ExlExp:${username}:future_expenses`, JSON.stringify(freshFutureExpenses)),
+        ]);
+      } catch (syncError) {
+        console.error('Background sync from Supabase failed:', syncError);
       } finally {
-        setLoading(false);
+        setLoading(false); // Ensure loading is dismissed
       }
     }
     loadData();

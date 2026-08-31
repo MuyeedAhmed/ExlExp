@@ -37,6 +37,9 @@ export const CheckingTab: React.FC<CheckingTabProps> = ({
   // Active checking account sheet state
   const [selectedAccountId, setSelectedAccountId] = useState<string>('');
 
+  // Pagination state for transactions
+  const [visibleCount, setVisibleCount] = useState<number>(25);
+
   // Editing state for Brokerage inline balance updates
   const [editingBrokerageId, setEditingBrokerageId] = useState<string | null>(null);
   const [editingBrokerageValue, setEditingBrokerageValue] = useState<string>('');
@@ -48,6 +51,11 @@ export const CheckingTab: React.FC<CheckingTabProps> = ({
       setSelectedAccountId(allTabIds[0]);
     }
   }, [checkingOnly, savingsOnly, hasBrokerage, selectedAccountId]);
+
+  // Reset pagination count when account tab changes
+  useEffect(() => {
+    setVisibleCount(25);
+  }, [selectedAccountId]);
 
   const activeAccount = useMemo(() => {
     if (selectedAccountId === 'brokerage') return null;
@@ -326,75 +334,87 @@ export const CheckingTab: React.FC<CheckingTabProps> = ({
                 {checkingExpenses.length === 0 ? (
                   <Text style={styles.emptyText}>No transactions recorded.</Text>
                 ) : (
-                  checkingExpenses.map(item => {
-                    const isDeposit = item.amount >= 0;
-                    const formattedAmount = isDeposit
-                      ? `+$${item.amount.toFixed(2)}`
-                      : `-$${Math.abs(item.amount).toFixed(2)}`;
+                  <>
+                    {checkingExpenses.slice(0, visibleCount).map(item => {
+                      const isDeposit = item.amount >= 0;
+                      const formattedAmount = isDeposit
+                        ? `+$${item.amount.toFixed(2)}`
+                        : `-$${Math.abs(item.amount).toFixed(2)}`;
 
-                    return (
-                      <View key={item.id} style={styles.tableRow}>
-                        <Text style={[styles.cell, { width: 90 }, styles.monoText]}>{item.date ? item.date.substring(5) : ''}</Text>
-                        <Text style={[styles.cell, { width: 180 }]} numberOfLines={1}>
-                          {item.fromTo || item.description || ''}
-                        </Text>
-                        {activeAccount?.isSaving ? (
-                          <>
-                            <Text
-                              style={[
-                                styles.cell,
-                                { width: 110, textAlign: 'right' },
-                                styles.monoText,
-                                item.isInterest ? { color: '#94a3b8' } : (isDeposit ? styles.depositText : styles.withdrawText),
-                              ]}
-                            >
-                              {item.isInterest ? '-' : formattedAmount}
-                            </Text>
-                            <Text
-                              style={[
-                                styles.cell,
-                                { width: 110, textAlign: 'right' },
-                                styles.monoText,
-                                item.isInterest ? styles.depositText : { color: '#94a3b8' },
-                              ]}
-                            >
-                              {item.isInterest ? formattedAmount : '-'}
-                            </Text>
-                            <Text style={[styles.cell, { width: 120 }]} numberOfLines={1}>
-                              {item.details || ''}
-                            </Text>
-                          </>
-                        ) : (
-                          <>
-                            <Text
-                              style={[
-                                styles.cell,
-                                { width: 110, textAlign: 'right' },
-                                styles.monoText,
-                                isDeposit ? styles.depositText : styles.withdrawText,
-                              ]}
-                            >
-                              {formattedAmount}
-                            </Text>
-                            <Text style={[styles.cell, { width: 200 }]} numberOfLines={1}>
-                              {item.details || ''}
-                            </Text>
-                          </>
-                        )}
-                        <Text style={[styles.cell, { width: 110 }]} numberOfLines={1}>
-                          {item.category || 'Others'}
-                        </Text>
-                        <View style={[styles.cellActions, { width: 100 }]}>
-                          <TouchableOpacity style={styles.actionBtn} onPress={() => onEdit(item)}>
-                            <Text style={styles.editBtnText}>Edit</Text>
-                          </TouchableOpacity>
-                          <TouchableOpacity style={styles.actionBtn} onPress={() => confirmDelete(item.id)}>
-                            <Text style={styles.deleteBtnText}>Del</Text>
-                          </TouchableOpacity>
+                      return (
+                        <View key={item.id} style={styles.tableRow}>
+                          <Text style={[styles.cell, { width: 90 }, styles.monoText]}>{item.date ? item.date.substring(5) : ''}</Text>
+                          <Text style={[styles.cell, { width: 180 }]} numberOfLines={1}>
+                            {item.fromTo || item.description || ''}
+                          </Text>
+                          {activeAccount?.isSaving ? (
+                            <>
+                              <Text
+                                style={[
+                                  styles.cell,
+                                  { width: 110, textAlign: 'right' },
+                                  styles.monoText,
+                                  item.isInterest ? { color: '#94a3b8' } : (isDeposit ? styles.depositText : styles.withdrawText),
+                                ]}
+                              >
+                                {item.isInterest ? '-' : formattedAmount}
+                              </Text>
+                              <Text
+                                style={[
+                                  styles.cell,
+                                  { width: 110, textAlign: 'right' },
+                                  styles.monoText,
+                                  item.isInterest ? styles.depositText : { color: '#94a3b8' },
+                                ]}
+                              >
+                                {item.isInterest ? formattedAmount : '-'}
+                              </Text>
+                              <Text style={[styles.cell, { width: 120 }]} numberOfLines={1}>
+                                {item.details || ''}
+                              </Text>
+                            </>
+                          ) : (
+                            <>
+                              <Text
+                                style={[
+                                  styles.cell,
+                                  { width: 110, textAlign: 'right' },
+                                  styles.monoText,
+                                  isDeposit ? styles.depositText : styles.withdrawText,
+                                ]}
+                              >
+                                {formattedAmount}
+                              </Text>
+                              <Text style={[styles.cell, { width: 200 }]} numberOfLines={1}>
+                                {item.details || ''}
+                              </Text>
+                            </>
+                          )}
+                          <Text style={[styles.cell, { width: 110 }]} numberOfLines={1}>
+                            {item.category || 'Others'}
+                          </Text>
+                          <View style={[styles.cellActions, { width: 100 }]}>
+                            <TouchableOpacity style={styles.actionBtn} onPress={() => onEdit(item)}>
+                              <Text style={styles.editBtnText}>Edit</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity style={styles.actionBtn} onPress={() => confirmDelete(item.id)}>
+                              <Text style={styles.deleteBtnText}>Del</Text>
+                            </TouchableOpacity>
+                          </View>
                         </View>
-                      </View>
-                    );
-                  })
+                      );
+                    })}
+                    {checkingExpenses.length > visibleCount && (
+                      <TouchableOpacity
+                        style={[styles.loadMoreRow, { width: activeAccount?.isSaving ? 820 : 790 }]}
+                        onPress={() => setVisibleCount(prev => prev + 25)}
+                      >
+                        <Text style={styles.loadMoreText}>
+                          Show More (showing {visibleCount} of {checkingExpenses.length})
+                        </Text>
+                      </TouchableOpacity>
+                    )}
+                  </>
                 )}
               </ScrollView>
             </>
@@ -580,6 +600,20 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#dc2626',
     fontWeight: '600',
+  },
+  loadMoreRow: {
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#f8fafc',
+    borderBottomWidth: 1,
+    borderBottomColor: '#cbd5e1',
+  },
+  loadMoreText: {
+    fontSize: 13,
+    color: '#3b82f6',
+    fontWeight: '700',
+    fontFamily: Platform.OS === 'ios' ? 'Courier New' : 'monospace',
   },
   emptyText: {
     padding: 20,
