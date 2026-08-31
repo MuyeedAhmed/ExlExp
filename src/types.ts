@@ -14,6 +14,7 @@ export interface Expense {
   transferLinkId?: string; // linked transfer transaction ID
   isInterest?: boolean; // interest marker for savings accounts
   category?: string; // transaction category (defaults to 'Others')
+  username?: string; // foreign key referencing users.username
 }
 
 export interface CreditCard {
@@ -24,6 +25,7 @@ export interface CreditCard {
   isBrokerage?: boolean; // Optional flag to indicate brokerage account
   isHidden?: boolean; // Optional flag to hide/unhide cards in logs
   priority?: number; // Optional flag to save priority order of cards
+  username?: string; // foreign key referencing users.username
 }
 
 export interface FutureExpense {
@@ -31,4 +33,10 @@ export interface FutureExpense {
   description: string;
   amount: number;
   dueDate?: string; // YYYY-MM-DD (optional)
+  username?: string; // foreign key referencing users.username
 }
+
+export interface User {
+  username: string;
+}
+

@@ -25,6 +25,8 @@ import { ExpenseForm } from './src/components/ExpenseForm';
 import { CheckingTab } from './src/components/CheckingTab';
 import { CreditCardsTab } from './src/components/CreditCardsTab';
 import { Settings } from './src/components/Settings';
+import { LoginScreen } from './src/components/LoginScreen';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 type TabType = 'dashboard' | 'checking' | 'credit_cards' | 'add' | 'settings';
 
@@ -33,31 +35,61 @@ export default function App() {
   const isWeb = width > 768;
 
   const [loading, setLoading] = useState(true);
+  const [currentUser, setCurrentUser] = useState<string | null>(null);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [cards, setCards] = useState<CreditCard[]>([]);
   const [futureExpenses, setFutureExpenses] = useState<FutureExpense[]>([]);
   const [activeTab, setActiveTab] = useState<TabType>('dashboard');
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
 
-  // Load initial data
+  // Check user session on startup
   useEffect(() => {
-    async function loadData() {
+    async function checkSession() {
       try {
-        const loadedExpenses = await getExpenses();
-        const loadedCards = await getCreditCards();
-        const loadedFutureExpenses = await getFutureExpenses();
+        const storedUser = await AsyncStorage.getItem('@ExlExp:currentUser');
+        if (storedUser) {
+          setCurrentUser(storedUser);
+        } else {
+          setLoading(false);
+        }
+      } catch (e) {
+        console.error('Failed to check user session:', e);
+        setLoading(false);
+      }
+    }
+    checkSession();
+  }, []);
+
+  // Load user data when currentUser changes
+  useEffect(() => {
+    if (!currentUser) {
+      setExpenses([]);
+      setCards([]);
+      setFutureExpenses([]);
+      setLoading(false);
+      return;
+    }
+
+    const username = currentUser;
+
+    async function loadData() {
+      setLoading(true);
+      try {
+        const loadedExpenses = await getExpenses(username);
+        const loadedCards = await getCreditCards(username);
+        const loadedFutureExpenses = await getFutureExpenses(username);
         
         setExpenses(loadedExpenses);
         setCards(loadedCards);
         setFutureExpenses(loadedFutureExpenses);
       } catch (error) {
-        console.error('Failed to load initial data:', error);
+        console.error('Failed to load user data:', error);
       } finally {
         setLoading(false);
       }
     }
     loadData();
-  }, []);
+  }, [currentUser]);
 
   // Expense Handlers
   const handleExpenseSubmit = async (
@@ -134,7 +166,7 @@ export default function App() {
     }
 
     setExpenses(updatedExpenses);
-    await saveExpenses(updatedExpenses);
+    await saveExpenses(updatedExpenses, currentUser!);
   };
 
   const handleExpenseDelete = async (id: string) => {
@@ -146,7 +178,7 @@ export default function App() {
       updatedExpenses = expenses.filter(e => e.id !== id);
     }
     setExpenses(updatedExpenses);
-    await saveExpenses(updatedExpenses);
+    await saveExpenses(updatedExpenses, currentUser!);
   };
 
   const handleExpenseEditRequest = (expense: Expense) => {
@@ -180,13 +212,13 @@ export default function App() {
     };
     const updatedCards = [...cards, newCard];
     setCards(updatedCards);
-    await saveCreditCards(updatedCards);
+    await saveCreditCards(updatedCards, currentUser!);
   };
 
   const handleCardDelete = async (id: string) => {
     const updatedCards = cards.filter(c => c.id !== id);
     setCards(updatedCards);
-    await saveCreditCards(updatedCards);
+    await saveCreditCards(updatedCards, currentUser!);
   };
 
   const handleCardRename = async (id: string, newName: string) => {
@@ -194,7 +226,7 @@ export default function App() {
       c.id === id ? { ...c, name: newName } : c
     );
     setCards(updatedCards);
-    await saveCreditCards(updatedCards);
+    await saveCreditCards(updatedCards, currentUser!);
   };
 
   const handleMoveCard = async (id: string, direction: 'up' | 'down') => {
@@ -224,7 +256,7 @@ export default function App() {
     updatedCards[targetOriginalIndex] = card;
 
     setCards(updatedCards);
-    await saveCreditCards(updatedCards);
+    await saveCreditCards(updatedCards, currentUser!);
   };
 
   const handleToggleCardVisibility = async (id: string) => {
@@ -232,7 +264,7 @@ export default function App() {
       c.id === id ? { ...c, isHidden: !c.isHidden } : c
     );
     setCards(updatedCards);
-    await saveCreditCards(updatedCards);
+    await saveCreditCards(updatedCards, currentUser!);
   };
 
   const handleFutureExpenseAdd = async (newFuture: Omit<FutureExpense, 'id'>) => {
@@ -244,14 +276,14 @@ export default function App() {
       ...futureExpenses,
     ];
     setFutureExpenses(updated);
-    await saveFutureExpenses(updated);
+    await saveFutureExpenses(updated, currentUser!);
   };
 
   const handleFutureExpenseDelete = async (id: string) => {
     const updated = futureExpenses.filter(f => f.id !== id);
     setExpenses(expenses); // force reload dependencies if needed
     setFutureExpenses(updated);
-    await saveFutureExpenses(updated);
+    await saveFutureExpenses(updated, currentUser!);
   };
 
   const handleBrokerageBalanceUpdate = async (brokerageCardId: string, newBalance: number) => {
@@ -277,7 +309,25 @@ export default function App() {
       updatedExpenses = [newTx, ...expenses];
     }
     setExpenses(updatedExpenses);
-    await saveExpenses(updatedExpenses);
+    await saveExpenses(updatedExpenses, currentUser!);
+  };
+
+  const handleLoginSuccess = async (username: string) => {
+    try {
+      await AsyncStorage.setItem('@ExlExp:currentUser', username);
+      setCurrentUser(username);
+    } catch (e) {
+      console.error('Failed to save session:', e);
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      await AsyncStorage.removeItem('@ExlExp:currentUser');
+      setCurrentUser(null);
+    } catch (e) {
+      console.error('Failed to log out:', e);
+    }
   };
 
   // Render correct screen component based on active tab
@@ -331,6 +381,8 @@ export default function App() {
             onRenameCard={handleCardRename}
             onMoveCard={handleMoveCard}
             onToggleCardVisibility={handleToggleCardVisibility}
+            username={currentUser!}
+            onLogout={handleLogout}
           />
         );
       default:
@@ -353,6 +405,10 @@ export default function App() {
         <Text style={styles.loadingText}>Loading Spending Tracker...</Text>
       </View>
     );
+  }
+
+  if (!currentUser) {
+    return <LoginScreen onLoginSuccess={handleLoginSuccess} />;
   }
 
   return (

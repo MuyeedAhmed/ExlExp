@@ -13,7 +13,7 @@ const DEFAULT_CARDS: CreditCard[] = [
   { id: 'card-chase', name: 'Chase Checking', isChecking: true, priority: 3, isHidden: false }
 ];
 
-export const getExpenses = async (): Promise<Expense[]> => {
+export const getExpenses = async (username: string): Promise<Expense[]> => {
   try {
     let allExpenses: any[] = [];
     let from = 0;
@@ -24,6 +24,7 @@ export const getExpenses = async (): Promise<Expense[]> => {
       const { data, error } = await supabase
         .from('expenses')
         .select('*')
+        .eq('username', username)
         .range(from, from + limit - 1);
       
       if (error) throw error;
@@ -54,7 +55,7 @@ export const getExpenses = async (): Promise<Expense[]> => {
   } catch (error) {
     console.log('Supabase offline or error, using local AsyncStorage for expenses:', error);
     try {
-      const data = await AsyncStorage.getItem(EXPENSES_KEY);
+      const data = await AsyncStorage.getItem(`@ExlExp:${username}:expenses`);
       return data ? JSON.parse(data) : [];
     } catch (e) {
       console.error('Error fetching expenses from AsyncStorage:', e);
@@ -63,10 +64,10 @@ export const getExpenses = async (): Promise<Expense[]> => {
   }
 };
 
-export const saveExpenses = async (expenses: Expense[]): Promise<void> => {
+export const saveExpenses = async (expenses: Expense[], username: string): Promise<void> => {
   // 1. Save to local AsyncStorage first
   try {
-    await AsyncStorage.setItem(EXPENSES_KEY, JSON.stringify(expenses));
+    await AsyncStorage.setItem(`@ExlExp:${username}:expenses`, JSON.stringify(expenses));
   } catch (e) {
     console.error('Error saving expenses to AsyncStorage:', e);
   }
@@ -79,7 +80,11 @@ export const saveExpenses = async (expenses: Expense[]): Promise<void> => {
     const limit = 1000;
     let hasMore = true;
     while (hasMore) {
-      const { data, error } = await supabase.from('expenses').select('*').range(from, from + limit - 1);
+      const { data, error } = await supabase
+        .from('expenses')
+        .select('*')
+        .eq('username', username)
+        .range(from, from + limit - 1);
       if (error) throw error;
       if (data && data.length > 0) {
         dbExpenses = [...dbExpenses, ...data];
@@ -100,7 +105,8 @@ export const saveExpenses = async (expenses: Expense[]): Promise<void> => {
       return {
         ...rest,
         description: desc,
-        category: e.isTransfer ? 'Transfer' : (e.category || 'Others')
+        category: e.isTransfer ? 'Transfer' : (e.category || 'Others'),
+        username: username
       };
     });
 
@@ -134,7 +140,7 @@ export const saveExpenses = async (expenses: Expense[]): Promise<void> => {
     if (toDeleteIds.length > 0) {
       for (let i = 0; i < toDeleteIds.length; i += 100) {
         const chunk = toDeleteIds.slice(i, i + 100);
-        const { error } = await supabase.from('expenses').delete().in('id', chunk);
+        const { error } = await supabase.from('expenses').delete().eq('username', username).in('id', chunk);
         if (error) throw error;
       }
     }
@@ -151,7 +157,7 @@ export const saveExpenses = async (expenses: Expense[]): Promise<void> => {
     // Execute updates
     if (toUpdate.length > 0) {
       for (const item of toUpdate) {
-        const { error } = await supabase.from('expenses').update(item).eq('id', item.id);
+        const { error } = await supabase.from('expenses').update(item).eq('username', username).eq('id', item.id);
         if (error) throw error;
       }
     }
@@ -161,21 +167,22 @@ export const saveExpenses = async (expenses: Expense[]): Promise<void> => {
   }
 };
 
-export const getCreditCards = async (): Promise<CreditCard[]> => {
+export const getCreditCards = async (username: string): Promise<CreditCard[]> => {
   try {
     const { data, error } = await supabase
       .from('cards')
-      .select('*');
+      .select('*')
+      .eq('username', username);
 
     if (error) throw error;
 
-    // Fallback to DEFAULT_CARDS if Supabase is empty, but DO NOT write it to Supabase automatically
+    // Fallback to DEFAULT_CARDS if Supabase is empty
     const cardsData = (data && data.length > 0) ? data : DEFAULT_CARDS;
 
     // Fetch local user settings (priority order & visibility) from AsyncStorage
     let localCards: CreditCard[] = [];
     try {
-      const localData = await AsyncStorage.getItem(CARDS_KEY);
+      const localData = await AsyncStorage.getItem(`@ExlExp:${username}:credit_cards`);
       if (localData) {
         localCards = JSON.parse(localData);
       }
@@ -200,7 +207,7 @@ export const getCreditCards = async (): Promise<CreditCard[]> => {
   } catch (error) {
     console.log('Supabase offline or error, using local AsyncStorage for credit cards:', error);
     try {
-      const data = await AsyncStorage.getItem(CARDS_KEY);
+      const data = await AsyncStorage.getItem(`@ExlExp:${username}:credit_cards`);
       if (!data) {
         return DEFAULT_CARDS;
       }
@@ -218,7 +225,7 @@ export const getCreditCards = async (): Promise<CreditCard[]> => {
   }
 };
 
-export const saveCreditCards = async (cards: CreditCard[]): Promise<void> => {
+export const saveCreditCards = async (cards: CreditCard[], username: string): Promise<void> => {
   // 1. Save priority order and visibility locally in AsyncStorage
   try {
     const mapped = cards.map((c, index) => ({
@@ -226,21 +233,25 @@ export const saveCreditCards = async (cards: CreditCard[]): Promise<void> => {
       priority: index,
       isHidden: !!c.isHidden
     }));
-    await AsyncStorage.setItem(CARDS_KEY, JSON.stringify(mapped));
+    await AsyncStorage.setItem(`@ExlExp:${username}:credit_cards`, JSON.stringify(mapped));
   } catch (e) {
     console.error('Error saving credit cards settings to AsyncStorage:', e);
   }
 
-  // 2. Write changes to Supabase cards table (only triggered by explicit user actions, never automatically on startup)
+  // 2. Write changes to Supabase cards table
   try {
     // Fetch existing cards from Supabase to perform delta sync
-    const { data: dbCards, error: getError } = await supabase.from('cards').select('*');
+    const { data: dbCards, error: getError } = await supabase
+      .from('cards')
+      .select('*')
+      .eq('username', username);
     if (getError) throw getError;
 
     const cardsToInsert = cards.map(({ isChecking, ...rest }, index) => ({
       ...rest,
       priority: index,
-      isHidden: !!rest.isHidden
+      isHidden: !!rest.isHidden,
+      username: username
     }));
 
     const dbIds = new Set(dbCards.map(c => c.id));
@@ -249,7 +260,7 @@ export const saveCreditCards = async (cards: CreditCard[]): Promise<void> => {
     // Delete cards in DB but not in Client
     const toDeleteIds = dbCards.filter(c => !clientIds.has(c.id)).map(c => c.id);
     if (toDeleteIds.length > 0) {
-      const { error } = await supabase.from('cards').delete().in('id', toDeleteIds);
+      const { error } = await supabase.from('cards').delete().eq('username', username).in('id', toDeleteIds);
       if (error) throw error;
     }
 
@@ -275,7 +286,7 @@ export const saveCreditCards = async (cards: CreditCard[]): Promise<void> => {
 
     if (toUpdate.length > 0) {
       for (const item of toUpdate) {
-        const { error } = await supabase.from('cards').update(item).eq('id', item.id);
+        const { error } = await supabase.from('cards').update(item).eq('username', username).eq('id', item.id);
         if (error) throw error;
       }
     }
@@ -284,19 +295,19 @@ export const saveCreditCards = async (cards: CreditCard[]): Promise<void> => {
   }
 };
 
-
-export const getFutureExpenses = async (): Promise<FutureExpense[]> => {
+export const getFutureExpenses = async (username: string): Promise<FutureExpense[]> => {
   try {
     const { data, error } = await supabase
       .from('future_expenses')
-      .select('*');
+      .select('*')
+      .eq('username', username);
 
     if (error) throw error;
     return data || [];
   } catch (error) {
     console.log('Supabase offline or error, using local AsyncStorage for future expenses:', error);
     try {
-      const data = await AsyncStorage.getItem(FUTURE_EXPENSES_KEY);
+      const data = await AsyncStorage.getItem(`@ExlExp:${username}:future_expenses`);
       return data ? JSON.parse(data) : [];
     } catch (e) {
       console.error('Error fetching future expenses from AsyncStorage:', e);
@@ -305,21 +316,27 @@ export const getFutureExpenses = async (): Promise<FutureExpense[]> => {
   }
 };
 
-export const saveFutureExpenses = async (futureExpenses: FutureExpense[]): Promise<void> => {
+export const saveFutureExpenses = async (futureExpenses: FutureExpense[], username: string): Promise<void> => {
   try {
-    const { error: delError } = await supabase.from('future_expenses').delete().neq('id', '');
+    const { error: delError } = await supabase
+      .from('future_expenses')
+      .delete()
+      .eq('username', username)
+      .neq('id', '');
     if (delError) throw delError;
 
     if (futureExpenses.length > 0) {
-      const { error: insError } = await supabase.from('future_expenses').insert(futureExpenses);
+      const mapped = futureExpenses.map(f => ({ ...f, username }));
+      const { error: insError } = await supabase.from('future_expenses').insert(mapped);
       if (insError) throw insError;
     }
   } catch (error) {
     console.log('Supabase offline or error, saving future expenses to local AsyncStorage:', error);
     try {
-      await AsyncStorage.setItem(FUTURE_EXPENSES_KEY, JSON.stringify(futureExpenses));
+      await AsyncStorage.setItem(`@ExlExp:${username}:future_expenses`, JSON.stringify(futureExpenses));
     } catch (e) {
       console.error('Error saving future expenses to AsyncStorage:', e);
     }
   }
 };
+
