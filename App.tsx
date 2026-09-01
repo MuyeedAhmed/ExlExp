@@ -9,6 +9,7 @@ import {
   Platform,
   StatusBar as RNStatusBar,
   useWindowDimensions,
+  Keyboard,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { Expense, CreditCard, FutureExpense } from './src/types';
@@ -466,6 +467,7 @@ export default function App() {
         <TouchableOpacity
           style={[styles.tabButton, activeTab === 'dashboard' && styles.activeTabButton]}
           onPress={() => {
+            Keyboard.dismiss();
             setEditingExpense(null);
             setActiveTab('dashboard');
           }}
@@ -476,6 +478,7 @@ export default function App() {
         <TouchableOpacity
           style={[styles.tabButton, activeTab === 'checking' && styles.activeTabButton]}
           onPress={() => {
+            Keyboard.dismiss();
             setEditingExpense(null);
             setActiveTab('checking');
           }}
@@ -486,6 +489,7 @@ export default function App() {
         <TouchableOpacity
           style={[styles.tabButton, activeTab === 'credit_cards' && styles.activeTabButton]}
           onPress={() => {
+            Keyboard.dismiss();
             setEditingExpense(null);
             setActiveTab('credit_cards');
           }}
@@ -495,7 +499,10 @@ export default function App() {
 
         <TouchableOpacity
           style={[styles.tabButton, activeTab === 'add' && styles.activeTabButton]}
-          onPress={() => setActiveTab('add')}
+          onPress={() => {
+            Keyboard.dismiss();
+            setActiveTab('add');
+          }}
         >
           <Text style={[styles.tabText, activeTab === 'add' && styles.activeTabText]}>
             {editingExpense ? 'Edit Item' : 'Log'}
@@ -505,6 +512,7 @@ export default function App() {
         <TouchableOpacity
           style={[styles.tabButton, activeTab === 'settings' && styles.activeTabButton]}
           onPress={() => {
+            Keyboard.dismiss();
             setEditingExpense(null);
             setActiveTab('settings');
           }}

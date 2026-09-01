@@ -243,15 +243,15 @@ export const CheckingTab: React.FC<CheckingTabProps> = ({
       )}
 
       {/* Spreadsheet grid */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={true} style={styles.tableScroll}>
-        <View style={styles.tableContainer}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={true} style={styles.tableScroll} contentContainerStyle={styles.tableScrollContent}>
+        <View style={[styles.tableContainer, selectedAccountId === 'brokerage' ? styles.tableContainerBrokerage : (activeAccount?.isSaving ? styles.tableContainerSaving : styles.tableContainerChecking)]}>
           {selectedAccountId === 'brokerage' ? (
             <>
               {/* Brokerage Table Headers */}
               <View style={styles.tableRowHeader}>
-                <Text style={[styles.headerCell, { width: 250 }]}>Account Name</Text>
-                <Text style={[styles.headerCell, { width: 150, textAlign: 'right' }]}>Current Balance</Text>
-                <Text style={[styles.headerCell, { width: 150, textAlign: 'center' }]}>Actions</Text>
+                <Text style={[styles.headerCell, styles.colBrokName]}>Account Name</Text>
+                <Text style={[styles.headerCell, styles.colBrokBalance]}>Current Balance</Text>
+                <Text style={[styles.headerCell, styles.colBrokActions]}>Actions</Text>
               </View>
               {/* Brokerage Table Rows */}
               <ScrollView style={styles.rowsScroll}>
@@ -260,14 +260,13 @@ export const CheckingTab: React.FC<CheckingTabProps> = ({
                 ) : (
                   brokerageAccounts.map(item => (
                     <View key={item.id} style={styles.tableRow}>
-                      <Text style={[styles.cell, { width: 250 }]}>{item.name}</Text>
+                      <Text style={[styles.cell, styles.colBrokName]}>{item.name}</Text>
                       {editingBrokerageId === item.id ? (
                         <TextInput
                           style={[
                             styles.cell,
+                            styles.colBrokBalance,
                             {
-                              width: 150,
-                              textAlign: 'right',
                               fontFamily: Platform.OS === 'ios' ? 'Courier New' : 'monospace',
                               borderWidth: 1,
                               borderColor: '#3b82f6',
@@ -282,11 +281,11 @@ export const CheckingTab: React.FC<CheckingTabProps> = ({
                           autoFocus
                         />
                       ) : (
-                        <Text style={[styles.cell, { width: 150, textAlign: 'right' }, styles.monoText]}>
+                        <Text style={[styles.cell, styles.colBrokBalance, styles.monoText]}>
                           ${getAccountBalance(item.id).toFixed(2)}
                         </Text>
                       )}
-                      <View style={[styles.cellActions, { width: 150 }]}>
+                      <View style={[styles.cellActions, styles.colBrokActions]}>
                         {editingBrokerageId === item.id ? (
                           <>
                             <TouchableOpacity style={styles.actionBtn} onPress={() => handleSaveBrokerage(item.id)}>
@@ -311,22 +310,22 @@ export const CheckingTab: React.FC<CheckingTabProps> = ({
             <>
                {/* Table Headers */}
               <View style={styles.tableRowHeader}>
-                <Text style={[styles.headerCell, { width: 90 }]}>Date</Text>
-                <Text style={[styles.headerCell, { width: 180 }]}>From/To</Text>
+                <Text style={[styles.headerCell, styles.colDate]}>Date</Text>
+                <Text style={[styles.headerCell, activeAccount?.isSaving ? styles.colFromToSaving : styles.colFromTo]}>From/To</Text>
                 {activeAccount?.isSaving ? (
                   <>
-                    <Text style={[styles.headerCell, { width: 110, textAlign: 'right' }]}>Amount</Text>
-                    <Text style={[styles.headerCell, { width: 110, textAlign: 'right' }]}>Interest</Text>
-                    <Text style={[styles.headerCell, { width: 120 }]}>Details</Text>
+                    <Text style={[styles.headerCell, styles.colAmount]}>Amount</Text>
+                    <Text style={[styles.headerCell, styles.colInterest]}>Interest</Text>
+                    <Text style={[styles.headerCell, styles.colDetailsSaving]}>Details</Text>
                   </>
                 ) : (
                   <>
-                    <Text style={[styles.headerCell, { width: 110, textAlign: 'right' }]}>Amount</Text>
-                    <Text style={[styles.headerCell, { width: 200 }]}>Details</Text>
+                    <Text style={[styles.headerCell, styles.colAmount]}>Amount</Text>
+                    <Text style={[styles.headerCell, styles.colDetailsChecking]}>Details</Text>
                   </>
                 )}
-                <Text style={[styles.headerCell, { width: 110 }]}>Category</Text>
-                <Text style={[styles.headerCell, { width: 100, textAlign: 'center' }]}>Actions</Text>
+                <Text style={[styles.headerCell, styles.colCategory]}>Category</Text>
+                <Text style={[styles.headerCell, styles.colActions]}>Actions</Text>
               </View>
 
               {/* Table Rows */}
@@ -343,8 +342,8 @@ export const CheckingTab: React.FC<CheckingTabProps> = ({
 
                       return (
                         <View key={item.id} style={styles.tableRow}>
-                          <Text style={[styles.cell, { width: 90 }, styles.monoText]}>{item.date ? item.date.substring(5) : ''}</Text>
-                          <Text style={[styles.cell, { width: 180 }]} numberOfLines={1}>
+                          <Text style={[styles.cell, styles.colDate, styles.monoText]}>{item.date ? item.date.substring(5) : ''}</Text>
+                          <Text style={[styles.cell, activeAccount?.isSaving ? styles.colFromToSaving : styles.colFromTo]} numberOfLines={1}>
                             {item.fromTo || item.description || ''}
                           </Text>
                           {activeAccount?.isSaving ? (
@@ -352,7 +351,7 @@ export const CheckingTab: React.FC<CheckingTabProps> = ({
                               <Text
                                 style={[
                                   styles.cell,
-                                  { width: 110, textAlign: 'right' },
+                                  styles.colAmount,
                                   styles.monoText,
                                   item.isInterest ? { color: '#94a3b8' } : (isDeposit ? styles.depositText : styles.withdrawText),
                                 ]}
@@ -362,14 +361,14 @@ export const CheckingTab: React.FC<CheckingTabProps> = ({
                               <Text
                                 style={[
                                   styles.cell,
-                                  { width: 110, textAlign: 'right' },
+                                  styles.colInterest,
                                   styles.monoText,
                                   item.isInterest ? styles.depositText : { color: '#94a3b8' },
                                 ]}
                               >
                                 {item.isInterest ? formattedAmount : '-'}
                               </Text>
-                              <Text style={[styles.cell, { width: 120 }]} numberOfLines={1}>
+                              <Text style={[styles.cell, styles.colDetailsSaving]} numberOfLines={1}>
                                 {item.details || ''}
                               </Text>
                             </>
@@ -378,22 +377,22 @@ export const CheckingTab: React.FC<CheckingTabProps> = ({
                               <Text
                                 style={[
                                   styles.cell,
-                                  { width: 110, textAlign: 'right' },
+                                  styles.colAmount,
                                   styles.monoText,
                                   isDeposit ? styles.depositText : styles.withdrawText,
                                 ]}
                               >
                                 {formattedAmount}
                               </Text>
-                              <Text style={[styles.cell, { width: 200 }]} numberOfLines={1}>
+                              <Text style={[styles.cell, styles.colDetailsChecking]} numberOfLines={1}>
                                 {item.details || ''}
                               </Text>
                             </>
                           )}
-                          <Text style={[styles.cell, { width: 110 }]} numberOfLines={1}>
+                          <Text style={[styles.cell, styles.colCategory]} numberOfLines={1}>
                             {item.category || 'Others'}
                           </Text>
-                          <View style={[styles.cellActions, { width: 100 }]}>
+                          <View style={[styles.cellActions, styles.colActions]}>
                             <TouchableOpacity style={styles.actionBtn} onPress={() => onEdit(item)}>
                               <Text style={styles.editBtnText}>Edit</Text>
                             </TouchableOpacity>
@@ -406,7 +405,7 @@ export const CheckingTab: React.FC<CheckingTabProps> = ({
                     })}
                     {checkingExpenses.length > visibleCount && (
                       <TouchableOpacity
-                        style={[styles.loadMoreRow, { width: activeAccount?.isSaving ? 820 : 790 }]}
+                        style={styles.loadMoreRow}
                         onPress={() => setVisibleCount(prev => prev + 25)}
                       >
                         <Text style={styles.loadMoreText}>
@@ -533,11 +532,26 @@ const styles = StyleSheet.create({
   tableScroll: {
     flex: 1,
   },
+  tableScrollContent: {
+    minWidth: '100%',
+    flexGrow: 1,
+  },
   tableContainer: {
     flexDirection: 'column',
+    width: '100%',
+  },
+  tableContainerChecking: {
+    minWidth: 790,
+  },
+  tableContainerSaving: {
+    minWidth: 820,
+  },
+  tableContainerBrokerage: {
+    minWidth: 500,
   },
   tableRowHeader: {
     flexDirection: 'row',
+    width: '100%',
     backgroundColor: '#f1f5f9',
     borderBottomWidth: 2,
     borderBottomColor: '#cbd5e1',
@@ -553,12 +567,67 @@ const styles = StyleSheet.create({
   },
   rowsScroll: {
     flex: 1,
+    width: '100%',
   },
   tableRow: {
     flexDirection: 'row',
+    width: '100%',
     borderBottomWidth: 1,
     borderBottomColor: '#cbd5e1',
     alignItems: 'center',
+  },
+  colDate: {
+    flex: 0.9,
+    minWidth: 85,
+  },
+  colFromTo: {
+    flex: 2.2,
+    minWidth: 160,
+  },
+  colFromToSaving: {
+    flex: 2,
+    minWidth: 150,
+  },
+  colAmount: {
+    flex: 1.2,
+    minWidth: 100,
+    textAlign: 'right',
+  },
+  colInterest: {
+    flex: 1.2,
+    minWidth: 100,
+    textAlign: 'right',
+  },
+  colDetailsChecking: {
+    flex: 2.5,
+    minWidth: 180,
+  },
+  colDetailsSaving: {
+    flex: 1.6,
+    minWidth: 120,
+  },
+  colCategory: {
+    flex: 1.3,
+    minWidth: 100,
+  },
+  colActions: {
+    flex: 1,
+    minWidth: 90,
+    textAlign: 'center',
+  },
+  colBrokName: {
+    flex: 3,
+    minWidth: 200,
+  },
+  colBrokBalance: {
+    flex: 1.5,
+    minWidth: 140,
+    textAlign: 'right',
+  },
+  colBrokActions: {
+    flex: 1.5,
+    minWidth: 140,
+    textAlign: 'center',
   },
   cell: {
     fontSize: 13,
@@ -602,6 +671,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   loadMoreRow: {
+    width: '100%',
     paddingVertical: 12,
     alignItems: 'center',
     justifyContent: 'center',

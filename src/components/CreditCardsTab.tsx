@@ -152,17 +152,17 @@ export const CreditCardsTab: React.FC<CreditCardsTabProps> = ({
       )}
 
       {/* Spreadsheet Grid */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={true} style={styles.tableScroll}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={true} style={styles.tableScroll} contentContainerStyle={styles.tableScrollContent}>
         <View style={styles.tableContainer}>
           {/* Table Headers */}
           <View style={styles.tableRowHeader}>
-            <Text style={[styles.headerCell, { width: 90 }]}>Date</Text>
-            <Text style={[styles.headerCell, { width: 150 }]}>Description</Text>
-            <Text style={[styles.headerCell, { width: 90, textAlign: 'right' }]}>Spend</Text>
-            <Text style={[styles.headerCell, { width: 90, textAlign: 'right' }]}>Paid</Text>
-            <Text style={[styles.headerCell, { width: 90, textAlign: 'right' }]}>Rewards</Text>
-            <Text style={[styles.headerCell, { width: 110 }]}>Category</Text>
-            <Text style={[styles.headerCell, { width: 100, textAlign: 'center' }]}>Actions</Text>
+            <Text style={[styles.headerCell, styles.colDate]}>Date</Text>
+            <Text style={[styles.headerCell, styles.colDesc]}>Description</Text>
+            <Text style={[styles.headerCell, styles.colSpend]}>Spend</Text>
+            <Text style={[styles.headerCell, styles.colPaid]}>Paid</Text>
+            <Text style={[styles.headerCell, styles.colRewards]}>Rewards</Text>
+            <Text style={[styles.headerCell, styles.colCategory]}>Category</Text>
+            <Text style={[styles.headerCell, styles.colActions]}>Actions</Text>
           </View>
 
           {/* Table Rows */}
@@ -191,27 +191,27 @@ export const CreditCardsTab: React.FC<CreditCardsTabProps> = ({
 
                   return (
                     <View key={item.id} style={styles.tableRow}>
-                      <Text style={[styles.cell, { width: 90 }, styles.monoText]}>{item.date ? item.date.substring(5) : ''}</Text>
-                      <Text style={[styles.cell, { width: 150 }]} numberOfLines={1}>
+                      <Text style={[styles.cell, styles.colDate, styles.monoText]}>{item.date ? item.date.substring(5) : ''}</Text>
+                      <Text style={[styles.cell, styles.colDesc]} numberOfLines={1}>
                         {item.description}
                       </Text>
                       
                       {/* Columns matching spreadsheet values */}
-                      <Text style={[styles.cell, { width: 90, textAlign: 'right' }, styles.monoText]}>
+                      <Text style={[styles.cell, styles.colSpend, styles.monoText]}>
                         {spendVal}
                       </Text>
-                      <Text style={[styles.cell, { width: 90, textAlign: 'right' }, styles.monoText, paidVal !== '-' && { color: '#16a34a' }]}>
+                      <Text style={[styles.cell, styles.colPaid, styles.monoText, paidVal !== '-' && { color: '#16a34a' }]}>
                         {paidVal}
                       </Text>
-                      <Text style={[styles.cell, { width: 90, textAlign: 'right' }, styles.monoText, rewardsVal !== '-' && { color: '#16a34a' }]}>
+                      <Text style={[styles.cell, styles.colRewards, styles.monoText, rewardsVal !== '-' && { color: '#16a34a' }]}>
                         {rewardsVal}
                       </Text>
                       
-                      <Text style={[styles.cell, { width: 110 }]} numberOfLines={1}>
+                      <Text style={[styles.cell, styles.colCategory]} numberOfLines={1}>
                         {item.category || 'Others'}
                       </Text>
                       
-                      <View style={[styles.cellActions, { width: 100 }]}>
+                      <View style={[styles.cellActions, styles.colActions]}>
                         <TouchableOpacity style={styles.actionBtn} onPress={() => onEdit(item)}>
                           <Text style={styles.editBtnText}>Edit</Text>
                         </TouchableOpacity>
@@ -224,7 +224,7 @@ export const CreditCardsTab: React.FC<CreditCardsTabProps> = ({
                 })}
                 {cardExpenses.length > visibleCount && (
                   <TouchableOpacity
-                    style={[styles.loadMoreRow, { width: 720 }]}
+                    style={styles.loadMoreRow}
                     onPress={() => setVisibleCount(prev => prev + 25)}
                   >
                     <Text style={styles.loadMoreText}>
@@ -328,11 +328,18 @@ const styles = StyleSheet.create({
   tableScroll: {
     flex: 1,
   },
+  tableScrollContent: {
+    minWidth: '100%',
+    flexGrow: 1,
+  },
   tableContainer: {
     flexDirection: 'column',
+    width: '100%',
+    minWidth: 720,
   },
   tableRowHeader: {
     flexDirection: 'row',
+    width: '100%',
     backgroundColor: '#f1f5f9',
     borderBottomWidth: 2,
     borderBottomColor: '#cbd5e1',
@@ -348,12 +355,46 @@ const styles = StyleSheet.create({
   },
   rowsScroll: {
     flex: 1,
+    width: '100%',
   },
   tableRow: {
     flexDirection: 'row',
+    width: '100%',
     borderBottomWidth: 1,
     borderBottomColor: '#cbd5e1',
     alignItems: 'center',
+  },
+  colDate: {
+    flex: 0.9,
+    minWidth: 80,
+  },
+  colDesc: {
+    flex: 2.5,
+    minWidth: 150,
+  },
+  colSpend: {
+    flex: 1.1,
+    minWidth: 85,
+    textAlign: 'right',
+  },
+  colPaid: {
+    flex: 1.1,
+    minWidth: 85,
+    textAlign: 'right',
+  },
+  colRewards: {
+    flex: 1.1,
+    minWidth: 85,
+    textAlign: 'right',
+  },
+  colCategory: {
+    flex: 1.4,
+    minWidth: 110,
+  },
+  colActions: {
+    flex: 1,
+    minWidth: 90,
+    textAlign: 'center',
   },
   cell: {
     fontSize: 13,
@@ -390,6 +431,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   loadMoreRow: {
+    width: '100%',
     paddingVertical: 12,
     alignItems: 'center',
     justifyContent: 'center',
