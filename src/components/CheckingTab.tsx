@@ -128,6 +128,8 @@ export const CheckingTab: React.FC<CheckingTabProps> = ({
     }
   };
 
+  const isWeb = Platform.OS === 'web';
+
   if (checkingOnly.length === 0 && savingsOnly.length === 0 && !hasBrokerage) {
     return (
       <View style={styles.container}>
@@ -243,15 +245,24 @@ export const CheckingTab: React.FC<CheckingTabProps> = ({
       )}
 
       {/* Spreadsheet grid */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={true} style={styles.tableScroll} contentContainerStyle={styles.tableScrollContent}>
-        <View style={[styles.tableContainer, selectedAccountId === 'brokerage' ? styles.tableContainerBrokerage : (activeAccount?.isSaving ? styles.tableContainerSaving : styles.tableContainerChecking)]}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={true} style={styles.tableScroll} contentContainerStyle={isWeb ? styles.tableScrollContentWeb : undefined}>
+        <View style={[
+          styles.tableContainer,
+          isWeb
+            ? styles.tableContainerWeb
+            : selectedAccountId === 'brokerage'
+            ? styles.tableContainerMobileBrokerage
+            : activeAccount?.isSaving
+            ? styles.tableContainerMobileSaving
+            : styles.tableContainerMobileChecking
+        ]}>
           {selectedAccountId === 'brokerage' ? (
             <>
               {/* Brokerage Table Headers */}
-              <View style={styles.tableRowHeader}>
-                <Text style={[styles.headerCell, styles.colBrokName]}>Account Name</Text>
-                <Text style={[styles.headerCell, styles.colBrokBalance]}>Current Balance</Text>
-                <Text style={[styles.headerCell, styles.colBrokActions]}>Actions</Text>
+              <View style={[styles.tableRowHeader, isWeb ? styles.tableRowWeb : styles.tableRowMobileBrokerage]}>
+                <Text style={[styles.headerCell, isWeb ? styles.colBrokNameWeb : styles.colBrokNameMobile]}>Account Name</Text>
+                <Text style={[styles.headerCell, isWeb ? styles.colBrokBalanceWeb : styles.colBrokBalanceMobile]}>Current Balance</Text>
+                <Text style={[styles.headerCell, isWeb ? styles.colBrokActionsWeb : styles.colBrokActionsMobile]}>Actions</Text>
               </View>
               {/* Brokerage Table Rows */}
               <ScrollView style={styles.rowsScroll}>
@@ -259,13 +270,13 @@ export const CheckingTab: React.FC<CheckingTabProps> = ({
                   <Text style={styles.emptyText}>No brokerage accounts configured.</Text>
                 ) : (
                   brokerageAccounts.map(item => (
-                    <View key={item.id} style={styles.tableRow}>
-                      <Text style={[styles.cell, styles.colBrokName]}>{item.name}</Text>
+                    <View key={item.id} style={[styles.tableRow, isWeb ? styles.tableRowWeb : styles.tableRowMobileBrokerage]}>
+                      <Text style={[styles.cell, isWeb ? styles.colBrokNameWeb : styles.colBrokNameMobile]}>{item.name}</Text>
                       {editingBrokerageId === item.id ? (
                         <TextInput
                           style={[
                             styles.cell,
-                            styles.colBrokBalance,
+                            isWeb ? styles.colBrokBalanceWeb : styles.colBrokBalanceMobile,
                             {
                               fontFamily: Platform.OS === 'ios' ? 'Courier New' : 'monospace',
                               borderWidth: 1,
@@ -281,11 +292,11 @@ export const CheckingTab: React.FC<CheckingTabProps> = ({
                           autoFocus
                         />
                       ) : (
-                        <Text style={[styles.cell, styles.colBrokBalance, styles.monoText]}>
+                        <Text style={[styles.cell, isWeb ? styles.colBrokBalanceWeb : styles.colBrokBalanceMobile, styles.monoText]}>
                           ${getAccountBalance(item.id).toFixed(2)}
                         </Text>
                       )}
-                      <View style={[styles.cellActions, styles.colBrokActions]}>
+                      <View style={[styles.cellActions, isWeb ? styles.colBrokActionsWeb : styles.colBrokActionsMobile]}>
                         {editingBrokerageId === item.id ? (
                           <>
                             <TouchableOpacity style={styles.actionBtn} onPress={() => handleSaveBrokerage(item.id)}>
@@ -309,23 +320,23 @@ export const CheckingTab: React.FC<CheckingTabProps> = ({
           ) : (
             <>
                {/* Table Headers */}
-              <View style={styles.tableRowHeader}>
-                <Text style={[styles.headerCell, styles.colDate]}>Date</Text>
-                <Text style={[styles.headerCell, activeAccount?.isSaving ? styles.colFromToSaving : styles.colFromTo]}>From/To</Text>
+              <View style={[styles.tableRowHeader, isWeb ? styles.tableRowWeb : (activeAccount?.isSaving ? styles.tableRowMobileSaving : styles.tableRowMobileChecking)]}>
+                <Text style={[styles.headerCell, isWeb ? styles.colDateWeb : styles.colDateMobile]}>Date</Text>
+                <Text style={[styles.headerCell, isWeb ? (activeAccount?.isSaving ? styles.colFromToSavingWeb : styles.colFromToWeb) : styles.colFromToMobile]}>From/To</Text>
                 {activeAccount?.isSaving ? (
                   <>
-                    <Text style={[styles.headerCell, styles.colAmount]}>Amount</Text>
-                    <Text style={[styles.headerCell, styles.colInterest]}>Interest</Text>
-                    <Text style={[styles.headerCell, styles.colDetailsSaving]}>Details</Text>
+                    <Text style={[styles.headerCell, isWeb ? styles.colAmountWeb : styles.colAmountMobile]}>Amount</Text>
+                    <Text style={[styles.headerCell, isWeb ? styles.colInterestWeb : styles.colInterestMobile]}>Interest</Text>
+                    <Text style={[styles.headerCell, isWeb ? styles.colDetailsSavingWeb : styles.colDetailsSavingMobile]}>Details</Text>
                   </>
                 ) : (
                   <>
-                    <Text style={[styles.headerCell, styles.colAmount]}>Amount</Text>
-                    <Text style={[styles.headerCell, styles.colDetailsChecking]}>Details</Text>
+                    <Text style={[styles.headerCell, isWeb ? styles.colAmountWeb : styles.colAmountMobile]}>Amount</Text>
+                    <Text style={[styles.headerCell, isWeb ? styles.colDetailsCheckingWeb : styles.colDetailsCheckingMobile]}>Details</Text>
                   </>
                 )}
-                <Text style={[styles.headerCell, styles.colCategory]}>Category</Text>
-                <Text style={[styles.headerCell, styles.colActions]}>Actions</Text>
+                <Text style={[styles.headerCell, isWeb ? styles.colCategoryWeb : styles.colCategoryMobile]}>Category</Text>
+                <Text style={[styles.headerCell, isWeb ? styles.colActionsWeb : styles.colActionsMobile]}>Actions</Text>
               </View>
 
               {/* Table Rows */}
@@ -341,9 +352,9 @@ export const CheckingTab: React.FC<CheckingTabProps> = ({
                         : `-$${Math.abs(item.amount).toFixed(2)}`;
 
                       return (
-                        <View key={item.id} style={styles.tableRow}>
-                          <Text style={[styles.cell, styles.colDate, styles.monoText]}>{item.date ? item.date.substring(5) : ''}</Text>
-                          <Text style={[styles.cell, activeAccount?.isSaving ? styles.colFromToSaving : styles.colFromTo]} numberOfLines={1}>
+                        <View key={item.id} style={[styles.tableRow, isWeb ? styles.tableRowWeb : (activeAccount?.isSaving ? styles.tableRowMobileSaving : styles.tableRowMobileChecking)]}>
+                          <Text style={[styles.cell, isWeb ? styles.colDateWeb : styles.colDateMobile, styles.monoText]}>{item.date ? item.date.substring(5) : ''}</Text>
+                          <Text style={[styles.cell, isWeb ? (activeAccount?.isSaving ? styles.colFromToSavingWeb : styles.colFromToWeb) : styles.colFromToMobile]} numberOfLines={1}>
                             {item.fromTo || item.description || ''}
                           </Text>
                           {activeAccount?.isSaving ? (
@@ -351,7 +362,7 @@ export const CheckingTab: React.FC<CheckingTabProps> = ({
                               <Text
                                 style={[
                                   styles.cell,
-                                  styles.colAmount,
+                                  isWeb ? styles.colAmountWeb : styles.colAmountMobile,
                                   styles.monoText,
                                   item.isInterest ? { color: '#94a3b8' } : (isDeposit ? styles.depositText : styles.withdrawText),
                                 ]}
@@ -361,14 +372,14 @@ export const CheckingTab: React.FC<CheckingTabProps> = ({
                               <Text
                                 style={[
                                   styles.cell,
-                                  styles.colInterest,
+                                  isWeb ? styles.colInterestWeb : styles.colInterestMobile,
                                   styles.monoText,
                                   item.isInterest ? styles.depositText : { color: '#94a3b8' },
                                 ]}
                               >
                                 {item.isInterest ? formattedAmount : '-'}
                               </Text>
-                              <Text style={[styles.cell, styles.colDetailsSaving]} numberOfLines={1}>
+                              <Text style={[styles.cell, isWeb ? styles.colDetailsSavingWeb : styles.colDetailsSavingMobile]} numberOfLines={1}>
                                 {item.details || ''}
                               </Text>
                             </>
@@ -377,22 +388,22 @@ export const CheckingTab: React.FC<CheckingTabProps> = ({
                               <Text
                                 style={[
                                   styles.cell,
-                                  styles.colAmount,
+                                  isWeb ? styles.colAmountWeb : styles.colAmountMobile,
                                   styles.monoText,
                                   isDeposit ? styles.depositText : styles.withdrawText,
                                 ]}
                               >
                                 {formattedAmount}
                               </Text>
-                              <Text style={[styles.cell, styles.colDetailsChecking]} numberOfLines={1}>
+                              <Text style={[styles.cell, isWeb ? styles.colDetailsCheckingWeb : styles.colDetailsCheckingMobile]} numberOfLines={1}>
                                 {item.details || ''}
                               </Text>
                             </>
                           )}
-                          <Text style={[styles.cell, styles.colCategory]} numberOfLines={1}>
+                          <Text style={[styles.cell, isWeb ? styles.colCategoryWeb : styles.colCategoryMobile]} numberOfLines={1}>
                             {item.category || 'Others'}
                           </Text>
-                          <View style={[styles.cellActions, styles.colActions]}>
+                          <View style={[styles.cellActions, isWeb ? styles.colActionsWeb : styles.colActionsMobile]}>
                             <TouchableOpacity style={styles.actionBtn} onPress={() => onEdit(item)}>
                               <Text style={styles.editBtnText}>Edit</Text>
                             </TouchableOpacity>
@@ -405,7 +416,7 @@ export const CheckingTab: React.FC<CheckingTabProps> = ({
                     })}
                     {checkingExpenses.length > visibleCount && (
                       <TouchableOpacity
-                        style={styles.loadMoreRow}
+                        style={[styles.loadMoreRow, isWeb ? styles.loadMoreRowWeb : (activeAccount?.isSaving ? styles.loadMoreRowMobileSaving : styles.loadMoreRowMobileChecking)]}
                         onPress={() => setVisibleCount(prev => prev + 25)}
                       >
                         <Text style={styles.loadMoreText}>
@@ -532,26 +543,27 @@ const styles = StyleSheet.create({
   tableScroll: {
     flex: 1,
   },
-  tableScrollContent: {
+  tableScrollContentWeb: {
     minWidth: '100%',
     flexGrow: 1,
   },
   tableContainer: {
     flexDirection: 'column',
+  },
+  tableContainerWeb: {
     width: '100%',
   },
-  tableContainerChecking: {
-    minWidth: 790,
+  tableContainerMobileChecking: {
+    width: 790,
   },
-  tableContainerSaving: {
-    minWidth: 820,
+  tableContainerMobileSaving: {
+    width: 820,
   },
-  tableContainerBrokerage: {
-    minWidth: 500,
+  tableContainerMobileBrokerage: {
+    width: 550,
   },
   tableRowHeader: {
     flexDirection: 'row',
-    width: '100%',
     backgroundColor: '#f1f5f9',
     borderBottomWidth: 2,
     borderBottomColor: '#cbd5e1',
@@ -567,66 +579,116 @@ const styles = StyleSheet.create({
   },
   rowsScroll: {
     flex: 1,
-    width: '100%',
   },
   tableRow: {
     flexDirection: 'row',
-    width: '100%',
     borderBottomWidth: 1,
     borderBottomColor: '#cbd5e1',
     alignItems: 'center',
   },
-  colDate: {
+  tableRowWeb: {
+    width: '100%',
+  },
+  tableRowMobileChecking: {
+    width: 790,
+  },
+  tableRowMobileSaving: {
+    width: 820,
+  },
+  tableRowMobileBrokerage: {
+    width: 550,
+  },
+  // Web columns (flex-based)
+  colDateWeb: {
     flex: 0.9,
     minWidth: 85,
   },
-  colFromTo: {
+  colFromToWeb: {
     flex: 2.2,
     minWidth: 160,
   },
-  colFromToSaving: {
+  colFromToSavingWeb: {
     flex: 2,
     minWidth: 150,
   },
-  colAmount: {
+  colAmountWeb: {
     flex: 1.2,
     minWidth: 100,
     textAlign: 'right',
   },
-  colInterest: {
+  colInterestWeb: {
     flex: 1.2,
     minWidth: 100,
     textAlign: 'right',
   },
-  colDetailsChecking: {
+  colDetailsCheckingWeb: {
     flex: 2.5,
     minWidth: 180,
   },
-  colDetailsSaving: {
+  colDetailsSavingWeb: {
     flex: 1.6,
     minWidth: 120,
   },
-  colCategory: {
+  colCategoryWeb: {
     flex: 1.3,
     minWidth: 100,
   },
-  colActions: {
+  colActionsWeb: {
     flex: 1,
     minWidth: 90,
     textAlign: 'center',
   },
-  colBrokName: {
+  colBrokNameWeb: {
     flex: 3,
     minWidth: 200,
   },
-  colBrokBalance: {
+  colBrokBalanceWeb: {
     flex: 1.5,
     minWidth: 140,
     textAlign: 'right',
   },
-  colBrokActions: {
+  colBrokActionsWeb: {
     flex: 1.5,
     minWidth: 140,
+    textAlign: 'center',
+  },
+  // Mobile columns (fixed-width)
+  colDateMobile: {
+    width: 90,
+  },
+  colFromToMobile: {
+    width: 180,
+  },
+  colAmountMobile: {
+    width: 110,
+    textAlign: 'right',
+  },
+  colInterestMobile: {
+    width: 110,
+    textAlign: 'right',
+  },
+  colDetailsCheckingMobile: {
+    width: 200,
+  },
+  colDetailsSavingMobile: {
+    width: 120,
+  },
+  colCategoryMobile: {
+    width: 110,
+  },
+  colActionsMobile: {
+    width: 100,
+    textAlign: 'center',
+  },
+  colBrokNameMobile: {
+    width: 250,
+  },
+  colBrokBalanceMobile: {
+    width: 150,
+    textAlign: 'right',
+  },
+  colBrokActionsMobile: {
+    width: 150,
     textAlign: 'center',
   },
   cell: {
@@ -671,13 +733,21 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   loadMoreRow: {
-    width: '100%',
     paddingVertical: 12,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#f8fafc',
     borderBottomWidth: 1,
     borderBottomColor: '#cbd5e1',
+  },
+  loadMoreRowWeb: {
+    width: '100%',
+  },
+  loadMoreRowMobileChecking: {
+    width: 790,
+  },
+  loadMoreRowMobileSaving: {
+    width: 820,
   },
   loadMoreText: {
     fontSize: 13,
