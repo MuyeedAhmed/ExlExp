@@ -100,6 +100,8 @@ export const CreditCardsTab: React.FC<CreditCardsTabProps> = ({
     }
   };
 
+  const isWeb = Platform.OS === 'web';
+
   return (
     <View style={styles.container}>
       {/* Excel Sheet style Card Toggles */}
@@ -152,17 +154,17 @@ export const CreditCardsTab: React.FC<CreditCardsTabProps> = ({
       )}
 
       {/* Spreadsheet Grid */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={true} style={styles.tableScroll} contentContainerStyle={styles.tableScrollContent}>
-        <View style={styles.tableContainer}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={true} style={styles.tableScroll} contentContainerStyle={isWeb ? styles.tableScrollContentWeb : undefined}>
+        <View style={isWeb ? styles.tableContainerWeb : styles.tableContainerMobile}>
           {/* Table Headers */}
-          <View style={styles.tableRowHeader}>
-            <Text style={[styles.headerCell, styles.colDate]}>Date</Text>
-            <Text style={[styles.headerCell, styles.colDesc]}>Description</Text>
-            <Text style={[styles.headerCell, styles.colSpend]}>Spend</Text>
-            <Text style={[styles.headerCell, styles.colPaid]}>Paid</Text>
-            <Text style={[styles.headerCell, styles.colRewards]}>Rewards</Text>
-            <Text style={[styles.headerCell, styles.colCategory]}>Category</Text>
-            <Text style={[styles.headerCell, styles.colActions]}>Actions</Text>
+          <View style={[styles.tableRowHeader, isWeb ? styles.tableRowWeb : styles.tableRowMobile]}>
+            <Text style={[styles.headerCell, isWeb ? styles.colDateWeb : styles.colDateMobile]}>Date</Text>
+            <Text style={[styles.headerCell, isWeb ? styles.colDescWeb : styles.colDescMobile]}>Description</Text>
+            <Text style={[styles.headerCell, isWeb ? styles.colSpendWeb : styles.colSpendMobile]}>Spend</Text>
+            <Text style={[styles.headerCell, isWeb ? styles.colPaidWeb : styles.colPaidMobile]}>Paid</Text>
+            <Text style={[styles.headerCell, isWeb ? styles.colRewardsWeb : styles.colRewardsMobile]}>Rewards</Text>
+            <Text style={[styles.headerCell, isWeb ? styles.colCategoryWeb : styles.colCategoryMobile]}>Category</Text>
+            <Text style={[styles.headerCell, isWeb ? styles.colActionsWeb : styles.colActionsMobile]}>Actions</Text>
           </View>
 
           {/* Table Rows */}
@@ -190,28 +192,28 @@ export const CreditCardsTab: React.FC<CreditCardsTabProps> = ({
                   }
 
                   return (
-                    <View key={item.id} style={styles.tableRow}>
-                      <Text style={[styles.cell, styles.colDate, styles.monoText]}>{item.date ? item.date.substring(5) : ''}</Text>
-                      <Text style={[styles.cell, styles.colDesc]} numberOfLines={1}>
+                    <View key={item.id} style={[styles.tableRow, isWeb ? styles.tableRowWeb : styles.tableRowMobile]}>
+                      <Text style={[styles.cell, isWeb ? styles.colDateWeb : styles.colDateMobile, styles.monoText]}>{item.date ? item.date.substring(5) : ''}</Text>
+                      <Text style={[styles.cell, isWeb ? styles.colDescWeb : styles.colDescMobile]} numberOfLines={1}>
                         {item.description}
                       </Text>
                       
                       {/* Columns matching spreadsheet values */}
-                      <Text style={[styles.cell, styles.colSpend, styles.monoText]}>
+                      <Text style={[styles.cell, isWeb ? styles.colSpendWeb : styles.colSpendMobile, styles.monoText]}>
                         {spendVal}
                       </Text>
-                      <Text style={[styles.cell, styles.colPaid, styles.monoText, paidVal !== '-' && { color: '#16a34a' }]}>
+                      <Text style={[styles.cell, isWeb ? styles.colPaidWeb : styles.colPaidMobile, styles.monoText, paidVal !== '-' && { color: '#16a34a' }]}>
                         {paidVal}
                       </Text>
-                      <Text style={[styles.cell, styles.colRewards, styles.monoText, rewardsVal !== '-' && { color: '#16a34a' }]}>
+                      <Text style={[styles.cell, isWeb ? styles.colRewardsWeb : styles.colRewardsMobile, styles.monoText, rewardsVal !== '-' && { color: '#16a34a' }]}>
                         {rewardsVal}
                       </Text>
                       
-                      <Text style={[styles.cell, styles.colCategory]} numberOfLines={1}>
+                      <Text style={[styles.cell, isWeb ? styles.colCategoryWeb : styles.colCategoryMobile]} numberOfLines={1}>
                         {item.category || 'Others'}
                       </Text>
                       
-                      <View style={[styles.cellActions, styles.colActions]}>
+                      <View style={[styles.cellActions, isWeb ? styles.colActionsWeb : styles.colActionsMobile]}>
                         <TouchableOpacity style={styles.actionBtn} onPress={() => onEdit(item)}>
                           <Text style={styles.editBtnText}>Edit</Text>
                         </TouchableOpacity>
@@ -224,7 +226,7 @@ export const CreditCardsTab: React.FC<CreditCardsTabProps> = ({
                 })}
                 {cardExpenses.length > visibleCount && (
                   <TouchableOpacity
-                    style={styles.loadMoreRow}
+                    style={[styles.loadMoreRow, isWeb ? styles.loadMoreRowWeb : styles.loadMoreRowMobile]}
                     onPress={() => setVisibleCount(prev => prev + 25)}
                   >
                     <Text style={styles.loadMoreText}>
@@ -295,7 +297,9 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   headerBanner: {
-    flexDirection: 'column',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     padding: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#cbd5e1',
@@ -328,18 +332,21 @@ const styles = StyleSheet.create({
   tableScroll: {
     flex: 1,
   },
-  tableScrollContent: {
+  tableScrollContentWeb: {
     minWidth: '100%',
     flexGrow: 1,
   },
-  tableContainer: {
+  tableContainerWeb: {
     flexDirection: 'column',
     width: '100%',
     minWidth: 720,
   },
+  tableContainerMobile: {
+    flexDirection: 'column',
+    width: 720,
+  },
   tableRowHeader: {
     flexDirection: 'row',
-    width: '100%',
     backgroundColor: '#f1f5f9',
     borderBottomWidth: 2,
     borderBottomColor: '#cbd5e1',
@@ -355,45 +362,76 @@ const styles = StyleSheet.create({
   },
   rowsScroll: {
     flex: 1,
-    width: '100%',
   },
   tableRow: {
     flexDirection: 'row',
-    width: '100%',
     borderBottomWidth: 1,
     borderBottomColor: '#cbd5e1',
     alignItems: 'center',
   },
-  colDate: {
+  tableRowWeb: {
+    width: '100%',
+  },
+  tableRowMobile: {
+    width: 720,
+  },
+  // Web columns (flex-based)
+  colDateWeb: {
     flex: 0.9,
     minWidth: 80,
   },
-  colDesc: {
+  colDescWeb: {
     flex: 2.5,
     minWidth: 150,
   },
-  colSpend: {
+  colSpendWeb: {
     flex: 1.1,
     minWidth: 85,
     textAlign: 'right',
   },
-  colPaid: {
+  colPaidWeb: {
     flex: 1.1,
     minWidth: 85,
     textAlign: 'right',
   },
-  colRewards: {
+  colRewardsWeb: {
     flex: 1.1,
     minWidth: 85,
     textAlign: 'right',
   },
-  colCategory: {
+  colCategoryWeb: {
     flex: 1.4,
     minWidth: 110,
   },
-  colActions: {
+  colActionsWeb: {
     flex: 1,
     minWidth: 90,
+    textAlign: 'center',
+  },
+  // Mobile columns (fixed-width)
+  colDateMobile: {
+    width: 90,
+  },
+  colDescMobile: {
+    width: 150,
+  },
+  colSpendMobile: {
+    width: 90,
+    textAlign: 'right',
+  },
+  colPaidMobile: {
+    width: 90,
+    textAlign: 'right',
+  },
+  colRewardsMobile: {
+    width: 90,
+    textAlign: 'right',
+  },
+  colCategoryMobile: {
+    width: 110,
+  },
+  colActionsMobile: {
+    width: 100,
     textAlign: 'center',
   },
   cell: {
@@ -431,13 +469,18 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   loadMoreRow: {
-    width: '100%',
     paddingVertical: 12,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#f8fafc',
     borderBottomWidth: 1,
     borderBottomColor: '#cbd5e1',
+  },
+  loadMoreRowWeb: {
+    width: '100%',
+  },
+  loadMoreRowMobile: {
+    width: 720,
   },
   loadMoreText: {
     fontSize: 13,

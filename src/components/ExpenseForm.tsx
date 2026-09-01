@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   StyleSheet,
   Text,
@@ -12,6 +12,7 @@ import {
   Platform,
   Keyboard,
   KeyboardAvoidingView,
+  TouchableWithoutFeedback,
 } from 'react-native';
 import { Expense, CreditCard } from '../types';
 
@@ -80,6 +81,13 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
 }) => {
   const [logType, setLogType] = useState<'transaction' | 'transfer'>('transaction');
   const [showToast, setShowToast] = useState(false);
+  const scrollViewRef = useRef<ScrollView>(null);
+
+  const scrollToBottom = () => {
+    setTimeout(() => {
+      scrollViewRef.current?.scrollToEnd({ animated: true });
+    }, 150);
+  };
 
   // Common Form States
   const [amount, setAmount] = useState('');
@@ -302,6 +310,7 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
   };
 
   const handleQuickDateSelect = (type: 'today' | 'yesterday') => {
+    Keyboard.dismiss();
     if (type === 'today') {
       setDate(getTodayString());
     } else {
@@ -511,18 +520,22 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
       keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
     >
       <ScrollView
+        ref={scrollViewRef}
         style={styles.container}
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
+        automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
         showsVerticalScrollIndicator={false}
       >
-      {showToast && (
-        <View style={styles.toastContainer}>
-          <Text style={styles.toastText}>✓ Log successfully added!</Text>
-        </View>
-      )}
-      <View style={styles.formCard}>
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+          <View>
+            {showToast && (
+              <View style={styles.toastContainer}>
+                <Text style={styles.toastText}>✓ Log successfully added!</Text>
+              </View>
+            )}
+            <View style={styles.formCard}>
         <Text style={styles.formTitle}>
           {editingExpense ? 'Edit Log Entry' : 'Log New Entry'}
         </Text>
@@ -889,6 +902,9 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
               onChangeText={setDate}
               placeholder="YYYY-MM-DD"
               placeholderTextColor="#94a3b8"
+              returnKeyType="done"
+              onSubmitEditing={Keyboard.dismiss}
+              onFocus={scrollToBottom}
             />
             <TouchableOpacity
               style={[styles.quickDateButton, styles.todayDateButton, date === getTodayString() && styles.activeQuickDate]}
@@ -919,6 +935,8 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
           </TouchableOpacity>
         </View>
       </View>
+    </View>
+  </TouchableWithoutFeedback>
 
       {/* Credit Card / Standard Account Modal Picker (Brokerage excluded from standard transactions) */}
       <Modal
@@ -1100,7 +1118,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
-    paddingBottom: Platform.OS === 'ios' ? 100 : 80,
+    paddingBottom: Platform.OS === 'ios' ? 380 : 300,
   },
   formCard: {
     backgroundColor: '#ffffff',
