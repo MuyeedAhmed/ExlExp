@@ -1,11 +1,11 @@
-name: Build & Release Android APK
+name: Build & Release Android AAB (Play Store)
 
 on:
   workflow_dispatch:
 
 jobs:
   build:
-    name: Build Android APK
+    name: Build Android AAB
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -35,31 +35,30 @@ jobs:
       - name: Prebuild Expo Native App
         run: npx expo prebuild --platform android --no-install
 
-      - name: Build Android Release APK
+      - name: Build Android Release AAB (App Bundle)
         run: |
           cd android
-          ./gradlew assembleRelease --no-daemon
+          ./gradlew bundleRelease --no-daemon
 
       - name: Find Build Artifacts
         run: |
-          echo "Listing generated APKs:"
-          find android/app/build/outputs/apk/release/ -type f || true
+          echo "Listing generated AABs:"
+          find android/app/build/outputs/bundle/release/ -type f || true
 
-      - name: Upload APK Artifact
+      - name: Upload AAB Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: app-release-apk
-          path: android/app/build/outputs/apk/release/*.apk
+          name: app-release-aab
+          path: android/app/build/outputs/bundle/release/*.aab
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         if: github.ref == 'refs/heads/main'
         with:
-          files: android/app/build/outputs/apk/release/*.apk
-          name: Android APK Release ${{ github.sha }}
-          tag_name: android-apk-${{ github.sha }}
+          files: android/app/build/outputs/bundle/release/*.aab
+          name: Android AAB Release ${{ github.sha }}
+          tag_name: android-aab-${{ github.sha }}
           draft: true
           prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
