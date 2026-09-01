@@ -10,6 +10,8 @@ import {
   FlatList,
   Alert,
   Platform,
+  Keyboard,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { Expense, CreditCard } from '../types';
 
@@ -308,6 +310,7 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
   };
 
   const handleSubmit = () => {
+    Keyboard.dismiss();
     const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
     if (!dateRegex.test(date)) {
       showAlert('Error', 'Please enter a valid date in YYYY-MM-DD format.');
@@ -502,7 +505,18 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
   }, [cards, selectedSourceCardId]);
 
   return (
-    <ScrollView style={styles.container} keyboardShouldPersistTaps="handled">
+    <KeyboardAvoidingView
+      style={styles.keyboardAvoidingView}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
+    >
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+        showsVerticalScrollIndicator={false}
+      >
       {showToast && (
         <View style={styles.toastContainer}>
           <Text style={styles.toastText}>✓ Log successfully added!</Text>
@@ -1071,14 +1085,22 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
           </View>
         </View>
       </Modal>
-    </ScrollView>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 };
 
 const styles = StyleSheet.create({
+  keyboardAvoidingView: {
+    flex: 1,
+  },
   container: {
     flex: 1,
     backgroundColor: '#ffffff',
+  },
+  scrollContent: {
+    flexGrow: 1,
+    paddingBottom: Platform.OS === 'ios' ? 100 : 80,
   },
   formCard: {
     backgroundColor: '#ffffff',
