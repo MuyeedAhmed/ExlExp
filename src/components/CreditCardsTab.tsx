@@ -61,6 +61,7 @@ interface CreditCardsTabProps {
   selectedCardId?: string;
   onSelectCard?: (id: string) => void;
   onUpdateCard?: (updatedCard: CreditCard) => void;
+  onNavigateToSettings?: () => void;
 }
 
 export const CreditCardsTab: React.FC<CreditCardsTabProps> = ({
@@ -71,6 +72,7 @@ export const CreditCardsTab: React.FC<CreditCardsTabProps> = ({
   selectedCardId: propSelectedCardId,
   onSelectCard,
   onUpdateCard,
+  onNavigateToSettings,
 }) => {
   const isWeb = Platform.OS === 'web';
   const todayStr = useMemo(() => new Date().toISOString().split('T')[0], []);
@@ -335,6 +337,14 @@ export const CreditCardsTab: React.FC<CreditCardsTabProps> = ({
               </TouchableOpacity>
             );
           })}
+          {onNavigateToSettings && (
+            <TouchableOpacity
+              style={styles.addCardTabBtn}
+              onPress={onNavigateToSettings}
+            >
+              <Text style={styles.addCardTabBtnText}>+ Add Card</Text>
+            </TouchableOpacity>
+          )}
         </ScrollView>
       </View>
 
@@ -403,31 +413,41 @@ export const CreditCardsTab: React.FC<CreditCardsTabProps> = ({
               </Text>
             </View>
 
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={true}
-              style={styles.tableScroll}
-              contentContainerStyle={isWeb ? styles.tableScrollContentWeb : undefined}
-            >
-              <View style={isWeb ? styles.overviewTableWeb : styles.overviewTableMobile}>
-                {/* Table Header */}
-                <View style={[styles.overviewTableHeaderRow, isWeb ? styles.overviewRowWeb : styles.overviewRowMobile]}>
-                  <Text style={[styles.ovHeaderCell, isWeb ? styles.ovColNameWeb : styles.ovColNameMobile]}>Credit Card</Text>
-                  <Text style={[styles.ovHeaderCell, isWeb ? styles.ovColDateWeb : styles.ovColDateMobile, { textAlign: 'center' }]}>Opened Date</Text>
-                  <Text style={[styles.ovHeaderCell, isWeb ? styles.ovColAgeWeb : styles.ovColAgeMobile]}>Credit Age</Text>
-                  <Text style={[styles.ovHeaderCell, isWeb ? styles.ovColSpentWeb : styles.ovColSpentMobile]}>Total Spent</Text>
-                  <Text style={[styles.ovHeaderCell, isWeb ? styles.ovColPaidWeb : styles.ovColPaidMobile]}>Total Paid</Text>
-                  <Text style={[styles.ovHeaderCell, isWeb ? styles.ovColRewardsWeb : styles.ovColRewardsMobile]}>Rewards</Text>
-                  <Text style={[styles.ovHeaderCell, isWeb ? styles.ovColFeesWeb : styles.ovColFeesMobile]}>Annual Fees</Text>
-                  <Text style={[styles.ovHeaderCell, isWeb ? styles.ovColDueWeb : styles.ovColDueMobile]}>Balance Due</Text>
-                  <Text style={[styles.ovHeaderCell, isWeb ? styles.ovColActionWeb : styles.ovColActionMobile, { textAlign: 'center' }]}>Actions</Text>
-                </View>
+            {creditCardsOnly.length === 0 ? (
+              <View style={styles.emptyOverviewBox}>
+                <Text style={styles.emptyOverviewTitle}>💳 No Credit Cards Configured</Text>
+                <Text style={styles.emptyOverviewSub}>
+                  You don't have any credit cards configured yet. Add your credit cards to track credit age, balances, spent, paid, rewards, and annual fees.
+                </Text>
+                {onNavigateToSettings && (
+                  <TouchableOpacity style={styles.emptyActionBtn} onPress={onNavigateToSettings}>
+                    <Text style={styles.emptyActionBtnText}>+ Add Credit Card</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            ) : (
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={true}
+                style={styles.tableScroll}
+                contentContainerStyle={isWeb ? styles.tableScrollContentWeb : undefined}
+              >
+                <View style={isWeb ? styles.overviewTableWeb : styles.overviewTableMobile}>
+                  {/* Table Header */}
+                  <View style={[styles.overviewTableHeaderRow, isWeb ? styles.overviewRowWeb : styles.overviewRowMobile]}>
+                    <Text style={[styles.ovHeaderCell, isWeb ? styles.ovColNameWeb : styles.ovColNameMobile]}>Credit Card</Text>
+                    <Text style={[styles.ovHeaderCell, isWeb ? styles.ovColDateWeb : styles.ovColDateMobile, { textAlign: 'center' }]}>Opened Date</Text>
+                    <Text style={[styles.ovHeaderCell, isWeb ? styles.ovColAgeWeb : styles.ovColAgeMobile]}>Credit Age</Text>
+                    <Text style={[styles.ovHeaderCell, isWeb ? styles.ovColSpentWeb : styles.ovColSpentMobile]}>Total Spent</Text>
+                    <Text style={[styles.ovHeaderCell, isWeb ? styles.ovColPaidWeb : styles.ovColPaidMobile]}>Total Paid</Text>
+                    <Text style={[styles.ovHeaderCell, isWeb ? styles.ovColRewardsWeb : styles.ovColRewardsMobile]}>Rewards</Text>
+                    <Text style={[styles.ovHeaderCell, isWeb ? styles.ovColFeesWeb : styles.ovColFeesMobile]}>Annual Fees</Text>
+                    <Text style={[styles.ovHeaderCell, isWeb ? styles.ovColDueWeb : styles.ovColDueMobile]}>Balance Due</Text>
+                    <Text style={[styles.ovHeaderCell, isWeb ? styles.ovColActionWeb : styles.ovColActionMobile, { textAlign: 'center' }]}>Actions</Text>
+                  </View>
 
-                {/* Table Rows */}
-                {creditCardsOnly.length === 0 ? (
-                  <Text style={styles.emptyText}>No credit cards found.</Text>
-                ) : (
-                  creditCardsOnly.map(card => {
+                  {/* Table Rows */}
+                  {creditCardsOnly.map(card => {
                     const stats = cardStatsMap[card.id] || { spent: 0, paid: 0, rewards: 0, fees: 0, due: 0 };
                     const closed = isClosedCard(card);
                     const age = calculateCreditAge(card.openDate);
@@ -550,10 +570,10 @@ export const CreditCardsTab: React.FC<CreditCardsTabProps> = ({
                         </View>
                       </View>
                     );
-                  })
-                )}
-              </View>
-            </ScrollView>
+                  })}
+                </View>
+              </ScrollView>
+            )}
           </View>
         </ScrollView>
       ) : (
@@ -1462,6 +1482,53 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: 'bold',
     color: '#ffffff',
+  },
+  addCardTabBtn: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    backgroundColor: '#0f172a',
+    borderRadius: 4,
+    marginLeft: 10,
+    alignSelf: 'center',
+    marginBottom: 2,
+  },
+  addCardTabBtnText: {
+    color: '#ffffff',
+    fontSize: 11,
+    fontWeight: 'bold',
+  },
+  emptyOverviewBox: {
+    padding: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#ffffff',
+  },
+  emptyOverviewTitle: {
+    fontSize: 15,
+    fontWeight: 'bold',
+    color: '#0f172a',
+    marginBottom: 6,
+    textAlign: 'center',
+  },
+  emptyOverviewSub: {
+    fontSize: 13,
+    color: '#64748b',
+    textAlign: 'center',
+    marginBottom: 16,
+    maxWidth: 420,
+    lineHeight: 18,
+  },
+  emptyActionBtn: {
+    backgroundColor: '#0f172a',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 6,
+    alignItems: 'center',
+  },
+  emptyActionBtnText: {
+    color: '#ffffff',
+    fontSize: 13,
+    fontWeight: 'bold',
   },
 });
 

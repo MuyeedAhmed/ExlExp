@@ -10,6 +10,7 @@ interface CheckingTabProps {
   onBrokerageBalanceUpdate?: (brokerageCardId: string, newBalance: number) => void;
   selectedAccountId?: string;
   onSelectAccount?: (id: string) => void;
+  onNavigateToSettings?: () => void;
 }
 
 export const CheckingTab: React.FC<CheckingTabProps> = ({
@@ -20,6 +21,7 @@ export const CheckingTab: React.FC<CheckingTabProps> = ({
   onBrokerageBalanceUpdate,
   selectedAccountId: propSelectedAccountId,
   onSelectAccount,
+  onNavigateToSettings,
 }) => {
   // Filter cards to get checking, saving, and brokerage accounts
   const checkingOnly = useMemo(() => {
@@ -143,8 +145,15 @@ export const CheckingTab: React.FC<CheckingTabProps> = ({
     return (
       <View style={styles.container}>
         <View style={styles.emptyCenterContainer}>
-          <Text style={styles.emptyText}>No checking accounts configured.</Text>
-          <Text style={styles.emptySubText}>Please add a checking account in the Settings tab.</Text>
+          <Text style={styles.emptyTitle}>🏦 No Bank Accounts Configured</Text>
+          <Text style={styles.emptySubText}>
+            Add your Checking, Savings, or Brokerage accounts in Settings to track balances and transactions.
+          </Text>
+          {onNavigateToSettings && (
+            <TouchableOpacity style={styles.emptyActionBtn} onPress={onNavigateToSettings}>
+              <Text style={styles.emptyActionBtnText}>+ Add Bank Account</Text>
+            </TouchableOpacity>
+          )}
         </View>
       </View>
     );
@@ -227,6 +236,15 @@ export const CheckingTab: React.FC<CheckingTabProps> = ({
                 </Text>
               </TouchableOpacity>
             </>
+          )}
+
+          {onNavigateToSettings && (
+            <TouchableOpacity
+              style={styles.addAccountTabBtn}
+              onPress={onNavigateToSettings}
+            >
+              <Text style={styles.addAccountTabBtnText}>+ Add Account</Text>
+            </TouchableOpacity>
           )}
         </ScrollView>
       </View>
@@ -769,5 +787,38 @@ const styles = StyleSheet.create({
     color: '#64748b',
     textAlign: 'center',
     fontSize: 14,
+  },
+  emptyTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#0f172a',
+    marginBottom: 6,
+    textAlign: 'center',
+  },
+  emptyActionBtn: {
+    backgroundColor: '#0f172a',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 6,
+    alignItems: 'center',
+  },
+  emptyActionBtnText: {
+    color: '#ffffff',
+    fontSize: 13,
+    fontWeight: 'bold',
+  },
+  addAccountTabBtn: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    backgroundColor: '#0f172a',
+    borderRadius: 4,
+    marginLeft: 10,
+    alignSelf: 'center',
+    marginBottom: 2,
+  },
+  addAccountTabBtnText: {
+    color: '#ffffff',
+    fontSize: 11,
+    fontWeight: 'bold',
   },
 });

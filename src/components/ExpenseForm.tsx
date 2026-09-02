@@ -28,6 +28,7 @@ interface ExpenseFormProps {
   ) => void;
   editingExpense?: Expense | null;
   onCancelEditing?: () => void;
+  onNavigateToSettings?: () => void;
 }
 
 const parseZelleDetails = (detailsStr: string) => {
@@ -197,6 +198,7 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
   onSubmit,
   editingExpense,
   onCancelEditing,
+  onNavigateToSettings,
 }) => {
   const [logType, setLogType] = useState<'transaction' | 'transfer'>('transaction');
   const [showToast, setShowToast] = useState(false);
@@ -741,9 +743,26 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
               </View>
             )}
             <View style={styles.formCard}>
-        <Text style={styles.formTitle}>
-          {editingExpense ? 'Edit Log Entry' : 'Log New Entry'}
-        </Text>
+              {cards.length === 0 ? (
+                <View style={styles.emptyFormBox}>
+                  <Text style={styles.emptyFormTitle}>⚠️ No Accounts Configured</Text>
+                  <Text style={styles.emptyFormSub}>
+                    You need to add at least one Credit Card, Checking, or Savings account in Settings before logging transactions.
+                  </Text>
+                  {onNavigateToSettings && (
+                    <TouchableOpacity
+                      style={styles.emptyActionBtn}
+                      onPress={onNavigateToSettings}
+                    >
+                      <Text style={styles.emptyActionBtnText}>+ Create Account or Card</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              ) : (
+                <>
+                  <Text style={styles.formTitle}>
+                    {editingExpense ? 'Edit Log Entry' : 'Log New Entry'}
+                  </Text>
 
         {/* Toggle Log Type (Disabled in edit mode to prevent structure mismatch) */}
         {(!editingExpense || editingExpense.isTransfer) && (
@@ -1327,6 +1346,8 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
             </Text>
           </TouchableOpacity>
         </View>
+        </>
+      )}
       </View>
     </View>
   </TouchableWithoutFeedback>
@@ -2199,5 +2220,37 @@ const styles = StyleSheet.create({
     color: '#15803d',
     fontWeight: '700',
     fontSize: 14,
+  },
+  emptyFormBox: {
+    padding: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyFormTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#0f172a',
+    marginBottom: 6,
+    textAlign: 'center',
+  },
+  emptyFormSub: {
+    fontSize: 13,
+    color: '#64748b',
+    textAlign: 'center',
+    marginBottom: 16,
+    lineHeight: 18,
+    maxWidth: 380,
+  },
+  emptyActionBtn: {
+    backgroundColor: '#0f172a',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 6,
+    alignItems: 'center',
+  },
+  emptyActionBtnText: {
+    color: '#ffffff',
+    fontSize: 13,
+    fontWeight: 'bold',
   },
 });

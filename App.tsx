@@ -403,6 +403,7 @@ export default function App() {
             futureExpenses={futureExpenses}
             onAddFutureExpense={handleFutureExpenseAdd}
             onDeleteFutureExpense={handleFutureExpenseDelete}
+            onNavigateToSettings={() => setActiveTab('settings')}
           />
         );
       case 'add':
@@ -413,6 +414,7 @@ export default function App() {
             onSubmit={handleExpenseSubmit}
             editingExpense={editingExpense}
             onCancelEditing={handleCancelEditing}
+            onNavigateToSettings={() => setActiveTab('settings')}
           />
         );
       case 'checking':
@@ -425,6 +427,7 @@ export default function App() {
             onBrokerageBalanceUpdate={handleBrokerageBalanceUpdate}
             selectedAccountId={selectedCheckingAccountId}
             onSelectAccount={setSelectedCheckingAccountId}
+            onNavigateToSettings={() => setActiveTab('settings')}
           />
         );
       case 'credit_cards':
@@ -437,6 +440,7 @@ export default function App() {
             selectedCardId={selectedCreditCardId}
             onSelectCard={setSelectedCreditCardId}
             onUpdateCard={handleCardUpdate}
+            onNavigateToSettings={() => setActiveTab('settings')}
           />
         );
       case 'settings':

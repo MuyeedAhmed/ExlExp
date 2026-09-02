@@ -6,12 +6,7 @@ const EXPENSES_KEY = '@ExlExp:expenses';
 const CARDS_KEY = '@ExlExp:credit_cards';
 const FUTURE_EXPENSES_KEY = '@ExlExp:future_expenses';
 
-export const getDefaultCards = (username: string): CreditCard[] => [
-  { id: `card-${username}-citidb`, name: 'Citi Double Cash', priority: 0, isHidden: false, openDate: '2023-01-01' },
-  { id: `card-${username}-citistrata`, name: 'Citi Strata', priority: 1, isHidden: false, openDate: '2023-06-01' },
-  { id: `card-${username}-bofa`, name: 'BofA Premium', priority: 2, isHidden: false, openDate: '2022-09-01' },
-  { id: `card-${username}-chase`, name: 'Chase Checking', isChecking: true, priority: 3, isHidden: false, openDate: '2021-01-01' }
-];
+
 
 export const getExpenses = async (username: string): Promise<Expense[]> => {
   try {
@@ -163,8 +158,8 @@ export const getCreditCards = async (username: string): Promise<CreditCard[]> =>
 
     if (error) throw error;
 
-    // Fallback to user-scoped default cards if Supabase is empty
-    const cardsData = (data && data.length > 0) ? data : getDefaultCards(username);
+    // Return empty if user has no cards configured yet
+    const cardsData = (data && data.length > 0) ? data : [];
 
     // Fetch local user settings (priority order & visibility & openDate) from AsyncStorage
     let localCards: CreditCard[] = [];
@@ -187,7 +182,7 @@ export const getCreditCards = async (username: string): Promise<CreditCard[]> =>
         isSaving: !!c.isSaving,
         isBrokerage: !!c.isBrokerage,
         isHidden: local ? !!local.isHidden : !!c.isHidden,
-        openDate: c.openDate || c.open_date || (local && local.openDate) || todayStr,
+        openDate: c.openDate || c.opendate || c.open_date || (local && local.openDate) || todayStr,
         priority: local && typeof local.priority === 'number'
           ? local.priority
           : (typeof c.priority === 'number' ? c.priority : 9999)
@@ -200,7 +195,7 @@ export const getCreditCards = async (username: string): Promise<CreditCard[]> =>
     try {
       const data = await AsyncStorage.getItem(`@ExlExp:${username}:credit_cards`);
       if (!data) {
-        return getDefaultCards(username);
+        return [];
       }
       const todayStr = new Date().toISOString().split('T')[0];
       const parsed: CreditCard[] = JSON.parse(data);
@@ -213,7 +208,7 @@ export const getCreditCards = async (username: string): Promise<CreditCard[]> =>
       return sorted.sort((a, b) => a.priority - b.priority);
     } catch (e) {
       console.error('Error fetching credit cards from AsyncStorage:', e);
-      return getDefaultCards(username);
+      return [];
     }
   }
 };
