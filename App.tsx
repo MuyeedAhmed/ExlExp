@@ -42,6 +42,8 @@ export default function App() {
   const [futureExpenses, setFutureExpenses] = useState<FutureExpense[]>([]);
   const [activeTab, setActiveTab] = useState<TabType>('dashboard');
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
+  const [selectedCheckingAccountId, setSelectedCheckingAccountId] = useState<string>('');
+  const [selectedCreditCardId, setSelectedCreditCardId] = useState<string>('');
 
   // Check user session on startup
   useEffect(() => {
@@ -131,7 +133,9 @@ export default function App() {
   const handleExpenseSubmit = async (
     expenseData:
       | (Omit<Expense, 'id'> & { id?: string })
-      | (Omit<Expense, 'id'> & { id?: string })[]
+      | (Omit<Expense, 'id'> & { id?: string })[],
+    targetAccountCardId?: string,
+    stayInLogPage?: boolean
   ) => {
     let updatedExpenses: Expense[];
     const isArray = Array.isArray(expenseData);
@@ -203,6 +207,20 @@ export default function App() {
 
     setExpenses(updatedExpenses);
     await saveExpenses(updatedExpenses, currentUser!);
+
+    // If multiple log creation is NOT requested, navigate to the target account
+    if (!stayInLogPage && targetAccountCardId) {
+      const targetCard = cards.find(c => c.id === targetAccountCardId);
+      if (targetCard) {
+        if (targetCard.isChecking || targetCard.isSaving || targetCard.isBrokerage) {
+          setSelectedCheckingAccountId(targetCard.isBrokerage ? 'brokerage' : targetCard.id);
+          setActiveTab('checking');
+        } else {
+          setSelectedCreditCardId(targetCard.id);
+          setActiveTab('credit_cards');
+        }
+      }
+    }
   };
 
   const handleExpenseDelete = async (id: string) => {
@@ -397,6 +415,8 @@ export default function App() {
             onDelete={handleExpenseDelete}
             onEdit={handleExpenseEditRequest}
             onBrokerageBalanceUpdate={handleBrokerageBalanceUpdate}
+            selectedAccountId={selectedCheckingAccountId}
+            onSelectAccount={setSelectedCheckingAccountId}
           />
         );
       case 'credit_cards':
@@ -406,6 +426,8 @@ export default function App() {
             cards={cards}
             onDelete={handleExpenseDelete}
             onEdit={handleExpenseEditRequest}
+            selectedCardId={selectedCreditCardId}
+            onSelectCard={setSelectedCreditCardId}
           />
         );
       case 'settings':

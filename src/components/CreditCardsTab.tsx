@@ -12,6 +12,8 @@ interface CreditCardsTabProps {
   cards: CreditCard[];
   onDelete: (id: string) => void;
   onEdit: (expense: Expense) => void;
+  selectedCardId?: string;
+  onSelectCard?: (id: string) => void;
 }
 
 export const CreditCardsTab: React.FC<CreditCardsTabProps> = ({
@@ -19,6 +21,8 @@ export const CreditCardsTab: React.FC<CreditCardsTabProps> = ({
   cards,
   onDelete,
   onEdit,
+  selectedCardId: propSelectedCardId,
+  onSelectCard,
 }) => {
   // Filter out the Checking, Saving & Brokerage accounts
   const creditCardsOnly = useMemo(() => {
@@ -26,7 +30,12 @@ export const CreditCardsTab: React.FC<CreditCardsTabProps> = ({
   }, [cards]);
 
   // Active card tab state
-  const [selectedCardId, setSelectedCardId] = useState<string>('');
+  const [internalSelectedCardId, setInternalSelectedCardId] = useState<string>('');
+  const selectedCardId = propSelectedCardId || internalSelectedCardId;
+  const setSelectedCardId = (id: string) => {
+    setInternalSelectedCardId(id);
+    onSelectCard?.(id);
+  };
 
   // Pagination state for transactions
   const [visibleCount, setVisibleCount] = useState<number>(25);
