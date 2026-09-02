@@ -26,6 +26,13 @@ interface SettingsProps {
   onUpdateCard?: (updatedCard: CreditCard) => void;
 }
 
+const getAccountIcon = (card: CreditCard) => {
+  if (card.isSaving) return '💰';
+  if (card.isBrokerage) return '📈';
+  if (card.isChecking) return '🏛️';
+  return '💳';
+};
+
 export const Settings: React.FC<SettingsProps> = ({
   cards,
   onAddCard,
@@ -246,19 +253,19 @@ export const Settings: React.FC<SettingsProps> = ({
             style={[styles.typeBtn, checkingAccountType === 'checking' && styles.activeTypeBtn]}
             onPress={() => setCheckingAccountType('checking')}
           >
-            <Text style={[styles.typeText, checkingAccountType === 'checking' && styles.activeTypeText]}>Checking</Text>
+            <Text style={[styles.typeText, checkingAccountType === 'checking' && styles.activeTypeText]}>🏛️ Checking</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.typeBtn, checkingAccountType === 'saving' && styles.activeTypeBtn]}
             onPress={() => setCheckingAccountType('saving')}
           >
-            <Text style={[styles.typeText, checkingAccountType === 'saving' && styles.activeTypeText]}>Saving</Text>
+            <Text style={[styles.typeText, checkingAccountType === 'saving' && styles.activeTypeText]}>💰 Saving</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.typeBtn, checkingAccountType === 'brokerage' && styles.activeTypeBtn]}
             onPress={() => setCheckingAccountType('brokerage')}
           >
-            <Text style={[styles.typeText, checkingAccountType === 'brokerage' && styles.activeTypeText]}>Brokerage</Text>
+            <Text style={[styles.typeText, checkingAccountType === 'brokerage' && styles.activeTypeText]}>📈 Brokerage</Text>
           </TouchableOpacity>
         </View>
 
@@ -306,7 +313,7 @@ export const Settings: React.FC<SettingsProps> = ({
                         styles.input,
                         {
                           flex: 1,
-                          height: 30,
+                          height: 32,
                           fontSize: 14,
                           paddingVertical: 2,
                           paddingHorizontal: 8,
@@ -318,26 +325,33 @@ export const Settings: React.FC<SettingsProps> = ({
                       autoFocus
                     />
                   ) : (
-                    <Text style={[styles.listItemTitle, card.isHidden && styles.hiddenCardTitle]}>
-                      {card.name} ({card.isSaving ? 'Saving' : card.isBrokerage ? 'Brokerage' : 'Checking'})
-                      {card.isHidden && ' (Hidden)'}
-                    </Text>
+                    <View style={styles.cardItemRow}>
+                      <Text style={styles.cardEmojiIcon}>{getAccountIcon(card)}</Text>
+                      <Text style={[styles.listItemTitle, card.isHidden && styles.hiddenCardTitle]}>
+                        {card.name}
+                      </Text>
+                      {card.isHidden && (
+                        <View style={styles.hiddenTagBadge}>
+                          <Text style={styles.hiddenTagText}>Hidden</Text>
+                        </View>
+                      )}
+                    </View>
                   )}
                 </View>
                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                   {editingCardId === card.id ? (
                     <>
                       <TouchableOpacity
-                        style={styles.editButton}
+                        style={styles.saveEditBtn}
                         onPress={() => handleSaveRename(card.id)}
                       >
-                        <Text style={styles.editButtonText}>Save</Text>
+                        <Text style={styles.saveEditBtnText}>Save</Text>
                       </TouchableOpacity>
                       <TouchableOpacity
-                        style={styles.deleteButton}
+                        style={styles.cancelEditBtn}
                         onPress={() => setEditingCardId(null)}
                       >
-                        <Text style={styles.deleteButtonText}>Cancel</Text>
+                        <Text style={styles.cancelEditBtnText}>Cancel</Text>
                       </TouchableOpacity>
                     </>
                   ) : (
@@ -451,31 +465,40 @@ export const Settings: React.FC<SettingsProps> = ({
                       />
                     </View>
                   ) : (
-                    <>
-                      <Text style={[styles.listItemTitle, card.isHidden && styles.hiddenCardTitle]}>
-                        {card.name}
-                        {card.isHidden && ' (Hidden)'}
-                      </Text>
-                      <Text style={styles.listItemSub}>
-                        Opened: {card.openDate || 'Not set'}
-                      </Text>
-                    </>
+                    <View style={styles.cardItemRow}>
+                      <Text style={styles.cardEmojiIcon}>💳</Text>
+                      <View style={{ flex: 1 }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                          <Text style={[styles.listItemTitle, card.isHidden && styles.hiddenCardTitle]}>
+                            {card.name}
+                          </Text>
+                          {card.isHidden && (
+                            <View style={styles.hiddenTagBadge}>
+                              <Text style={styles.hiddenTagText}>Hidden</Text>
+                            </View>
+                          )}
+                        </View>
+                        <Text style={styles.listItemSub}>
+                          Opened: {card.openDate || 'Not set'}
+                        </Text>
+                      </View>
+                    </View>
                   )}
                 </View>
                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                   {editingCardId === card.id ? (
                     <>
                       <TouchableOpacity
-                        style={styles.editButton}
+                        style={styles.saveEditBtn}
                         onPress={() => handleSaveRename(card.id)}
                       >
-                        <Text style={styles.editButtonText}>Save</Text>
+                        <Text style={styles.saveEditBtnText}>Save</Text>
                       </TouchableOpacity>
                       <TouchableOpacity
-                        style={styles.deleteButton}
+                        style={styles.cancelEditBtn}
                         onPress={() => setEditingCardId(null)}
                       >
-                        <Text style={styles.deleteButtonText}>Cancel</Text>
+                        <Text style={styles.cancelEditBtnText}>Cancel</Text>
                       </TouchableOpacity>
                     </>
                   ) : (
@@ -757,7 +780,7 @@ const styles = StyleSheet.create({
   },
   addButton: {
     backgroundColor: '#0f172a',
-    borderRadius: 0,
+    borderRadius: 6,
     paddingHorizontal: 16,
     alignItems: 'center',
     justifyContent: 'center',
@@ -767,18 +790,19 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontWeight: 'bold',
     fontSize: 13,
-    textTransform: 'uppercase',
   },
   listContainer: {
     gap: 0,
     borderWidth: 1,
     borderColor: '#cbd5e1',
+    borderRadius: 6,
+    overflow: 'hidden',
   },
   listItem: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 8,
+    paddingVertical: 10,
     paddingHorizontal: 12,
     backgroundColor: '#ffffff',
     borderBottomWidth: 1,
@@ -786,6 +810,29 @@ const styles = StyleSheet.create({
   },
   listItemTextContainer: {
     flexDirection: 'column',
+    flex: 1,
+  },
+  cardItemRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  cardEmojiIcon: {
+    fontSize: 16,
+  },
+  hiddenTagBadge: {
+    backgroundColor: '#f1f5f9',
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
+    borderRadius: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+  },
+  hiddenTagText: {
+    fontSize: 10,
+    color: '#64748b',
+    fontWeight: '700',
+    textTransform: 'uppercase',
   },
   listItemTitle: {
     fontSize: 14,
@@ -797,9 +844,38 @@ const styles = StyleSheet.create({
     color: '#64748b',
     marginTop: 2,
   },
+  saveEditBtn: {
+    backgroundColor: '#0f172a',
+    borderRadius: 6,
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+    marginRight: 6,
+  },
+  saveEditBtnText: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  cancelEditBtn: {
+    backgroundColor: '#f1f5f9',
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
+    borderRadius: 6,
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+  },
+  cancelEditBtnText: {
+    color: '#475569',
+    fontSize: 12,
+    fontWeight: '600',
+  },
   deleteButton: {
-    paddingVertical: 4,
-    paddingHorizontal: 8,
+    backgroundColor: '#fee2e2',
+    borderWidth: 1,
+    borderColor: '#fca5a5',
+    borderRadius: 6,
+    paddingVertical: 5,
+    paddingHorizontal: 10,
   },
   deleteButtonText: {
     color: '#dc2626',
@@ -807,25 +883,30 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   editButton: {
-    paddingVertical: 4,
-    paddingHorizontal: 8,
-    marginRight: 8,
+    backgroundColor: '#f1f5f9',
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
+    borderRadius: 6,
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+    marginRight: 6,
   },
   editButtonText: {
-    color: '#3b82f6',
+    color: '#334155',
     fontWeight: '600',
     fontSize: 12,
   },
   emptyText: {
-    padding: 12,
+    padding: 16,
     color: '#64748b',
     fontSize: 13,
+    textAlign: 'center',
   },
   reorderCol: {
     flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 12,
+    marginRight: 10,
     gap: 2,
     width: 20,
   },
@@ -841,9 +922,13 @@ const styles = StyleSheet.create({
     color: '#94a3b8',
   },
   hideButton: {
-    paddingVertical: 4,
-    paddingHorizontal: 8,
-    marginRight: 8,
+    backgroundColor: '#f8fafc',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderRadius: 6,
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+    marginRight: 6,
   },
   hideButtonText: {
     color: '#64748b',
@@ -875,8 +960,8 @@ const styles = StyleSheet.create({
   logoutButton: {
     backgroundColor: '#fee2e2',
     paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 8,
+    paddingVertical: 7,
+    borderRadius: 6,
     borderWidth: 1,
     borderColor: '#fca5a5',
   },
@@ -884,7 +969,6 @@ const styles = StyleSheet.create({
     color: '#dc2626',
     fontSize: 12,
     fontWeight: '700',
-    textTransform: 'uppercase',
   },
   subSection: {
     marginTop: 4,
@@ -911,9 +995,9 @@ const styles = StyleSheet.create({
   accountInput: {
     borderWidth: 1,
     borderColor: '#cbd5e1',
-    borderRadius: 8,
+    borderRadius: 6,
     paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingVertical: 8,
     fontSize: 14,
     color: '#0f172a',
     backgroundColor: '#ffffff',
@@ -921,8 +1005,8 @@ const styles = StyleSheet.create({
   },
   accountActionButton: {
     backgroundColor: '#0f172a',
-    borderRadius: 8,
-    paddingVertical: 12,
+    borderRadius: 6,
+    paddingVertical: 10,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 6,
