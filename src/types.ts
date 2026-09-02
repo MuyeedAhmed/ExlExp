@@ -25,6 +25,7 @@ export interface CreditCard {
   isBrokerage?: boolean; // Optional flag to indicate brokerage account
   isHidden?: boolean; // Optional flag to hide/unhide cards in logs
   priority?: number; // Optional flag to save priority order of cards
+  openDate?: string; // Date of account opening in YYYY-MM-DD format
   username?: string; // foreign key referencing users.username
 }
 

@@ -644,6 +644,14 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
         }
       }
 
+      const isAutoFee = !isCheckingSelected && (
+        isFee ||
+        finalDescription.toLowerCase().includes('annual fee') ||
+        finalDescription.toLowerCase().includes('membership fee') ||
+        (finalDetails || '').toLowerCase().includes('annual fee') ||
+        (category || '').toLowerCase().includes('annual fee')
+      );
+
       onSubmit({
         id: editingExpense?.id || undefined,
         description: finalDescription,
@@ -653,7 +661,7 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
         category: category || 'Others',
         fromTo: finalFromTo,
         details: finalDetails,
-        isFee: !isCheckingSelected ? isFee : undefined,
+        isFee: isAutoFee ? true : undefined,
         isReward: !isCheckingSelected ? isReward : undefined,
         rewardType: !isCheckingSelected && isReward ? rewardType : undefined,
         rewardValue: !isCheckingSelected && isReward ? finalRewardValue : undefined,
