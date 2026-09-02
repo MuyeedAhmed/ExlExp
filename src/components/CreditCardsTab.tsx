@@ -1462,7 +1462,7 @@ const styles = StyleSheet.create({
   cancelModalBtn: {
     paddingVertical: 8,
     paddingHorizontal: 14,
-    borderRadius: 4,
+    borderRadius: 6,
     backgroundColor: '#f1f5f9',
     borderWidth: 1,
     borderColor: '#cbd5e1',
@@ -1475,7 +1475,7 @@ const styles = StyleSheet.create({
   saveModalBtn: {
     paddingVertical: 8,
     paddingHorizontal: 16,
-    borderRadius: 4,
+    borderRadius: 6,
     backgroundColor: '#0f172a',
   },
   saveModalBtnText: {
@@ -1484,10 +1484,10 @@ const styles = StyleSheet.create({
     color: '#ffffff',
   },
   addCardTabBtn: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
     backgroundColor: '#0f172a',
-    borderRadius: 4,
+    borderRadius: 6,
     marginLeft: 10,
     alignSelf: 'center',
     marginBottom: 2,
@@ -1520,7 +1520,7 @@ const styles = StyleSheet.create({
   },
   emptyActionBtn: {
     backgroundColor: '#0f172a',
-    paddingVertical: 8,
+    paddingVertical: 9,
     paddingHorizontal: 16,
     borderRadius: 6,
     alignItems: 'center',

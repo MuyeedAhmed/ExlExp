@@ -797,7 +797,7 @@ const styles = StyleSheet.create({
   },
   emptyActionBtn: {
     backgroundColor: '#0f172a',
-    paddingVertical: 8,
+    paddingVertical: 9,
     paddingHorizontal: 16,
     borderRadius: 6,
     alignItems: 'center',
@@ -808,10 +808,10 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   addAccountTabBtn: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
     backgroundColor: '#0f172a',
-    borderRadius: 4,
+    borderRadius: 6,
     marginLeft: 10,
     alignSelf: 'center',
     marginBottom: 2,
