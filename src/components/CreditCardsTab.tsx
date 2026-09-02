@@ -8,6 +8,7 @@ import {
   Alert,
   Platform,
   Modal,
+  TouchableWithoutFeedback,
 } from 'react-native';
 import { Expense, CreditCard } from '../types';
 
@@ -709,6 +710,9 @@ export const CreditCardsTab: React.FC<CreditCardsTabProps> = ({
         onRequestClose={() => setEditingCardForDate(null)}
       >
         <View style={styles.modalOverlay}>
+          <TouchableWithoutFeedback onPress={() => setEditingCardForDate(null)}>
+            <View style={StyleSheet.absoluteFill} />
+          </TouchableWithoutFeedback>
           <View style={styles.modalContainer}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>

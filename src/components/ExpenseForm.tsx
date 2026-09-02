@@ -1360,8 +1360,20 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
         onRequestClose={() => setCardModalVisible(false)}
       >
         <View style={styles.modalOverlay}>
+          <TouchableWithoutFeedback onPress={() => setCardModalVisible(false)}>
+            <View style={styles.modalBackdropTouch} />
+          </TouchableWithoutFeedback>
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Select Account/Card</Text>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Select Account / Card</Text>
+              <TouchableOpacity
+                style={styles.modalHeaderCloseBtn}
+                onPress={() => setCardModalVisible(false)}
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+              >
+                <Text style={styles.modalHeaderCloseText}>✕</Text>
+              </TouchableOpacity>
+            </View>
             <FlatList
               data={cards.filter(c => !c.isBrokerage && !isClosedCard(c) && !c.isHidden)}
               keyExtractor={item => item.id}
@@ -1414,8 +1426,20 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
         onRequestClose={() => setCategoryModalVisible(false)}
       >
         <View style={styles.modalOverlay}>
+          <TouchableWithoutFeedback onPress={() => setCategoryModalVisible(false)}>
+            <View style={styles.modalBackdropTouch} />
+          </TouchableWithoutFeedback>
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Select Category</Text>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Select Category</Text>
+              <TouchableOpacity
+                style={styles.modalHeaderCloseBtn}
+                onPress={() => setCategoryModalVisible(false)}
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+              >
+                <Text style={styles.modalHeaderCloseText}>✕</Text>
+              </TouchableOpacity>
+            </View>
             <FlatList
               data={CATEGORIES}
               keyExtractor={item => item}
@@ -1465,8 +1489,20 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
         onRequestClose={() => setSourceModalVisible(false)}
       >
         <View style={styles.modalOverlay}>
+          <TouchableWithoutFeedback onPress={() => setSourceModalVisible(false)}>
+            <View style={styles.modalBackdropTouch} />
+          </TouchableWithoutFeedback>
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Select Source Account</Text>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Select Source Account</Text>
+              <TouchableOpacity
+                style={styles.modalHeaderCloseBtn}
+                onPress={() => setSourceModalVisible(false)}
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+              >
+                <Text style={styles.modalHeaderCloseText}>✕</Text>
+              </TouchableOpacity>
+            </View>
             <FlatList
               data={depositAccounts}
               keyExtractor={item => item.id}
@@ -1519,8 +1555,20 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
         onRequestClose={() => setTargetModalVisible(false)}
       >
         <View style={styles.modalOverlay}>
+          <TouchableWithoutFeedback onPress={() => setTargetModalVisible(false)}>
+            <View style={styles.modalBackdropTouch} />
+          </TouchableWithoutFeedback>
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Select Target Account</Text>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Select Target Account</Text>
+              <TouchableOpacity
+                style={styles.modalHeaderCloseBtn}
+                onPress={() => setTargetModalVisible(false)}
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+              >
+                <Text style={styles.modalHeaderCloseText}>✕</Text>
+              </TouchableOpacity>
+            </View>
             <FlatList
               data={targetAccountsList}
               keyExtractor={item => item.id}
@@ -1572,22 +1620,37 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
         animationType="fade"
         onRequestClose={() => setDatePickerVisible(false)}
       >
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { maxWidth: 360, alignSelf: 'center', width: '90%', borderRadius: 16 }]}>
+        <View style={styles.centerModalOverlay}>
+          <TouchableWithoutFeedback onPress={() => setDatePickerVisible(false)}>
+            <View style={styles.modalBackdropTouch} />
+          </TouchableWithoutFeedback>
+          <View style={styles.calendarModalCard}>
+            {/* Header: Title + Top Close Button */}
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Select Date</Text>
+              <TouchableOpacity
+                style={styles.modalHeaderCloseBtn}
+                onPress={() => setDatePickerVisible(false)}
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+              >
+                <Text style={styles.modalHeaderCloseText}>✕</Text>
+              </TouchableOpacity>
+            </View>
+
             {/* Header: Month & Year + Navigation */}
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
               <TouchableOpacity
                 onPress={handlePrevMonth}
-                style={{ padding: 8, borderRadius: 8, backgroundColor: '#f1f5f9', borderWidth: 1, borderColor: '#e2e8f0' }}
+                style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 6, backgroundColor: '#f1f5f9', borderWidth: 1, borderColor: '#cbd5e1' }}
               >
                 <Text style={{ fontSize: 14, fontWeight: '700', color: '#0f172a' }}>◀</Text>
               </TouchableOpacity>
-              <Text style={{ fontSize: 16, fontWeight: '800', color: '#0f172a', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+              <Text style={{ fontSize: 14, fontWeight: '800', color: '#0f172a', textTransform: 'uppercase', letterSpacing: 0.5 }}>
                 {MONTH_NAMES[calendarMonth]} {calendarYear}
               </Text>
               <TouchableOpacity
                 onPress={handleNextMonth}
-                style={{ padding: 8, borderRadius: 8, backgroundColor: '#f1f5f9', borderWidth: 1, borderColor: '#e2e8f0' }}
+                style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 6, backgroundColor: '#f1f5f9', borderWidth: 1, borderColor: '#cbd5e1' }}
               >
                 <Text style={{ fontSize: 14, fontWeight: '700', color: '#0f172a' }}>▶</Text>
               </TouchableOpacity>
@@ -1597,7 +1660,7 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
             <View style={{ flexDirection: 'row', marginBottom: 8 }}>
               {DAYS_OF_WEEK.map(d => (
                 <View key={d} style={{ flex: 1, alignItems: 'center' }}>
-                  <Text style={{ fontSize: 12, fontWeight: '700', color: '#64748b' }}>{d}</Text>
+                  <Text style={{ fontSize: 11, fontWeight: '700', color: '#64748b' }}>{d}</Text>
                 </View>
               ))}
             </View>
@@ -1606,7 +1669,7 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
             <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
               {getCalendarDays().map((day, idx) => {
                 if (day === null) {
-                  return <View key={`empty-${idx}`} style={{ width: `${100 / 7}%`, height: 38 }} />;
+                  return <View key={`empty-${idx}`} style={{ width: `${100 / 7}%`, height: 36 }} />;
                 }
                 const dayStr = `${calendarYear}-${String(calendarMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
                 const isSelected = date === dayStr;
@@ -1617,11 +1680,11 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
                     style={[
                       {
                         width: `${100 / 7}%`,
-                        height: 38,
+                        height: 36,
                         alignItems: 'center',
                         justifyContent: 'center',
-                        borderRadius: 8,
-                        marginVertical: 2,
+                        borderRadius: 6,
+                        marginVertical: 1,
                       },
                       isSelected && { backgroundColor: '#0f172a' },
                       isToday && !isSelected && { borderWidth: 1, borderColor: '#0f172a' },
@@ -1630,7 +1693,7 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
                   >
                     <Text
                       style={[
-                        { fontSize: 14, fontWeight: '600', color: '#0f172a' },
+                        { fontSize: 13, fontWeight: '600', color: '#0f172a' },
                         isSelected && { color: '#ffffff', fontWeight: '800' },
                       ]}
                     >
@@ -1641,14 +1704,14 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
               })}
             </View>
 
-            {/* Quick Today & Cancel Buttons */}
+            {/* Quick Today & Close Buttons */}
             <View style={{ flexDirection: 'row', gap: 10, marginTop: 16 }}>
               <TouchableOpacity
                 style={{
                   flex: 1,
                   backgroundColor: '#f1f5f9',
-                  borderRadius: 8,
-                  paddingVertical: 12,
+                  borderRadius: 6,
+                  paddingVertical: 10,
                   alignItems: 'center',
                   borderWidth: 1,
                   borderColor: '#cbd5e1',
@@ -1666,8 +1729,8 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
                 style={{
                   flex: 1,
                   backgroundColor: '#0f172a',
-                  borderRadius: 8,
-                  paddingVertical: 12,
+                  borderRadius: 6,
+                  paddingVertical: 10,
                   alignItems: 'center',
                 }}
                 onPress={() => setDatePickerVisible(false)}
@@ -1986,18 +2049,47 @@ const styles = StyleSheet.create({
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(15, 23, 42, 0.5)',
+    backgroundColor: 'rgba(15, 23, 42, 0.55)',
     justifyContent: Platform.OS === 'web' ? 'center' : 'flex-end',
     alignItems: Platform.OS === 'web' ? 'center' : undefined,
     padding: Platform.OS === 'web' ? 20 : 0,
+  },
+  modalBackdropTouch: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
+  centerModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(15, 23, 42, 0.55)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  calendarModalCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    padding: 20,
+    width: '100%',
+    maxWidth: 360,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.15,
+    shadowRadius: 16,
+    elevation: 8,
   },
   modalContent: {
     backgroundColor: '#ffffff',
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
     borderRadius: Platform.OS === 'web' ? 16 : undefined,
-    padding: 24,
-    maxHeight: '80%',
+    padding: 20,
+    paddingBottom: Platform.OS === 'android' ? 44 : (Platform.OS === 'ios' ? 36 : 20),
+    maxHeight: '85%',
     width: Platform.OS === 'web' ? 440 : '100%',
     borderWidth: 1,
     borderColor: '#e2e8f0',
@@ -2007,12 +2099,29 @@ const styles = StyleSheet.create({
     shadowRadius: 20,
     elevation: 5,
   },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f9',
+    paddingBottom: 10,
+  },
+  modalHeaderCloseBtn: {
+    padding: 6,
+    borderRadius: 6,
+    backgroundColor: '#f1f5f9',
+  },
+  modalHeaderCloseText: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#64748b',
+  },
   modalTitle: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '800',
     color: '#0f172a',
-    marginBottom: 16,
-    textAlign: 'center',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
@@ -2034,17 +2143,17 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   modalCloseButton: {
-    marginTop: 16,
+    marginTop: 14,
     backgroundColor: '#f1f5f9',
-    borderRadius: 8,
-    paddingVertical: 12,
+    borderRadius: 6,
+    paddingVertical: 11,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: '#cbd5e1',
   },
   modalCloseButtonText: {
-    color: '#475569',
-    fontSize: 14,
+    color: '#334155',
+    fontSize: 13,
     fontWeight: '700',
     textTransform: 'uppercase',
   },
