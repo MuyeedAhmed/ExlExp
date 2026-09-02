@@ -95,7 +95,7 @@ const getCardTypeStyles = (card?: CreditCard) => {
       badgeText: '#15803d',
       border: '#22c55e',
       label: 'Checking',
-      prefix: '🟢 Checking: ',
+      prefix: '🏛️ ',
       optionBg: '#f0fdf4',
       optionColor: '#166534',
     };
@@ -106,7 +106,7 @@ const getCardTypeStyles = (card?: CreditCard) => {
       badgeText: '#166534',
       border: '#15803d',
       label: 'Saving',
-      prefix: '🌲 Saving: ',
+      prefix: '💰 ',
       optionBg: '#dcfce7',
       optionColor: '#14532d',
     };
@@ -117,7 +117,7 @@ const getCardTypeStyles = (card?: CreditCard) => {
       badgeText: '#7e22ce',
       border: '#a855f7',
       label: 'Brokerage',
-      prefix: '🟣 Brokerage: ',
+      prefix: '📈 ',
       optionBg: '#faf5ff',
       optionColor: '#6b21a8',
     };
@@ -127,7 +127,7 @@ const getCardTypeStyles = (card?: CreditCard) => {
     badgeText: '#c2410c',
     border: '#ea580c',
     label: 'Credit Card',
-    prefix: '💳 Credit Card: ',
+    prefix: '💳 ',
     optionBg: '#fff7ed',
     optionColor: '#9a3412',
   };
@@ -865,85 +865,88 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
         ) : (
           // ==================== STANDARD TRANSACTION VIEW ====================
           <>
-            {/* Account Selector */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>{isCheckingSelected ? 'Account' : 'Payment Card'}</Text>
-              {Platform.OS === 'web' ? (
-                <View style={styles.webSelectContainer}>
-                  <select
-                    style={getWebSelectStyle(selectedCard)}
-                    value={selectedCardId}
-                    onChange={(e: any) => setSelectedCardId(e.target.value)}
+            {/* Account & Category Dropdowns Row */}
+            <View style={styles.transferDropdownsRow}>
+              {/* Account Selector */}
+              <View style={styles.transferDropdownCol}>
+                <Text style={[styles.label, styles.centeredLabel]}>{isCheckingSelected ? 'Account' : 'Payment Card'}</Text>
+                {Platform.OS === 'web' ? (
+                  <View style={styles.webSelectContainer}>
+                    <select
+                      style={getWebSelectStyle(selectedCard)}
+                      value={selectedCardId}
+                      onChange={(e: any) => setSelectedCardId(e.target.value)}
+                    >
+                      <option value="" disabled>Select Card/Account</option>
+                      {cards.filter(c => !c.isBrokerage && !isClosedCard(c) && !c.isHidden).map(item => {
+                        const t = getCardTypeStyles(item);
+                        return (
+                          <option
+                            key={item.id}
+                            value={item.id}
+                            style={{
+                              backgroundColor: t.optionBg,
+                              color: t.optionColor,
+                              fontWeight: 600,
+                            }}
+                          >
+                            {t.prefix}{item.name}
+                          </option>
+                        );
+                      })}
+                    </select>
+                    <View style={styles.webSelectArrow} pointerEvents="none">
+                      <Text style={styles.dropdownArrow}>▼</Text>
+                    </View>
+                  </View>
+                ) : (
+                  <TouchableOpacity
+                    style={styles.selectorButton}
+                    onPress={() => setCardModalVisible(true)}
                   >
-                    <option value="" disabled>Select Card/Account</option>
-                    {cards.filter(c => !c.isBrokerage && !isClosedCard(c) && !c.isHidden).map(item => {
-                      const t = getCardTypeStyles(item);
-                      return (
-                        <option
-                          key={item.id}
-                          value={item.id}
-                          style={{
-                            backgroundColor: t.optionBg,
-                            color: t.optionColor,
-                            fontWeight: 600,
-                          }}
-                        >
-                          {t.prefix}{item.name}
-                        </option>
-                      );
-                    })}
-                  </select>
-                  <View style={styles.webSelectArrow} pointerEvents="none">
+                    <View style={styles.selectorButtonInner}>
+                      <Text style={styles.selectorButtonText} numberOfLines={1}>
+                        {selectedCard
+                          ? selectedCard.name
+                          : 'Select Card/Account'}
+                      </Text>
+                      {selectedCard && renderCardBadge(selectedCard)}
+                    </View>
                     <Text style={styles.dropdownArrow}>▼</Text>
-                  </View>
-                </View>
-              ) : (
-                <TouchableOpacity
-                  style={styles.selectorButton}
-                  onPress={() => setCardModalVisible(true)}
-                >
-                  <View style={styles.selectorButtonInner}>
-                    <Text style={styles.selectorButtonText}>
-                      {selectedCard
-                        ? selectedCard.name
-                        : 'Select Card/Account'}
-                    </Text>
-                    {selectedCard && renderCardBadge(selectedCard)}
-                  </View>
-                  <Text style={styles.dropdownArrow}>▼</Text>
-                </TouchableOpacity>
-              )}
-            </View>
+                  </TouchableOpacity>
+                )}
+              </View>
 
-            {/* Category Selector */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Category</Text>
-              {Platform.OS === 'web' ? (
-                <View style={styles.webSelectContainer}>
-                  <select
-                    style={getWebSelectStyle()}
-                    value={category}
-                    onChange={(e: any) => setCategory(e.target.value)}
-                  >
-                    {CATEGORIES.map(item => (
-                      <option key={item} value={item}>
-                        {item}
-                      </option>
-                    ))}
-                  </select>
-                  <View style={styles.webSelectArrow} pointerEvents="none">
-                    <Text style={styles.dropdownArrow}>▼</Text>
+              {/* Category Selector */}
+              <View style={styles.transferDropdownCol}>
+                <Text style={[styles.label, styles.centeredLabel]}>Category</Text>
+                {Platform.OS === 'web' ? (
+                  <View style={styles.webSelectContainer}>
+                    <select
+                      style={getWebSelectStyle()}
+                      value={category}
+                      onChange={(e: any) => setCategory(e.target.value)}
+                    >
+                      {CATEGORIES.map(item => (
+                        <option key={item} value={item}>
+                          {item}
+                        </option>
+                      ))}
+                    </select>
+                    <View style={styles.webSelectArrow} pointerEvents="none">
+                      <Text style={styles.dropdownArrow}>▼</Text>
+                    </View>
                   </View>
-                </View>
-              ) : (
-                <TouchableOpacity
-                  style={styles.selectorButton}
-                  onPress={() => setCategoryModalVisible(true)}
-                >
-                  <Text style={styles.selectorButtonText}>{category}</Text>
-                  <Text style={styles.dropdownArrow}>▼</Text>
-                </TouchableOpacity>
-              )}
+                ) : (
+                  <TouchableOpacity
+                    style={styles.selectorButton}
+                    onPress={() => setCategoryModalVisible(true)}
+                  >
+                    <Text style={styles.selectorButtonText} numberOfLines={1}>{category}</Text>
+                    <Text style={styles.dropdownArrow}>▼</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
             </View>
 
             {/* Description or From/To Name */}
