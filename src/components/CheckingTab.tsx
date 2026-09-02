@@ -8,6 +8,8 @@ interface CheckingTabProps {
   onDelete: (id: string) => void;
   onEdit: (expense: Expense) => void;
   onBrokerageBalanceUpdate?: (brokerageCardId: string, newBalance: number) => void;
+  selectedAccountId?: string;
+  onSelectAccount?: (id: string) => void;
 }
 
 export const CheckingTab: React.FC<CheckingTabProps> = ({
@@ -16,6 +18,8 @@ export const CheckingTab: React.FC<CheckingTabProps> = ({
   onDelete,
   onEdit,
   onBrokerageBalanceUpdate,
+  selectedAccountId: propSelectedAccountId,
+  onSelectAccount,
 }) => {
   // Filter cards to get checking, saving, and brokerage accounts
   const checkingOnly = useMemo(() => {
@@ -35,7 +39,12 @@ export const CheckingTab: React.FC<CheckingTabProps> = ({
   }, [cards]);
 
   // Active checking account sheet state
-  const [selectedAccountId, setSelectedAccountId] = useState<string>('');
+  const [internalSelectedAccountId, setInternalSelectedAccountId] = useState<string>('');
+  const selectedAccountId = propSelectedAccountId || internalSelectedAccountId;
+  const setSelectedAccountId = (id: string) => {
+    setInternalSelectedAccountId(id);
+    onSelectAccount?.(id);
+  };
 
   // Pagination state for transactions
   const [visibleCount, setVisibleCount] = useState<number>(25);

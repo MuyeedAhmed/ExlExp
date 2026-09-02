@@ -22,7 +22,9 @@ interface ExpenseFormProps {
   onSubmit: (
     expense:
       | (Omit<Expense, 'id'> & { id?: string })
-      | (Omit<Expense, 'id'> & { id?: string })[]
+      | (Omit<Expense, 'id'> & { id?: string })[],
+    targetAccountCardId?: string,
+    stayInLogPage?: boolean
   ) => void;
   editingExpense?: Expense | null;
   onCancelEditing?: () => void;
@@ -250,11 +252,79 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
   // Category States
   const [category, setCategory] = useState('Others');
 
+  // Multiple Log Creation State (stay on log page vs navigate to account)
+  const [keepInLogPage, setKeepInLogPage] = useState(false);
+
   // Modals Visibility
   const [cardModalVisible, setCardModalVisible] = useState(false);
   const [sourceModalVisible, setSourceModalVisible] = useState(false);
   const [targetModalVisible, setTargetModalVisible] = useState(false);
   const [categoryModalVisible, setCategoryModalVisible] = useState(false);
+  const [datePickerVisible, setDatePickerVisible] = useState(false);
+  const [calendarYear, setCalendarYear] = useState(() => new Date().getFullYear());
+  const [calendarMonth, setCalendarMonth] = useState(() => new Date().getMonth());
+
+  const MONTH_NAMES = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ];
+
+  const DAYS_OF_WEEK = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
+
+  const openDatePicker = () => {
+    if (Platform.OS !== 'web') {
+      Keyboard.dismiss();
+    }
+    if (date && /^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      const parts = date.split('-').map(Number);
+      if (parts.length === 3 && !isNaN(parts[0]) && !isNaN(parts[1])) {
+        setCalendarYear(parts[0]);
+        setCalendarMonth(parts[1] - 1);
+      }
+    } else {
+      const now = new Date();
+      setCalendarYear(now.getFullYear());
+      setCalendarMonth(now.getMonth());
+    }
+    setDatePickerVisible(true);
+  };
+
+  const getCalendarDays = () => {
+    const daysInMonth = new Date(calendarYear, calendarMonth + 1, 0).getDate();
+    const firstDayIndex = new Date(calendarYear, calendarMonth, 1).getDay();
+    const days: (number | null)[] = [];
+    for (let i = 0; i < firstDayIndex; i++) {
+      days.push(null);
+    }
+    for (let d = 1; d <= daysInMonth; d++) {
+      days.push(d);
+    }
+    return days;
+  };
+
+  const handlePrevMonth = () => {
+    if (calendarMonth === 0) {
+      setCalendarMonth(11);
+      setCalendarYear(calendarYear - 1);
+    } else {
+      setCalendarMonth(calendarMonth - 1);
+    }
+  };
+
+  const handleNextMonth = () => {
+    if (calendarMonth === 11) {
+      setCalendarMonth(0);
+      setCalendarYear(calendarYear + 1);
+    } else {
+      setCalendarMonth(calendarMonth + 1);
+    }
+  };
+
+  const handleSelectDay = (day: number) => {
+    const formatted = `${calendarYear}-${String(calendarMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    setDate(formatted);
+    setDatePickerVisible(false);
+  };
 
   const isCheckingSelected = useMemo(() => {
     const card = cards.find(c => c.id === selectedCardId);
@@ -486,7 +556,7 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
         isTransfer: true,
       };
 
-      onSubmit([sourceTx, targetTx]);
+      onSubmit([sourceTx, targetTx], selectedTargetCardId, keepInLogPage);
       resetForm();
       setShowToast(true);
       setTimeout(() => setShowToast(false), 2000);
@@ -588,7 +658,7 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
         rewardType: !isCheckingSelected && isReward ? rewardType : undefined,
         rewardValue: !isCheckingSelected && isReward ? finalRewardValue : undefined,
         isInterest: isCheckingSelected && selectedCard?.isSaving ? isInterest : undefined,
-      });
+      }, selectedCardId, keepInLogPage);
 
       resetForm();
       setShowToast(true);
@@ -728,16 +798,27 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
                   </View>
                 ) : (
                   <TouchableOpacity
-                    style={styles.selectorButton}
+                    style={[
+                      styles.selectorButton,
+                      selectedSourceCard && {
+                        borderLeftWidth: 6,
+                        borderLeftColor: getCardTypeStyles(selectedSourceCard).border,
+                      }
+                    ]}
                     onPress={() => setSourceModalVisible(true)}
                   >
                     <View style={styles.selectorButtonInner}>
-                      <Text style={styles.selectorButtonText} numberOfLines={1}>
+                      <Text
+                        style={[
+                          styles.selectorButtonText,
+                          selectedSourceCard && { color: getCardTypeStyles(selectedSourceCard).optionColor, fontWeight: '600' }
+                        ]}
+                        numberOfLines={1}
+                      >
                         {selectedSourceCard
-                          ? selectedSourceCard.name
+                          ? `${getCardTypeStyles(selectedSourceCard).prefix}${selectedSourceCard.name}`
                           : 'Select Source'}
                       </Text>
-                      {selectedSourceCard && renderCardBadge(selectedSourceCard)}
                     </View>
                     <Text style={styles.dropdownArrow}>▼</Text>
                   </TouchableOpacity>
@@ -780,16 +861,27 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
                   </View>
                 ) : (
                   <TouchableOpacity
-                    style={styles.selectorButton}
+                    style={[
+                      styles.selectorButton,
+                      selectedTargetCard && {
+                        borderLeftWidth: 6,
+                        borderLeftColor: getCardTypeStyles(selectedTargetCard).border,
+                      }
+                    ]}
                     onPress={() => setTargetModalVisible(true)}
                   >
                     <View style={styles.selectorButtonInner}>
-                      <Text style={styles.selectorButtonText} numberOfLines={1}>
+                      <Text
+                        style={[
+                          styles.selectorButtonText,
+                          selectedTargetCard && { color: getCardTypeStyles(selectedTargetCard).optionColor, fontWeight: '600' }
+                        ]}
+                        numberOfLines={1}
+                      >
                         {selectedTargetCard
-                          ? selectedTargetCard.name
+                          ? `${getCardTypeStyles(selectedTargetCard).prefix}${selectedTargetCard.name}`
                           : 'Select Target'}
                       </Text>
-                      {selectedTargetCard && renderCardBadge(selectedTargetCard)}
                     </View>
                     <Text style={styles.dropdownArrow}>▼</Text>
                   </TouchableOpacity>
@@ -823,15 +915,14 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
                     onChange={(e: any) => setDate(e.target.value)}
                   />
                 ) : (
-                  <TextInput
-                    style={[styles.input, styles.centeredInput]}
-                    value={date}
-                    onChangeText={setDate}
-                    placeholder="YYYY-MM-DD"
-                    placeholderTextColor="#94a3b8"
-                    returnKeyType="done"
-                    onSubmitEditing={Keyboard.dismiss}
-                  />
+                  <TouchableOpacity
+                    style={[styles.input, { justifyContent: 'center', height: 42 }]}
+                    onPress={openDatePicker}
+                  >
+                    <Text style={{ textAlign: 'center', fontSize: 14, fontWeight: '600', color: '#0f172a' }}>
+                      📅 {date || 'Select Date'}
+                    </Text>
+                  </TouchableOpacity>
                 )}
               </View>
             </View>
@@ -901,16 +992,27 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
                   </View>
                 ) : (
                   <TouchableOpacity
-                    style={styles.selectorButton}
+                    style={[
+                      styles.selectorButton,
+                      selectedCard && {
+                        borderLeftWidth: 6,
+                        borderLeftColor: getCardTypeStyles(selectedCard).border,
+                      }
+                    ]}
                     onPress={() => setCardModalVisible(true)}
                   >
                     <View style={styles.selectorButtonInner}>
-                      <Text style={styles.selectorButtonText} numberOfLines={1}>
+                      <Text
+                        style={[
+                          styles.selectorButtonText,
+                          selectedCard && { color: getCardTypeStyles(selectedCard).optionColor, fontWeight: '600' }
+                        ]}
+                        numberOfLines={1}
+                      >
                         {selectedCard
-                          ? selectedCard.name
+                          ? `${getCardTypeStyles(selectedCard).prefix}${selectedCard.name}`
                           : 'Select Card/Account'}
                       </Text>
-                      {selectedCard && renderCardBadge(selectedCard)}
                     </View>
                     <Text style={styles.dropdownArrow}>▼</Text>
                   </TouchableOpacity>
@@ -1007,15 +1109,14 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
                     onChange={(e: any) => setDate(e.target.value)}
                   />
                 ) : (
-                  <TextInput
-                    style={[styles.input, styles.centeredInput]}
-                    value={date}
-                    onChangeText={setDate}
-                    placeholder="YYYY-MM-DD"
-                    placeholderTextColor="#94a3b8"
-                    returnKeyType="done"
-                    onSubmitEditing={Keyboard.dismiss}
-                  />
+                  <TouchableOpacity
+                    style={[styles.input, { justifyContent: 'center', height: 42 }]}
+                    onPress={openDatePicker}
+                  >
+                    <Text style={{ textAlign: 'center', fontSize: 14, fontWeight: '600', color: '#0f172a' }}>
+                      📅 {date || 'Select Date'}
+                    </Text>
+                  </TouchableOpacity>
                 )}
               </View>
             </View>
@@ -1189,6 +1290,22 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
           </>
         )}
 
+        {/* Multiple Log Creation Toggle */}
+        {!editingExpense && (
+          <TouchableOpacity
+            style={styles.keepInPageRow}
+            onPress={() => setKeepInLogPage(!keepInLogPage)}
+            activeOpacity={0.8}
+          >
+            <View style={[styles.checkboxBox, keepInLogPage && styles.checkboxBoxChecked]}>
+              {keepInLogPage && <Text style={styles.checkboxCheckmark}>✓</Text>}
+            </View>
+            <Text style={styles.keepInPageText}>
+              Create multiple logs (stay on this page)
+            </Text>
+          </TouchableOpacity>
+        )}
+
         {/* Action Buttons */}
         <View style={styles.buttonContainer}>
           {editingExpense && (
@@ -1206,7 +1323,7 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
     </View>
   </TouchableWithoutFeedback>
 
-      {/* Credit Card / Standard Account Modal Picker (Brokerage excluded from standard transactions) */}
+      {/* Credit Card / Standard Account Modal Picker */}
       <Modal
         visible={cardModalVisible}
         transparent={true}
@@ -1219,27 +1336,39 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
             <FlatList
               data={cards.filter(c => !c.isBrokerage && !isClosedCard(c) && !c.isHidden)}
               keyExtractor={item => item.id}
-              renderItem={({ item }) => (
-                <TouchableOpacity
-                  style={[
-                    styles.modalItem,
-                    { backgroundColor: getCardBgColor(item), marginVertical: 4, borderRadius: 4 },
-                    selectedCardId === item.id && { borderWidth: 2, borderColor: '#0f172a' }
-                  ]}
-                  onPress={() => {
-                    setSelectedCardId(item.id);
-                    setCardModalVisible(false);
-                  }}
-                >
-                  <Text style={[
-                    styles.modalItemText,
-                    { color: getCardTextColor(item) },
-                    selectedCardId === item.id && { fontWeight: '700' }
-                  ]}>
-                    {item.name}
-                  </Text>
-                </TouchableOpacity>
-              )}
+              renderItem={({ item }) => {
+                const t = getCardTypeStyles(item);
+                const isSelected = selectedCardId === item.id;
+                return (
+                  <TouchableOpacity
+                    style={[
+                      styles.modalItem,
+                      {
+                        backgroundColor: t.optionBg,
+                        borderLeftWidth: 6,
+                        borderLeftColor: t.border,
+                        marginVertical: 4,
+                        borderRadius: 8,
+                        borderWidth: isSelected ? 2 : 1,
+                        borderColor: isSelected ? t.border : '#e2e8f0',
+                      },
+                    ]}
+                    onPress={() => {
+                      setSelectedCardId(item.id);
+                      setCardModalVisible(false);
+                    }}
+                  >
+                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <Text style={[styles.modalItemText, { color: t.optionColor, fontWeight: isSelected ? '700' : '600' }]}>
+                        {t.prefix}{item.name}
+                      </Text>
+                      {isSelected && (
+                        <Text style={{ color: t.border, fontWeight: '800', fontSize: 16 }}>✓</Text>
+                      )}
+                    </View>
+                  </TouchableOpacity>
+                );
+              }}
             />
             <TouchableOpacity style={styles.modalCloseButton} onPress={() => setCardModalVisible(false)}>
               <Text style={styles.modalCloseButtonText}>Close</Text>
@@ -1261,25 +1390,36 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
             <FlatList
               data={CATEGORIES}
               keyExtractor={item => item}
-              renderItem={({ item }) => (
-                <TouchableOpacity
-                  style={[
-                    styles.modalItem,
-                    category === item && styles.modalItemSelected
-                  ]}
-                  onPress={() => {
-                    setCategory(item);
-                    setCategoryModalVisible(false);
-                  }}
-                >
-                  <Text style={[
-                    styles.modalItemText,
-                    category === item && styles.modalItemTextSelected
-                  ]}>
-                    {item}
-                  </Text>
-                </TouchableOpacity>
-              )}
+              renderItem={({ item }) => {
+                const isSelected = category === item;
+                return (
+                  <TouchableOpacity
+                    style={[
+                      styles.modalItem,
+                      {
+                        backgroundColor: isSelected ? '#f1f5f9' : '#ffffff',
+                        marginVertical: 4,
+                        borderRadius: 8,
+                        borderWidth: isSelected ? 2 : 1,
+                        borderColor: isSelected ? '#0f172a' : '#e2e8f0',
+                      },
+                    ]}
+                    onPress={() => {
+                      setCategory(item);
+                      setCategoryModalVisible(false);
+                    }}
+                  >
+                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <Text style={[styles.modalItemText, { color: '#0f172a', fontWeight: isSelected ? '700' : '500' }]}>
+                        {item}
+                      </Text>
+                      {isSelected && (
+                        <Text style={{ color: '#0f172a', fontWeight: '800', fontSize: 16 }}>✓</Text>
+                      )}
+                    </View>
+                  </TouchableOpacity>
+                );
+              }}
             />
             <TouchableOpacity style={styles.modalCloseButton} onPress={() => setCategoryModalVisible(false)}>
               <Text style={styles.modalCloseButtonText}>Close</Text>
@@ -1301,27 +1441,39 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
             <FlatList
               data={depositAccounts}
               keyExtractor={item => item.id}
-              renderItem={({ item }) => (
-                <TouchableOpacity
-                  style={[
-                    styles.modalItem,
-                    { backgroundColor: getCardBgColor(item), marginVertical: 4, borderRadius: 4 },
-                    selectedSourceCardId === item.id && { borderWidth: 2, borderColor: '#0f172a' }
-                  ]}
-                  onPress={() => {
-                    setSelectedSourceCardId(item.id);
-                    setSourceModalVisible(false);
-                  }}
-                >
-                  <Text style={[
-                    styles.modalItemText,
-                    { color: getCardTextColor(item) },
-                    selectedSourceCardId === item.id && { fontWeight: '700' }
-                  ]}>
-                    {item.name}
-                  </Text>
-                </TouchableOpacity>
-              )}
+              renderItem={({ item }) => {
+                const t = getCardTypeStyles(item);
+                const isSelected = selectedSourceCardId === item.id;
+                return (
+                  <TouchableOpacity
+                    style={[
+                      styles.modalItem,
+                      {
+                        backgroundColor: t.optionBg,
+                        borderLeftWidth: 6,
+                        borderLeftColor: t.border,
+                        marginVertical: 4,
+                        borderRadius: 8,
+                        borderWidth: isSelected ? 2 : 1,
+                        borderColor: isSelected ? t.border : '#e2e8f0',
+                      },
+                    ]}
+                    onPress={() => {
+                      setSelectedSourceCardId(item.id);
+                      setSourceModalVisible(false);
+                    }}
+                  >
+                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <Text style={[styles.modalItemText, { color: t.optionColor, fontWeight: isSelected ? '700' : '600' }]}>
+                        {t.prefix}{item.name}
+                      </Text>
+                      {isSelected && (
+                        <Text style={{ color: t.border, fontWeight: '800', fontSize: 16 }}>✓</Text>
+                      )}
+                    </View>
+                  </TouchableOpacity>
+                );
+              }}
             />
             <TouchableOpacity style={styles.modalCloseButton} onPress={() => setSourceModalVisible(false)}>
               <Text style={styles.modalCloseButtonText}>Close</Text>
@@ -1343,31 +1495,159 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
             <FlatList
               data={targetAccountsList}
               keyExtractor={item => item.id}
-              renderItem={({ item }) => (
-                <TouchableOpacity
-                  style={[
-                    styles.modalItem,
-                    { backgroundColor: getCardBgColor(item), marginVertical: 4, borderRadius: 4 },
-                    selectedTargetCardId === item.id && { borderWidth: 2, borderColor: '#0f172a' }
-                  ]}
-                  onPress={() => {
-                    setSelectedTargetCardId(item.id);
-                    setTargetModalVisible(false);
-                  }}
-                >
-                  <Text style={[
-                    styles.modalItemText,
-                    { color: getCardTextColor(item) },
-                    selectedTargetCardId === item.id && { fontWeight: '700' }
-                  ]}>
-                    {item.name}
-                  </Text>
-                </TouchableOpacity>
-              )}
+              renderItem={({ item }) => {
+                const t = getCardTypeStyles(item);
+                const isSelected = selectedTargetCardId === item.id;
+                return (
+                  <TouchableOpacity
+                    style={[
+                      styles.modalItem,
+                      {
+                        backgroundColor: t.optionBg,
+                        borderLeftWidth: 6,
+                        borderLeftColor: t.border,
+                        marginVertical: 4,
+                        borderRadius: 8,
+                        borderWidth: isSelected ? 2 : 1,
+                        borderColor: isSelected ? t.border : '#e2e8f0',
+                      },
+                    ]}
+                    onPress={() => {
+                      setSelectedTargetCardId(item.id);
+                      setTargetModalVisible(false);
+                    }}
+                  >
+                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <Text style={[styles.modalItemText, { color: t.optionColor, fontWeight: isSelected ? '700' : '600' }]}>
+                        {t.prefix}{item.name}
+                      </Text>
+                      {isSelected && (
+                        <Text style={{ color: t.border, fontWeight: '800', fontSize: 16 }}>✓</Text>
+                      )}
+                    </View>
+                  </TouchableOpacity>
+                );
+              }}
             />
             <TouchableOpacity style={styles.modalCloseButton} onPress={() => setTargetModalVisible(false)}>
               <Text style={styles.modalCloseButtonText}>Close</Text>
             </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Calendar Date Picker Modal (for Mobile App) */}
+      <Modal
+        visible={datePickerVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setDatePickerVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { maxWidth: 360, alignSelf: 'center', width: '90%', borderRadius: 16 }]}>
+            {/* Header: Month & Year + Navigation */}
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <TouchableOpacity
+                onPress={handlePrevMonth}
+                style={{ padding: 8, borderRadius: 8, backgroundColor: '#f1f5f9', borderWidth: 1, borderColor: '#e2e8f0' }}
+              >
+                <Text style={{ fontSize: 14, fontWeight: '700', color: '#0f172a' }}>◀</Text>
+              </TouchableOpacity>
+              <Text style={{ fontSize: 16, fontWeight: '800', color: '#0f172a', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                {MONTH_NAMES[calendarMonth]} {calendarYear}
+              </Text>
+              <TouchableOpacity
+                onPress={handleNextMonth}
+                style={{ padding: 8, borderRadius: 8, backgroundColor: '#f1f5f9', borderWidth: 1, borderColor: '#e2e8f0' }}
+              >
+                <Text style={{ fontSize: 14, fontWeight: '700', color: '#0f172a' }}>▶</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Days of Week Header */}
+            <View style={{ flexDirection: 'row', marginBottom: 8 }}>
+              {DAYS_OF_WEEK.map(d => (
+                <View key={d} style={{ flex: 1, alignItems: 'center' }}>
+                  <Text style={{ fontSize: 12, fontWeight: '700', color: '#64748b' }}>{d}</Text>
+                </View>
+              ))}
+            </View>
+
+            {/* Days Grid */}
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+              {getCalendarDays().map((day, idx) => {
+                if (day === null) {
+                  return <View key={`empty-${idx}`} style={{ width: `${100 / 7}%`, height: 38 }} />;
+                }
+                const dayStr = `${calendarYear}-${String(calendarMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                const isSelected = date === dayStr;
+                const isToday = getTodayString() === dayStr;
+                return (
+                  <TouchableOpacity
+                    key={`day-${day}`}
+                    style={[
+                      {
+                        width: `${100 / 7}%`,
+                        height: 38,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        borderRadius: 8,
+                        marginVertical: 2,
+                      },
+                      isSelected && { backgroundColor: '#0f172a' },
+                      isToday && !isSelected && { borderWidth: 1, borderColor: '#0f172a' },
+                    ]}
+                    onPress={() => handleSelectDay(day)}
+                  >
+                    <Text
+                      style={[
+                        { fontSize: 14, fontWeight: '600', color: '#0f172a' },
+                        isSelected && { color: '#ffffff', fontWeight: '800' },
+                      ]}
+                    >
+                      {day}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            {/* Quick Today & Cancel Buttons */}
+            <View style={{ flexDirection: 'row', gap: 10, marginTop: 16 }}>
+              <TouchableOpacity
+                style={{
+                  flex: 1,
+                  backgroundColor: '#f1f5f9',
+                  borderRadius: 8,
+                  paddingVertical: 12,
+                  alignItems: 'center',
+                  borderWidth: 1,
+                  borderColor: '#cbd5e1',
+                }}
+                onPress={() => {
+                  setDate(getTodayString());
+                  setDatePickerVisible(false);
+                }}
+              >
+                <Text style={{ color: '#0f172a', fontWeight: '700', fontSize: 12, textTransform: 'uppercase' }}>
+                  Today
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={{
+                  flex: 1,
+                  backgroundColor: '#0f172a',
+                  borderRadius: 8,
+                  paddingVertical: 12,
+                  alignItems: 'center',
+                }}
+                onPress={() => setDatePickerVisible(false)}
+              >
+                <Text style={{ color: '#ffffff', fontWeight: '700', fontSize: 12, textTransform: 'uppercase' }}>
+                  Close
+                </Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </Modal>
@@ -1596,6 +1876,41 @@ const styles = StyleSheet.create({
   },
   activeQuickDateText: {
     color: '#ffffff',
+  },
+  keepInPageRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    marginTop: 8,
+    marginBottom: 14,
+    paddingVertical: 4,
+    alignSelf: 'center',
+  },
+  checkboxBox: {
+    width: 20,
+    height: 20,
+    borderRadius: 5,
+    borderWidth: 1.5,
+    borderColor: '#94a3b8',
+    backgroundColor: '#ffffff',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkboxBoxChecked: {
+    backgroundColor: '#0f172a',
+    borderColor: '#0f172a',
+  },
+  checkboxCheckmark: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: '900',
+    lineHeight: 14,
+  },
+  keepInPageText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#475569',
   },
   buttonContainer: {
     flexDirection: 'row',
