@@ -310,7 +310,9 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
   };
 
   const handleQuickDateSelect = (type: 'today' | 'yesterday') => {
-    Keyboard.dismiss();
+    if (Platform.OS !== 'web') {
+      Keyboard.dismiss();
+    }
     if (type === 'today') {
       setDate(getTodayString());
     } else {
@@ -319,14 +321,17 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
   };
 
   const handleSubmit = () => {
-    Keyboard.dismiss();
+    if (Platform.OS !== 'web') {
+      Keyboard.dismiss();
+    }
     const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
     if (!dateRegex.test(date)) {
       showAlert('Error', 'Please enter a valid date in YYYY-MM-DD format.');
       return;
     }
 
-    const parsedAmount = parseFloat(amount);
+    const cleanAmount = (amount || '').trim().replace(/^\$/, '');
+    const parsedAmount = parseFloat(cleanAmount);
 
     if (logType === 'transfer') {
       // 1. Transfer Submit Validation
@@ -414,8 +419,9 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
         }
 
         if (isReward) {
-          const rewardVal = parseFloat(rewardValue) || 0;
-          const creditVal = parseFloat(amount) || 0;
+          const cleanReward = (rewardValue || '').trim().replace(/^\$/, '');
+          const rewardVal = parseFloat(cleanReward) || 0;
+          const creditVal = parseFloat(cleanAmount) || 0;
           if (rewardVal <= 0 && creditVal <= 0) {
             showAlert('Error', 'Please enter a valid Reward or Credit value.');
             return;
@@ -453,8 +459,9 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
       } else {
         // Credit Card Spends/Fees/Rewards
         if (isReward) {
-          finalRewardValue = parseFloat(rewardValue) || 0;
-          const creditVal = parseFloat(amount) || 0;
+          const cleanReward = (rewardValue || '').trim().replace(/^\$/, '');
+          finalRewardValue = parseFloat(cleanReward) || 0;
+          const creditVal = parseFloat(cleanAmount) || 0;
           finalAmount = -creditVal; // Negative represents credit reducing CC owed balance
         } else if (isFee) {
           finalAmount = parsedAmount;
@@ -528,8 +535,12 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
         automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
         showsVerticalScrollIndicator={false}
       >
-        <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
-          <View>
+        <TouchableWithoutFeedback
+          onPress={Platform.OS !== 'web' ? Keyboard.dismiss : undefined}
+          accessible={false}
+          disabled={Platform.OS === 'web'}
+        >
+          <View style={Platform.OS === 'web' ? { width: '100%', alignItems: 'center' } : undefined}>
             {showToast && (
               <View style={styles.toastContainer}>
                 <Text style={styles.toastText}>✓ Log successfully added!</Text>
@@ -1118,7 +1129,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
-    paddingBottom: Platform.OS === 'ios' ? 380 : 300,
+    paddingBottom: Platform.OS === 'ios' ? 380 : Platform.OS === 'web' ? 40 : 300,
   },
   formCard: {
     backgroundColor: '#ffffff',
@@ -1127,6 +1138,9 @@ const styles = StyleSheet.create({
     margin: 16,
     borderWidth: 1,
     borderColor: '#cbd5e1',
+    maxWidth: 600,
+    width: Platform.OS === 'web' ? '100%' : undefined,
+    alignSelf: 'center',
   },
   formTitle: {
     fontSize: 16,
@@ -1496,6 +1510,9 @@ const styles = StyleSheet.create({
     marginTop: 16,
     alignItems: 'center',
     justifyContent: 'center',
+    maxWidth: 600,
+    width: Platform.OS === 'web' ? '100%' : undefined,
+    alignSelf: 'center',
   },
   toastText: {
     color: '#15803d',
