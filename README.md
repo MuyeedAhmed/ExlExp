@@ -1,10 +1,12 @@
-# ExlExp — Excel-Style Personal Expense & Credit Card Tracker
+# ExlExp — Excel-Style Personal Expense Tracker
 
-**ExlExp** is a simple, spreadsheet-inspired personal finance and expense tracking application built with **React Native (Expo)**, **TypeScript**, and a robust **PostgreSQL / Supabase** backend. Designed for speed, precision, and clarity, ExlExp brings the simplicity and density of a financial spreadsheet to your web browser and mobile devices.
+**ExlExp** is a simple, spreadsheet-inspired personal finance and expense tracking application built with **React Native (Expo)**, **TypeScript**, and **PostgreSQL / Supabase** backend. Designed for speed, precision, and clarity, ExlExp brings the simplicity and density of a financial spreadsheet to your web browser and mobile devices.
+
+Live link: https://exlexp.vercel.app/
 
 ---
 
-## 📸 Screenshots & Highlights
+## Screenshots & Highlights
 
 ### 1. Financial Summary & 12-Month Spending Trend
 Real-time net financial position calculation, balance totals, upcoming bills, and an interactive 12-month rolling spending bar chart with monthly averages.
@@ -51,37 +53,37 @@ Manage all bank accounts (Checking, Savings, Brokerage) and Credit Cards. Easily
 
 ---
 
-## ✨ Key Features
+## Features
 
-- **📊 Comprehensive Financial Summary**:
+- ** Comprehensive Financial Summary**:
   - Net financial position calculated across all checking, savings, brokerage, and credit cards.
   - Upcoming scheduled bills tracking with quick-delete and total estimation.
 
-- **📈 12-Month Rolling Spending Trend**:
+- ** 12-Month Rolling Spending Trend**:
   - Interactive bar chart showing monthly spending history.
   - One-tap month selection to inspect category distributions.
   - 12-Month Total and Monthly Average KPI metrics.
 
-- **🎯 Spending Distribution Wheel**:
+- ** Spending Distribution Wheel**:
   - Color-coded category distribution donut chart.
   - Deterministic category color mapping for month-over-month consistency.
   - Progress bar breakdowns showing exact dollar amounts and percentage shares.
 
-- **💳 Credit Card Management Hub**:
+- ** Credit Card Management Hub**:
   - Individual credit ages and automated Average Credit Age calculation.
   - Total lifetime spent, payments made, reward points earned, and annual fees tracked.
   - Quick inline date editor for card opening dates.
 
-- **🏛️ Checking, Savings & Brokerage Tracking**:
+- ** Checking, Savings & Brokerage Tracking**:
   - Dedicated account registries with real-time balance tracking.
   - Full transaction history with edit and delete capabilities.
 
-- **⚡ Streamlined Transaction Logging**:
+- ** Streamlined Transaction Logging**:
   - Supports standard expenses, income/deposits, refunds, annual fees, and rewards.
   - Inter-account balance transfers and Zelle split-logging.
   - Mobile-friendly date picker and keyboard-avoiding controls.
 
-- **🔒 Security & User Management**:
+- ** Security & User Management**:
   - Multi-user authentication support.
   - In-app username and password updates.
 
@@ -146,34 +148,6 @@ Manage all bank accounts (Checking, Savings, Brokerage) and Credit Cards. Easily
   ```bash
   npm start
   ```
-
----
-
-## 📁 Project Structure
-
-```
-ExlExp/
-├── assets/
-│   └── Screenshots/        # App screenshots for documentation
-│       ├── Analytics1.jpg
-│       ├── Analytics2.jpg
-│       ├── CC_Overview.jpg
-│       ├── Log.jpg
-│       └── Settings.jpg
-├── src/
-│   ├── components/
-│   │   ├── CheckingTab.tsx    # Checking, Savings & Brokerage accounts view
-│   │   ├── CreditCardsTab.tsx # Credit card matrix & age tracker
-│   │   ├── Dashboard.tsx      # Financial summary & analytics charts
-│   │   ├── ExpenseForm.tsx    # Transaction & transfer logger
-│   │   └── Settings.tsx       # Account & profile management
-│   ├── database/              # PostgreSQL / Supabase sync utilities
-│   ├── storage.ts             # Data layer, caching, and state management
-│   └── types.ts               # Core TypeScript type definitions
-├── App.tsx                    # Root application entry & navigation
-├── package.json
-└── tsconfig.json
-```
 
 ---
 
