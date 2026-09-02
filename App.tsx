@@ -441,6 +441,7 @@ export default function App() {
             onToggleCardVisibility={handleToggleCardVisibility}
             username={currentUser!}
             onLogout={handleLogout}
+            onUsernameChange={setCurrentUser}
           />
         );
       default:

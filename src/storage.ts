@@ -327,3 +327,112 @@ export const saveFutureExpenses = async (futureExpenses: FutureExpense[], userna
   }
 };
 
+export const updatePassword = async (
+  username: string,
+  currentPass: string,
+  newPass: string
+): Promise<{ success: boolean; error?: string }> => {
+  try {
+    const trimmedUsername = username.trim().toLowerCase();
+    const { data: user, error: fetchErr } = await supabase
+      .from('users')
+      .select('*')
+      .eq('username', trimmedUsername)
+      .maybeSingle();
+
+    if (fetchErr) throw fetchErr;
+    if (!user || user.password !== currentPass) {
+      return { success: false, error: 'Incorrect current password.' };
+    }
+
+    const { error: updateErr } = await supabase
+      .from('users')
+      .update({ password: newPass })
+      .eq('username', trimmedUsername);
+
+    if (updateErr) throw updateErr;
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err.message || 'Failed to update password.' };
+  }
+};
+
+export const updateUsername = async (
+  oldUsername: string,
+  newUsername: string,
+  currentPass: string
+): Promise<{ success: boolean; error?: string }> => {
+  try {
+    const trimmedOld = oldUsername.trim().toLowerCase();
+    const trimmedNew = newUsername.trim().toLowerCase();
+
+    if (!trimmedNew) {
+      return { success: false, error: 'New username cannot be empty.' };
+    }
+    if (trimmedOld === trimmedNew) {
+      return { success: false, error: 'New username must be different from current username.' };
+    }
+
+    // 1. Verify current password
+    const { data: user, error: fetchErr } = await supabase
+      .from('users')
+      .select('*')
+      .eq('username', trimmedOld)
+      .maybeSingle();
+
+    if (fetchErr) throw fetchErr;
+    if (!user || user.password !== currentPass) {
+      return { success: false, error: 'Incorrect current password.' };
+    }
+
+    // 2. Check if new username is already taken
+    const { data: existing, error: checkErr } = await supabase
+      .from('users')
+      .select('username')
+      .eq('username', trimmedNew)
+      .maybeSingle();
+
+    if (checkErr) throw checkErr;
+    if (existing) {
+      return { success: false, error: 'Username is already taken.' };
+    }
+
+    // 3. Create new user entry with new username and same password
+    const { error: insertErr } = await supabase
+      .from('users')
+      .insert([{ username: trimmedNew, password: currentPass }]);
+
+    if (insertErr) throw insertErr;
+
+    // 4. Update expenses, credit_cards, future_expenses to new username
+    await Promise.all([
+      supabase.from('expenses').update({ username: trimmedNew }).eq('username', trimmedOld),
+      supabase.from('credit_cards').update({ username: trimmedNew }).eq('username', trimmedOld),
+      supabase.from('future_expenses').update({ username: trimmedNew }).eq('username', trimmedOld),
+    ]);
+
+    // 5. Delete old user entry
+    await supabase.from('users').delete().eq('username', trimmedOld);
+
+    // 6. Migrate AsyncStorage local cache
+    try {
+      const [exp, cards, future] = await Promise.all([
+        AsyncStorage.getItem(`@ExlExp:${trimmedOld}:expenses`),
+        AsyncStorage.getItem(`@ExlExp:${trimmedOld}:credit_cards`),
+        AsyncStorage.getItem(`@ExlExp:${trimmedOld}:future_expenses`),
+      ]);
+      if (exp) await AsyncStorage.setItem(`@ExlExp:${trimmedNew}:expenses`, exp);
+      if (cards) await AsyncStorage.setItem(`@ExlExp:${trimmedNew}:credit_cards`, cards);
+      if (future) await AsyncStorage.setItem(`@ExlExp:${trimmedNew}:future_expenses`, future);
+      await AsyncStorage.setItem('@ExlExp:currentUser', trimmedNew);
+    } catch (e) {
+      console.warn('AsyncStorage migration error:', e);
+    }
+
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err.message || 'Failed to update username.' };
+  }
+};
+
+
