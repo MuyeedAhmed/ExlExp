@@ -23,6 +23,7 @@ interface SettingsProps {
   username: string;
   onLogout: () => void;
   onUsernameChange?: (newUsername: string) => void;
+  onUpdateCard?: (updatedCard: CreditCard) => void;
 }
 
 export const Settings: React.FC<SettingsProps> = ({
@@ -35,9 +36,13 @@ export const Settings: React.FC<SettingsProps> = ({
   username,
   onLogout,
   onUsernameChange,
+  onUpdateCard,
 }) => {
+  const todayStr = new Date().toISOString().split('T')[0];
+
   // New Card Form State
   const [cardName, setCardName] = useState('');
+  const [cardOpenDate, setCardOpenDate] = useState(todayStr);
 
   // New Checking/Saving Account Form State
   const [checkingName, setCheckingName] = useState('');
@@ -46,6 +51,7 @@ export const Settings: React.FC<SettingsProps> = ({
   // Renaming Card State
   const [editingCardId, setEditingCardId] = useState<string | null>(null);
   const [editingCardName, setEditingCardName] = useState<string>('');
+  const [editingCardOpenDate, setEditingCardOpenDate] = useState<string>(todayStr);
 
   // User Password Update State
   const [currentPassword, setCurrentPassword] = useState('');
@@ -133,9 +139,10 @@ export const Settings: React.FC<SettingsProps> = ({
     }
   };
 
-  const handleStartRename = (id: string, currentName: string) => {
+  const handleStartRename = (id: string, currentName: string, currentOpenDate?: string) => {
     setEditingCardId(id);
     setEditingCardName(currentName);
+    setEditingCardOpenDate(currentOpenDate || todayStr);
   };
 
   const handleSaveRename = (id: string) => {
@@ -143,7 +150,16 @@ export const Settings: React.FC<SettingsProps> = ({
       showAlert('Error', 'Card/account name cannot be empty.');
       return;
     }
-    onRenameCard(id, editingCardName.trim());
+    const card = cards.find(c => c.id === id);
+    if (card && onUpdateCard) {
+      onUpdateCard({
+        ...card,
+        name: editingCardName.trim(),
+        openDate: editingCardOpenDate || card.openDate || todayStr
+      });
+    } else {
+      onRenameCard(id, editingCardName.trim());
+    }
     setEditingCardId(null);
   };
 
@@ -158,9 +174,11 @@ export const Settings: React.FC<SettingsProps> = ({
       isChecking: false,
       isSaving: false,
       isBrokerage: false,
+      openDate: cardOpenDate || todayStr,
     });
 
     setCardName('');
+    setCardOpenDate(todayStr);
   };
 
   const handleAddChecking = () => {
@@ -360,10 +378,17 @@ export const Settings: React.FC<SettingsProps> = ({
         {/* Add Card Form */}
         <View style={styles.formContainer}>
           <TextInput
-            style={[styles.input, { flex: 1 }]}
+            style={[styles.input, { flex: 2 }]}
             value={cardName}
             onChangeText={setCardName}
             placeholder="Card Name (e.g. Sapphire Preferred)"
+            placeholderTextColor="#94a3b8"
+          />
+          <TextInput
+            style={[styles.input, { flex: 1, minWidth: 110 }]}
+            value={cardOpenDate}
+            onChangeText={setCardOpenDate}
+            placeholder="YYYY-MM-DD"
             placeholderTextColor="#94a3b8"
           />
           <TouchableOpacity style={styles.addButton} onPress={handleAddCard}>
@@ -390,27 +415,51 @@ export const Settings: React.FC<SettingsProps> = ({
 
                 <View style={[styles.listItemTextContainer, { flex: 1 }]}>
                   {editingCardId === card.id ? (
-                    <TextInput
-                      style={[
-                        styles.input,
-                        {
-                          flex: 1,
-                          height: 30,
-                          fontSize: 14,
-                          paddingVertical: 2,
-                          paddingHorizontal: 8,
-                          marginRight: 12
-                        }
-                      ]}
-                      value={editingCardName}
-                      onChangeText={setEditingCardName}
-                      autoFocus
-                    />
+                    <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+                      <TextInput
+                        style={[
+                          styles.input,
+                          {
+                            flex: 2,
+                            height: 32,
+                            fontSize: 13,
+                            paddingVertical: 2,
+                            paddingHorizontal: 8,
+                            minWidth: 120,
+                          }
+                        ]}
+                        value={editingCardName}
+                        onChangeText={setEditingCardName}
+                        placeholder="Card Name"
+                        autoFocus
+                      />
+                      <TextInput
+                        style={[
+                          styles.input,
+                          {
+                            flex: 1,
+                            height: 32,
+                            fontSize: 13,
+                            paddingVertical: 2,
+                            paddingHorizontal: 8,
+                            minWidth: 100,
+                          }
+                        ]}
+                        value={editingCardOpenDate}
+                        onChangeText={setEditingCardOpenDate}
+                        placeholder="YYYY-MM-DD"
+                      />
+                    </View>
                   ) : (
-                    <Text style={[styles.listItemTitle, card.isHidden && styles.hiddenCardTitle]}>
-                      {card.name}
-                      {card.isHidden && ' (Hidden)'}
-                    </Text>
+                    <>
+                      <Text style={[styles.listItemTitle, card.isHidden && styles.hiddenCardTitle]}>
+                        {card.name}
+                        {card.isHidden && ' (Hidden)'}
+                      </Text>
+                      <Text style={styles.listItemSub}>
+                        Opened: {card.openDate || 'Not set'}
+                      </Text>
+                    </>
                   )}
                 </View>
                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
@@ -441,9 +490,9 @@ export const Settings: React.FC<SettingsProps> = ({
                       </TouchableOpacity>
                       <TouchableOpacity
                         style={styles.editButton}
-                        onPress={() => handleStartRename(card.id, card.name)}
+                        onPress={() => handleStartRename(card.id, card.name, card.openDate)}
                       >
-                        <Text style={styles.editButtonText}>Rename</Text>
+                        <Text style={styles.editButtonText}>Edit</Text>
                       </TouchableOpacity>
                       <TouchableOpacity
                         style={styles.deleteButton}

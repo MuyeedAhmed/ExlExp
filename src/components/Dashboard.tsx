@@ -20,6 +20,7 @@ interface DashboardProps {
   futureExpenses: FutureExpense[];
   onAddFutureExpense: (expense: Omit<FutureExpense, 'id'>) => void;
   onDeleteFutureExpense: (id: string) => void;
+  onNavigateToSettings?: () => void;
 }
 
 export const Dashboard: React.FC<DashboardProps> = ({
@@ -28,6 +29,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
   futureExpenses,
   onAddFutureExpense,
   onDeleteFutureExpense,
+  onNavigateToSettings,
 }) => {
   const { width } = useWindowDimensions();
   const isWeb = width > 768;
@@ -51,10 +53,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
     return Array.from(monthsSet).sort().reverse();
   }, [expenses]);
 
-  const [selectedMonth, setSelectedMonth] = useState<string>(() => {
-    const today = new Date();
-    return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
-  });
+  const [selectedMonth, setSelectedMonth] = useState<string>('');
   const activeMonth = selectedMonth || availableMonths[0] || '';
 
   const formatMonthLabel = (monthStr: string) => {
@@ -187,6 +186,25 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer} keyboardShouldPersistTaps="handled">
+      {cards.length === 0 && (
+        <View style={styles.emptyWelcomeBanner}>
+          <Text style={styles.emptyWelcomeTitle}>👋 Welcome to ExlExp!</Text>
+          <Text style={styles.emptyWelcomeSub}>
+            You don't have any accounts or credit cards set up yet. Get started by adding your credit cards, checking, or savings accounts.
+          </Text>
+          {onNavigateToSettings && (
+            <View style={styles.emptyWelcomeActions}>
+              <TouchableOpacity
+                style={styles.emptyWelcomePrimaryBtn}
+                onPress={onNavigateToSettings}
+              >
+                <Text style={styles.emptyWelcomePrimaryBtnText}>+ Add Credit Card or Bank Account</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
+      )}
+
       <Text style={styles.title}>Financial Summary</Text>
 
       {/* Main Balances - Spreadsheet Grid Style */}
@@ -232,10 +250,15 @@ export const Dashboard: React.FC<DashboardProps> = ({
           <Text style={[styles.sheetHeaderCell, { flex: 1, textAlign: 'right' }]}>Current Balance</Text>
         </View>
         {activeCheckingAccounts.length === 0 ? (
-          <View style={styles.sheetRow}>
-            <Text style={[styles.sheetCell, { flex: 3, textAlign: 'center', color: '#64748b' }]}>
+          <View style={styles.emptyCardRow}>
+            <Text style={styles.emptyCardText}>
               No checking accounts with active balance.
             </Text>
+            {onNavigateToSettings && (
+              <TouchableOpacity style={styles.emptySmallBtn} onPress={onNavigateToSettings}>
+                <Text style={styles.emptySmallBtnText}>+ Add Account</Text>
+              </TouchableOpacity>
+            )}
           </View>
         ) : (
           activeCheckingAccounts.map(account => {
@@ -259,10 +282,15 @@ export const Dashboard: React.FC<DashboardProps> = ({
           <Text style={[styles.sheetHeaderCell, { flex: 1, textAlign: 'right' }]}>Owed Balance</Text>
         </View>
         {activeCreditCards.length === 0 ? (
-          <View style={styles.sheetRow}>
-            <Text style={[styles.sheetCell, { flex: 3, textAlign: 'center', color: '#64748b' }]}>
+          <View style={styles.emptyCardRow}>
+            <Text style={styles.emptyCardText}>
               No credit cards with active balance.
             </Text>
+            {onNavigateToSettings && (
+              <TouchableOpacity style={styles.emptySmallBtn} onPress={onNavigateToSettings}>
+                <Text style={styles.emptySmallBtnText}>+ Add Credit Card</Text>
+              </TouchableOpacity>
+            )}
           </View>
         ) : (
           activeCreditCards.map(card => {
@@ -590,5 +618,65 @@ const styles = StyleSheet.create({
   activeMonthTabText: {
     color: '#0f172a',
     fontWeight: 'bold',
+  },
+  // Welcome & Empty Banner Styles
+  emptyWelcomeBanner: {
+    backgroundColor: '#f0fdf4',
+    borderWidth: 1,
+    borderColor: '#86efac',
+    borderRadius: 8,
+    padding: 16,
+    marginBottom: 16,
+  },
+  emptyWelcomeTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#15803d',
+    marginBottom: 4,
+  },
+  emptyWelcomeSub: {
+    fontSize: 13,
+    color: '#334155',
+    lineHeight: 18,
+    marginBottom: 12,
+  },
+  emptyWelcomeActions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  emptyWelcomePrimaryBtn: {
+    backgroundColor: '#0f172a',
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 6,
+    alignItems: 'center',
+  },
+  emptyWelcomePrimaryBtnText: {
+    color: '#ffffff',
+    fontSize: 13,
+    fontWeight: 'bold',
+  },
+  emptyCardRow: {
+    padding: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  emptyCardText: {
+    fontSize: 13,
+    color: '#64748b',
+    textAlign: 'center',
+  },
+  emptySmallBtn: {
+    backgroundColor: '#0f172a',
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+    borderRadius: 4,
+  },
+  emptySmallBtnText: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: '700',
   },
 });

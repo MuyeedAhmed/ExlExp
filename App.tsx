@@ -275,6 +275,14 @@ export default function App() {
     await saveCreditCards(updatedCards, currentUser!);
   };
 
+  const handleCardUpdate = async (updatedCard: CreditCard) => {
+    const updatedCards = cards.map(c => 
+      c.id === updatedCard.id ? updatedCard : c
+    );
+    setCards(updatedCards);
+    await saveCreditCards(updatedCards, currentUser!);
+  };
+
   const handleCardRename = async (id: string, newName: string) => {
     const updatedCards = cards.map(c => 
       c.id === id ? { ...c, name: newName } : c
@@ -395,6 +403,7 @@ export default function App() {
             futureExpenses={futureExpenses}
             onAddFutureExpense={handleFutureExpenseAdd}
             onDeleteFutureExpense={handleFutureExpenseDelete}
+            onNavigateToSettings={() => setActiveTab('settings')}
           />
         );
       case 'add':
@@ -405,6 +414,7 @@ export default function App() {
             onSubmit={handleExpenseSubmit}
             editingExpense={editingExpense}
             onCancelEditing={handleCancelEditing}
+            onNavigateToSettings={() => setActiveTab('settings')}
           />
         );
       case 'checking':
@@ -417,6 +427,7 @@ export default function App() {
             onBrokerageBalanceUpdate={handleBrokerageBalanceUpdate}
             selectedAccountId={selectedCheckingAccountId}
             onSelectAccount={setSelectedCheckingAccountId}
+            onNavigateToSettings={() => setActiveTab('settings')}
           />
         );
       case 'credit_cards':
@@ -428,6 +439,8 @@ export default function App() {
             onEdit={handleExpenseEditRequest}
             selectedCardId={selectedCreditCardId}
             onSelectCard={setSelectedCreditCardId}
+            onUpdateCard={handleCardUpdate}
+            onNavigateToSettings={() => setActiveTab('settings')}
           />
         );
       case 'settings':
@@ -439,6 +452,7 @@ export default function App() {
             onRenameCard={handleCardRename}
             onMoveCard={handleMoveCard}
             onToggleCardVisibility={handleToggleCardVisibility}
+            onUpdateCard={handleCardUpdate}
             username={currentUser!}
             onLogout={handleLogout}
             onUsernameChange={setCurrentUser}

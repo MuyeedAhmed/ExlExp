@@ -6,12 +6,7 @@ const EXPENSES_KEY = '@ExlExp:expenses';
 const CARDS_KEY = '@ExlExp:credit_cards';
 const FUTURE_EXPENSES_KEY = '@ExlExp:future_expenses';
 
-const DEFAULT_CARDS: CreditCard[] = [
-  { id: 'card-citidb', name: 'Citi Double Cash', priority: 0, isHidden: false },
-  { id: 'card-citistrata', name: 'Citi Strata', priority: 1, isHidden: false },
-  { id: 'card-bofa', name: 'BofA Premium', priority: 2, isHidden: false },
-  { id: 'card-chase', name: 'Chase Checking', isChecking: true, priority: 3, isHidden: false }
-];
+
 
 export const getExpenses = async (username: string): Promise<Expense[]> => {
   try {
@@ -163,10 +158,10 @@ export const getCreditCards = async (username: string): Promise<CreditCard[]> =>
 
     if (error) throw error;
 
-    // Fallback to DEFAULT_CARDS if Supabase is empty
-    const cardsData = (data && data.length > 0) ? data : DEFAULT_CARDS;
+    // Return empty if user has no cards configured yet
+    const cardsData = (data && data.length > 0) ? data : [];
 
-    // Fetch local user settings (priority order & visibility) from AsyncStorage
+    // Fetch local user settings (priority order & visibility & openDate) from AsyncStorage
     let localCards: CreditCard[] = [];
     try {
       const localData = await AsyncStorage.getItem(`@ExlExp:${username}:credit_cards`);
@@ -177,13 +172,17 @@ export const getCreditCards = async (username: string): Promise<CreditCard[]> =>
       console.log('No local card settings found:', e);
     }
 
+    const todayStr = new Date().toISOString().split('T')[0];
     const CHECKING_IDS = ['card-chase', 'card-santander', 'card-sofi', 'card-upgrade', 'card-citizens'];
     const mapped = cardsData.map(c => {
       const local = localCards.find(lc => lc.id === c.id);
       return {
         ...c,
-        isChecking: CHECKING_IDS.includes(c.id) || c.id.startsWith('card-checking-'),
+        isChecking: CHECKING_IDS.some(p => c.id.includes(p)) || c.id.includes('checking') || !!c.isChecking,
+        isSaving: !!c.isSaving,
+        isBrokerage: !!c.isBrokerage,
         isHidden: local ? !!local.isHidden : !!c.isHidden,
+        openDate: c.openDate || c.opendate || c.open_date || (local && local.openDate) || todayStr,
         priority: local && typeof local.priority === 'number'
           ? local.priority
           : (typeof c.priority === 'number' ? c.priority : 9999)
@@ -196,29 +195,33 @@ export const getCreditCards = async (username: string): Promise<CreditCard[]> =>
     try {
       const data = await AsyncStorage.getItem(`@ExlExp:${username}:credit_cards`);
       if (!data) {
-        return DEFAULT_CARDS;
+        return [];
       }
+      const todayStr = new Date().toISOString().split('T')[0];
       const parsed: CreditCard[] = JSON.parse(data);
       const sorted = parsed.map((c, index) => ({
         ...c,
         isHidden: !!c.isHidden,
+        openDate: c.openDate || todayStr,
         priority: typeof c.priority === 'number' ? c.priority : index
       }));
       return sorted.sort((a, b) => a.priority - b.priority);
     } catch (e) {
       console.error('Error fetching credit cards from AsyncStorage:', e);
-      return DEFAULT_CARDS;
+      return [];
     }
   }
 };
 
 export const saveCreditCards = async (cards: CreditCard[], username: string): Promise<void> => {
-  // 1. Save priority order and visibility locally in AsyncStorage
+  const todayStr = new Date().toISOString().split('T')[0];
+  // 1. Save priority order, visibility, and openDate locally in AsyncStorage
   try {
     const mapped = cards.map((c, index) => ({
       ...c,
       priority: index,
-      isHidden: !!c.isHidden
+      isHidden: !!c.isHidden,
+      openDate: c.openDate || todayStr,
     }));
     await AsyncStorage.setItem(`@ExlExp:${username}:credit_cards`, JSON.stringify(mapped));
   } catch (e) {
@@ -238,6 +241,7 @@ export const saveCreditCards = async (cards: CreditCard[], username: string): Pr
       ...rest,
       priority: index,
       isHidden: !!rest.isHidden,
+      openDate: rest.openDate || todayStr,
       username: username
     }));
 
@@ -262,19 +266,49 @@ export const saveCreditCards = async (cards: CreditCard[], username: string): Pr
     const toUpdate = cardsToInsert.filter(c => {
       const dbCard = dbCards.find(dc => dc.id === c.id);
       if (!dbCard) return false;
+      const dbOpenDate = dbCard.openDate || dbCard.opendate || dbCard.open_date;
       return (
         dbCard.name !== c.name ||
         dbCard.priority !== c.priority ||
         !!dbCard.isHidden !== !!c.isHidden ||
         !!dbCard.isSaving !== !!c.isSaving ||
-        !!dbCard.isBrokerage !== !!c.isBrokerage
+        !!dbCard.isBrokerage !== !!c.isBrokerage ||
+        dbOpenDate !== c.openDate
       );
     });
 
     if (toUpdate.length > 0) {
       for (const item of toUpdate) {
-        const { error } = await supabase.from('cards').update(item).eq('username', username).eq('id', item.id);
-        if (error) throw error;
+        const dbCard = dbCards.find(dc => dc.id === item.id);
+        const updatePayload: any = {
+          name: item.name,
+          priority: item.priority,
+          isHidden: item.isHidden,
+          isSaving: item.isSaving,
+          isBrokerage: item.isBrokerage,
+          username: username,
+        };
+
+        if (dbCard && 'opendate' in dbCard) {
+          updatePayload.opendate = item.openDate;
+        } else if (dbCard && 'open_date' in dbCard) {
+          updatePayload.open_date = item.openDate;
+        } else {
+          updatePayload.openDate = item.openDate;
+        }
+
+        const { error } = await supabase.from('cards').update(updatePayload).eq('username', username).eq('id', item.id);
+        if (error) {
+          console.warn('Update card error:', error);
+          // Fallback update without specific openDate if column differs
+          await supabase.from('cards').update({
+            name: item.name,
+            priority: item.priority,
+            isHidden: item.isHidden,
+            isSaving: item.isSaving,
+            isBrokerage: item.isBrokerage,
+          }).eq('username', username).eq('id', item.id);
+        }
       }
     }
   } catch (error) {
