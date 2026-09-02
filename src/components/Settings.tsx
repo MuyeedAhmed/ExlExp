@@ -8,8 +8,10 @@ import {
   ScrollView,
   Alert,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
 import { CreditCard } from '../types';
+import { updatePassword, updateUsername } from '../storage';
 
 interface SettingsProps {
   cards: CreditCard[];
@@ -20,6 +22,7 @@ interface SettingsProps {
   onToggleCardVisibility: (id: string) => void;
   username: string;
   onLogout: () => void;
+  onUsernameChange?: (newUsername: string) => void;
 }
 
 export const Settings: React.FC<SettingsProps> = ({
@@ -31,6 +34,7 @@ export const Settings: React.FC<SettingsProps> = ({
   onToggleCardVisibility,
   username,
   onLogout,
+  onUsernameChange,
 }) => {
   // New Card Form State
   const [cardName, setCardName] = useState('');
@@ -42,6 +46,92 @@ export const Settings: React.FC<SettingsProps> = ({
   // Renaming Card State
   const [editingCardId, setEditingCardId] = useState<string | null>(null);
   const [editingCardName, setEditingCardName] = useState<string>('');
+
+  // User Password Update State
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
+  const [passErrorMsg, setPassErrorMsg] = useState<string | null>(null);
+  const [passSuccessMsg, setPassSuccessMsg] = useState<string | null>(null);
+
+  // Username Update State
+  const [newUsername, setNewUsername] = useState('');
+  const [usernamePassword, setUsernamePassword] = useState('');
+  const [isUpdatingUsername, setIsUpdatingUsername] = useState(false);
+  const [userErrorMsg, setUserErrorMsg] = useState<string | null>(null);
+  const [userSuccessMsg, setUserSuccessMsg] = useState<string | null>(null);
+  const [showUsernameForm, setShowUsernameForm] = useState(false);
+
+  const handlePasswordUpdate = async () => {
+    setPassErrorMsg(null);
+    setPassSuccessMsg(null);
+
+    if (!currentPassword) {
+      setPassErrorMsg('Please enter your current password.');
+      return;
+    }
+    if (!newPassword) {
+      setPassErrorMsg('Please enter a new password.');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setPassErrorMsg('New passwords do not match.');
+      return;
+    }
+    if (newPassword.length < 3) {
+      setPassErrorMsg('New password must be at least 3 characters long.');
+      return;
+    }
+
+    setIsUpdatingPassword(true);
+    const result = await updatePassword(username, currentPassword, newPassword);
+    setIsUpdatingPassword(false);
+
+    if (!result.success) {
+      setPassErrorMsg(result.error || 'Failed to update password.');
+    } else {
+      setPassSuccessMsg('Password updated successfully!');
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+      setTimeout(() => setPassSuccessMsg(null), 4000);
+    }
+  };
+
+  const handleUsernameUpdate = async () => {
+    setUserErrorMsg(null);
+    setUserSuccessMsg(null);
+
+    const trimmed = newUsername.trim().toLowerCase();
+    if (!trimmed) {
+      setUserErrorMsg('Please enter a new username.');
+      return;
+    }
+    if (trimmed === username.toLowerCase()) {
+      setUserErrorMsg('New username must be different from current username.');
+      return;
+    }
+    if (!usernamePassword) {
+      setUserErrorMsg('Please enter your current password to verify.');
+      return;
+    }
+
+    setIsUpdatingUsername(true);
+    const result = await updateUsername(username, trimmed, usernamePassword);
+    setIsUpdatingUsername(false);
+
+    if (!result.success) {
+      setUserErrorMsg(result.error || 'Failed to update username.');
+    } else {
+      setUserSuccessMsg(`Username updated to "${trimmed}"!`);
+      setNewUsername('');
+      setUsernamePassword('');
+      setShowUsernameForm(false);
+      onUsernameChange?.(trimmed);
+      setTimeout(() => setUserSuccessMsg(null), 4000);
+    }
+  };
 
   const handleStartRename = (id: string, currentName: string) => {
     setEditingCardId(id);
@@ -370,18 +460,163 @@ export const Settings: React.FC<SettingsProps> = ({
         </View>
       </View>
 
-      {/* Account Section & Logout */}
+      {/* Account Section, Password & Username Update, and Logout */}
       <View style={styles.sectionCard}>
-        <Text style={styles.sectionTitle}>User Account</Text>
-        <Text style={{ fontSize: 14, color: '#0f172a', marginBottom: 12 }}>
-          Logged in as: <Text style={{ fontWeight: 'bold' }}>{username}</Text>
-        </Text>
-        <TouchableOpacity
-          style={[styles.addButton, { backgroundColor: '#dc2626', height: 40 }]}
-          onPress={onLogout}
-        >
-          <Text style={styles.addButtonText}>Log Out</Text>
-        </TouchableOpacity>
+        <Text style={styles.sectionTitle}>User Account & Security</Text>
+        
+        {/* User Info Row */}
+        <View style={styles.userHeaderRow}>
+          <View>
+            <Text style={styles.userLabel}>Logged in as</Text>
+            <Text style={styles.usernameText}>{username}</Text>
+          </View>
+          <TouchableOpacity
+            style={styles.logoutButton}
+            onPress={onLogout}
+          >
+            <Text style={styles.logoutButtonText}>Log Out</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Change Password Sub-section */}
+        <View style={styles.subSection}>
+          <Text style={styles.subSectionTitle}>Update Password</Text>
+
+          {passErrorMsg && (
+            <View style={styles.errorBanner}>
+              <Text style={styles.errorBannerText}>{passErrorMsg}</Text>
+            </View>
+          )}
+          {passSuccessMsg && (
+            <View style={styles.successBanner}>
+              <Text style={styles.successBannerText}>{passSuccessMsg}</Text>
+            </View>
+          )}
+
+          <View style={styles.accountFormGroup}>
+            <Text style={styles.accountFieldLabel}>Current Password</Text>
+            <TextInput
+              style={styles.accountInput}
+              placeholder="Enter current password"
+              placeholderTextColor="#94a3b8"
+              secureTextEntry
+              value={currentPassword}
+              onChangeText={setCurrentPassword}
+              autoCapitalize="none"
+              editable={!isUpdatingPassword}
+            />
+          </View>
+
+          <View style={styles.accountFormGroup}>
+            <Text style={styles.accountFieldLabel}>New Password</Text>
+            <TextInput
+              style={styles.accountInput}
+              placeholder="Enter new password"
+              placeholderTextColor="#94a3b8"
+              secureTextEntry
+              value={newPassword}
+              onChangeText={setNewPassword}
+              autoCapitalize="none"
+              editable={!isUpdatingPassword}
+            />
+          </View>
+
+          <View style={styles.accountFormGroup}>
+            <Text style={styles.accountFieldLabel}>Confirm New Password</Text>
+            <TextInput
+              style={styles.accountInput}
+              placeholder="Confirm new password"
+              placeholderTextColor="#94a3b8"
+              secureTextEntry
+              value={confirmPassword}
+              onChangeText={setConfirmPassword}
+              autoCapitalize="none"
+              editable={!isUpdatingPassword}
+            />
+          </View>
+
+          <TouchableOpacity
+            style={[styles.accountActionButton, isUpdatingPassword && styles.disabledButton]}
+            onPress={handlePasswordUpdate}
+            disabled={isUpdatingPassword}
+          >
+            {isUpdatingPassword ? (
+              <ActivityIndicator size="small" color="#ffffff" />
+            ) : (
+              <Text style={styles.accountActionButtonText}>Save New Password</Text>
+            )}
+          </TouchableOpacity>
+        </View>
+
+        {/* Change Username Sub-section */}
+        <View style={[styles.subSection, { marginTop: 24, borderTopWidth: 1, borderTopColor: '#f1f5f9', paddingTop: 20 }]}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+            <Text style={styles.subSectionTitle}>Update Username</Text>
+            <TouchableOpacity
+              onPress={() => setShowUsernameForm(!showUsernameForm)}
+              style={styles.toggleFormButton}
+            >
+              <Text style={styles.toggleFormButtonText}>
+                {showUsernameForm ? 'Cancel' : 'Change'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {showUsernameForm && (
+            <>
+              {userErrorMsg && (
+                <View style={styles.errorBanner}>
+                  <Text style={styles.errorBannerText}>{userErrorMsg}</Text>
+                </View>
+              )}
+              {userSuccessMsg && (
+                <View style={styles.successBanner}>
+                  <Text style={styles.successBannerText}>{userSuccessMsg}</Text>
+                </View>
+              )}
+
+              <View style={styles.accountFormGroup}>
+                <Text style={styles.accountFieldLabel}>New Username</Text>
+                <TextInput
+                  style={styles.accountInput}
+                  placeholder="e.g. max_new"
+                  placeholderTextColor="#94a3b8"
+                  value={newUsername}
+                  onChangeText={setNewUsername}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  editable={!isUpdatingUsername}
+                />
+              </View>
+
+              <View style={styles.accountFormGroup}>
+                <Text style={styles.accountFieldLabel}>Verify with Current Password</Text>
+                <TextInput
+                  style={styles.accountInput}
+                  placeholder="Enter current password"
+                  placeholderTextColor="#94a3b8"
+                  secureTextEntry
+                  value={usernamePassword}
+                  onChangeText={setUsernamePassword}
+                  autoCapitalize="none"
+                  editable={!isUpdatingUsername}
+                />
+              </View>
+
+              <TouchableOpacity
+                style={[styles.accountActionButton, isUpdatingUsername && styles.disabledButton]}
+                onPress={handleUsernameUpdate}
+                disabled={isUpdatingUsername}
+              >
+                {isUpdatingUsername ? (
+                  <ActivityIndicator size="small" color="#ffffff" />
+                ) : (
+                  <Text style={styles.accountActionButtonText}>Save New Username</Text>
+                )}
+              </TouchableOpacity>
+            </>
+          )}
+        </View>
       </View>
     </ScrollView>
   );
@@ -565,5 +800,134 @@ const styles = StyleSheet.create({
     color: '#64748b',
     fontWeight: '600',
     fontSize: 12,
+  },
+  userHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f9',
+    marginBottom: 20,
+  },
+  userLabel: {
+    fontSize: 11,
+    color: '#64748b',
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  usernameText: {
+    fontSize: 16,
+    color: '#0f172a',
+    fontWeight: '800',
+    marginTop: 2,
+  },
+  logoutButton: {
+    backgroundColor: '#fee2e2',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#fca5a5',
+  },
+  logoutButtonText: {
+    color: '#dc2626',
+    fontSize: 12,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+  },
+  subSection: {
+    marginTop: 4,
+  },
+  subSectionTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#0f172a',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 12,
+  },
+  accountFormGroup: {
+    marginBottom: 12,
+  },
+  accountFieldLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#475569',
+    marginBottom: 6,
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+  },
+  accountInput: {
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 14,
+    color: '#0f172a',
+    backgroundColor: '#ffffff',
+    width: '100%',
+  },
+  accountActionButton: {
+    backgroundColor: '#0f172a',
+    borderRadius: 8,
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 6,
+  },
+  disabledButton: {
+    opacity: 0.6,
+  },
+  accountActionButtonText: {
+    color: '#ffffff',
+    fontSize: 13,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+  },
+  toggleFormButton: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    backgroundColor: '#f1f5f9',
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  toggleFormButtonText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#475569',
+    textTransform: 'uppercase',
+  },
+  errorBanner: {
+    backgroundColor: '#fee2e2',
+    borderWidth: 1,
+    borderColor: '#fca5a5',
+    padding: 10,
+    borderRadius: 8,
+    marginBottom: 12,
+  },
+  errorBannerText: {
+    color: '#b91c1c',
+    fontSize: 13,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  successBanner: {
+    backgroundColor: '#dcfce7',
+    borderWidth: 1,
+    borderColor: '#86efac',
+    padding: 10,
+    borderRadius: 8,
+    marginBottom: 12,
+  },
+  successBannerText: {
+    color: '#15803d',
+    fontSize: 13,
+    fontWeight: '700',
+    textAlign: 'center',
   },
 });
