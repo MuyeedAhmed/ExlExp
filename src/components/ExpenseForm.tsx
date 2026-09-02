@@ -58,6 +58,123 @@ const getCardTextColor = (item: CreditCard) => {
   return '#ffffff'; // White text for dark backgrounds
 };
 
+const getCardBadgeInfo = (card?: CreditCard) => {
+  if (!card) return null;
+  if (card.isChecking) return { label: 'Checking', bg: '#dcfce7', text: '#15803d' };
+  if (card.isSaving) return { label: 'Saving', bg: '#dcfce7', text: '#166534' };
+  if (card.isBrokerage) return { label: 'Brokerage', bg: '#f3e8ff', text: '#7e22ce' };
+  return { label: 'Credit Card', bg: '#ffedd5', text: '#c2410c' };
+};
+
+const getTodayString = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+
+const getYesterdayString = () => {
+  const d = new Date();
+  d.setDate(d.getDate() - 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+
+const getCardTypeStyles = (card?: CreditCard) => {
+  if (!card) {
+    return {
+      badgeBg: '#f1f5f9',
+      badgeText: '#475569',
+      border: '#cbd5e1',
+      label: 'Account',
+      prefix: '',
+      optionBg: '#ffffff',
+      optionColor: '#0f172a',
+    };
+  }
+  if (card.isChecking) {
+    return {
+      badgeBg: '#dcfce7',
+      badgeText: '#15803d',
+      border: '#22c55e',
+      label: 'Checking',
+      prefix: '🟢 Checking: ',
+      optionBg: '#f0fdf4',
+      optionColor: '#166534',
+    };
+  }
+  if (card.isSaving) {
+    return {
+      badgeBg: '#dcfce7',
+      badgeText: '#166534',
+      border: '#15803d',
+      label: 'Saving',
+      prefix: '🌲 Saving: ',
+      optionBg: '#dcfce7',
+      optionColor: '#14532d',
+    };
+  }
+  if (card.isBrokerage) {
+    return {
+      badgeBg: '#f3e8ff',
+      badgeText: '#7e22ce',
+      border: '#a855f7',
+      label: 'Brokerage',
+      prefix: '🟣 Brokerage: ',
+      optionBg: '#faf5ff',
+      optionColor: '#6b21a8',
+    };
+  }
+  return {
+    badgeBg: '#ffedd5',
+    badgeText: '#c2410c',
+    border: '#ea580c',
+    label: 'Credit Card',
+    prefix: '💳 Credit Card: ',
+    optionBg: '#fff7ed',
+    optionColor: '#9a3412',
+  };
+};
+
+const getWebSelectStyle = (card?: CreditCard): React.CSSProperties => {
+  const typeStyles = getCardTypeStyles(card);
+  return {
+    width: '100%',
+    borderWidth: '1px',
+    borderStyle: 'solid',
+    borderColor: '#cbd5e1',
+    borderLeftWidth: card ? '6px' : '1px',
+    borderLeftColor: card ? typeStyles.border : '#cbd5e1',
+    borderRadius: '8px',
+    padding: '11px 36px 11px 12px',
+    fontSize: '14px',
+    fontWeight: 600,
+    color: card ? typeStyles.optionColor : '#0f172a',
+    backgroundColor: '#ffffff',
+    fontFamily: 'inherit',
+    outline: 'none',
+    cursor: 'pointer',
+    appearance: 'none',
+    WebkitAppearance: 'none',
+    MozAppearance: 'none',
+    boxSizing: 'border-box',
+  };
+};
+
+const webDateInputStyle: React.CSSProperties = {
+  width: '100%',
+  borderWidth: '1px',
+  borderStyle: 'solid',
+  borderColor: '#cbd5e1',
+  borderRadius: '8px',
+  padding: '10px 14px',
+  fontSize: '14px',
+  color: '#0f172a',
+  backgroundColor: '#ffffff',
+  fontFamily: 'inherit',
+  outline: 'none',
+  boxSizing: 'border-box',
+  cursor: 'pointer',
+  textAlign: 'center',
+};
+
 const CATEGORIES = [
   'Rent',
   'Utilities',
@@ -83,6 +200,16 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
   const [showToast, setShowToast] = useState(false);
   const scrollViewRef = useRef<ScrollView>(null);
 
+  const renderCardBadge = (card?: CreditCard) => {
+    const info = getCardBadgeInfo(card);
+    if (!info) return null;
+    return (
+      <View style={[styles.cardBadge, { backgroundColor: info.bg }]}>
+        <Text style={[styles.cardBadgeText, { color: info.text }]}>{info.label}</Text>
+      </View>
+    );
+  };
+
   const scrollToBottom = () => {
     setTimeout(() => {
       scrollViewRef.current?.scrollToEnd({ animated: true });
@@ -91,7 +218,7 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
 
   // Common Form States
   const [amount, setAmount] = useState('');
-  const [date, setDate] = useState('');
+  const [date, setDate] = useState(getTodayString());
 
   // Transaction States (Standard Card/Account spends)
   const [selectedCardId, setSelectedCardId] = useState('');
@@ -128,18 +255,6 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
   const [sourceModalVisible, setSourceModalVisible] = useState(false);
   const [targetModalVisible, setTargetModalVisible] = useState(false);
   const [categoryModalVisible, setCategoryModalVisible] = useState(false);
-
-  // Helper for dates formatted as YYYY-MM-DD
-  const getTodayString = () => {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-  };
-
-  const getYesterdayString = () => {
-    const d = new Date();
-    d.setDate(d.getDate() - 1);
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-  };
 
   const isCheckingSelected = useMemo(() => {
     const card = cards.find(c => c.id === selectedCardId);
@@ -307,17 +422,6 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
     setSelectedTargetCardId(activeCards.find(c => c.id !== depositAccs[0]?.id)?.id || initialCardId);
     setTransferDetails('');
     setIsCcBillPay(false);
-  };
-
-  const handleQuickDateSelect = (type: 'today' | 'yesterday') => {
-    if (Platform.OS !== 'web') {
-      Keyboard.dismiss();
-    }
-    if (type === 'today') {
-      setDate(getTodayString());
-    } else {
-      setDate(getYesterdayString());
-    }
   };
 
   const handleSubmit = () => {
@@ -503,6 +607,18 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
   const selectedSourceCard = cards.find(c => c.id === selectedSourceCardId);
   const selectedTargetCard = cards.find(c => c.id === selectedTargetCardId);
 
+  const isTargetCreditCard = useMemo(() => {
+    if (!selectedTargetCard) return false;
+    return !selectedTargetCard.isChecking && !selectedTargetCard.isSaving && !selectedTargetCard.isBrokerage;
+  }, [selectedTargetCard]);
+
+  // Turn off isCcBillPay if target account is not a credit card
+  useEffect(() => {
+    if (!isTargetCreditCard && isCcBillPay) {
+      setIsCcBillPay(false);
+    }
+  }, [isTargetCreditCard, isCcBillPay]);
+
   // Transfers support checking, saving, and brokerage
   const depositAccounts = cards.filter(
     c => (c.isChecking || c.isSaving || c.isBrokerage) && !isClosedCard(c) && !c.isHidden
@@ -574,65 +690,168 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
         {logType === 'transfer' ? (
           // ==================== TRANSFER VIEW ====================
           <>
-            {/* Source Account Dropdown */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Source Account (Money Out)</Text>
-              <TouchableOpacity
-                style={styles.selectorButton}
-                onPress={() => setSourceModalVisible(true)}
-              >
-                <Text style={styles.selectorButtonText}>
-                  {selectedSourceCard
-                    ? selectedSourceCard.name
-                    : 'Select Source Account'}
+            {/* Source & Target Account Dropdowns Row */}
+            <View style={styles.transferDropdownsRow}>
+              {/* Source Account Dropdown */}
+              <View style={styles.transferDropdownCol}>
+                <Text style={styles.centeredTwoLineLabel}>
+                  Source{"\n"}Account
                 </Text>
-                <Text style={styles.dropdownArrow}>▼</Text>
-              </TouchableOpacity>
+                {Platform.OS === 'web' ? (
+                  <View style={styles.webSelectContainer}>
+                    <select
+                      style={getWebSelectStyle(selectedSourceCard)}
+                      value={selectedSourceCardId}
+                      onChange={(e: any) => setSelectedSourceCardId(e.target.value)}
+                    >
+                      <option value="" disabled>Select Source Account</option>
+                      {depositAccounts.map(item => {
+                        const t = getCardTypeStyles(item);
+                        return (
+                          <option
+                            key={item.id}
+                            value={item.id}
+                            style={{
+                              backgroundColor: t.optionBg,
+                              color: t.optionColor,
+                              fontWeight: 600,
+                            }}
+                          >
+                            {t.prefix}{item.name}
+                          </option>
+                        );
+                      })}
+                    </select>
+                    <View style={styles.webSelectArrow} pointerEvents="none">
+                      <Text style={styles.dropdownArrow}>▼</Text>
+                    </View>
+                  </View>
+                ) : (
+                  <TouchableOpacity
+                    style={styles.selectorButton}
+                    onPress={() => setSourceModalVisible(true)}
+                  >
+                    <View style={styles.selectorButtonInner}>
+                      <Text style={styles.selectorButtonText} numberOfLines={1}>
+                        {selectedSourceCard
+                          ? selectedSourceCard.name
+                          : 'Select Source'}
+                      </Text>
+                      {selectedSourceCard && renderCardBadge(selectedSourceCard)}
+                    </View>
+                    <Text style={styles.dropdownArrow}>▼</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+
+              {/* Target Account Dropdown */}
+              <View style={styles.transferDropdownCol}>
+                <Text style={styles.centeredTwoLineLabel}>
+                  Target{"\n"}Account
+                </Text>
+                {Platform.OS === 'web' ? (
+                  <View style={styles.webSelectContainer}>
+                    <select
+                      style={getWebSelectStyle(selectedTargetCard)}
+                      value={selectedTargetCardId}
+                      onChange={(e: any) => setSelectedTargetCardId(e.target.value)}
+                    >
+                      <option value="" disabled>Select Target Account</option>
+                      {targetAccountsList.map(item => {
+                        const t = getCardTypeStyles(item);
+                        return (
+                          <option
+                            key={item.id}
+                            value={item.id}
+                            style={{
+                              backgroundColor: t.optionBg,
+                              color: t.optionColor,
+                              fontWeight: 600,
+                            }}
+                          >
+                            {t.prefix}{item.name}
+                          </option>
+                        );
+                      })}
+                    </select>
+                    <View style={styles.webSelectArrow} pointerEvents="none">
+                      <Text style={styles.dropdownArrow}>▼</Text>
+                    </View>
+                  </View>
+                ) : (
+                  <TouchableOpacity
+                    style={styles.selectorButton}
+                    onPress={() => setTargetModalVisible(true)}
+                  >
+                    <View style={styles.selectorButtonInner}>
+                      <Text style={styles.selectorButtonText} numberOfLines={1}>
+                        {selectedTargetCard
+                          ? selectedTargetCard.name
+                          : 'Select Target'}
+                      </Text>
+                      {selectedTargetCard && renderCardBadge(selectedTargetCard)}
+                    </View>
+                    <Text style={styles.dropdownArrow}>▼</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
             </View>
 
-            {/* Target Account Dropdown */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Target Account (Money In / Payment)</Text>
-              <TouchableOpacity
-                style={styles.selectorButton}
-                onPress={() => setTargetModalVisible(true)}
-              >
-                <Text style={styles.selectorButtonText}>
-                  {selectedTargetCard
-                    ? selectedTargetCard.name
-                    : 'Select Target Account'}
-                </Text>
-                <Text style={styles.dropdownArrow}>▼</Text>
-              </TouchableOpacity>
-            </View>
+            {/* Amount & Date Side-by-Side Centered Row */}
+            <View style={styles.amountDateRow}>
+              {/* Amount */}
+              <View style={styles.amountDateCol}>
+                <Text style={[styles.label, styles.centeredLabel]}>Amount</Text>
+                <TextInput
+                  style={[styles.input, styles.centeredInput]}
+                  value={amount}
+                  onChangeText={setAmount}
+                  placeholder="0.00"
+                  placeholderTextColor="#94a3b8"
+                  keyboardType="decimal-pad"
+                />
+              </View>
 
-            {/* Amount */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Transfer Amount (USD)</Text>
-              <TextInput
-                style={styles.input}
-                value={amount}
-                onChangeText={setAmount}
-                placeholder="0.00"
-                placeholderTextColor="#94a3b8"
-                keyboardType="decimal-pad"
-              />
+              {/* Date */}
+              <View style={styles.amountDateCol}>
+                <Text style={[styles.label, styles.centeredLabel]}>Date</Text>
+                {Platform.OS === 'web' ? (
+                  <input
+                    type="date"
+                    style={webDateInputStyle}
+                    value={date}
+                    onChange={(e: any) => setDate(e.target.value)}
+                  />
+                ) : (
+                  <TextInput
+                    style={[styles.input, styles.centeredInput]}
+                    value={date}
+                    onChangeText={setDate}
+                    placeholder="YYYY-MM-DD"
+                    placeholderTextColor="#94a3b8"
+                    returnKeyType="done"
+                    onSubmitEditing={Keyboard.dismiss}
+                  />
+                )}
+              </View>
             </View>
 
             {/* Details Description */}
             <View style={styles.inputGroup}>
               <View style={styles.transferDetailsHeader}>
-                <Text style={[styles.label, { marginBottom: 0 }]}>Transfer Details</Text>
-                <TouchableOpacity
-                  style={[styles.ccBillPayTag, isCcBillPay && styles.activeCcBillPayTag]}
-                  onPress={() => setIsCcBillPay(!isCcBillPay)}
-                >
-                  <Text style={[styles.ccBillPayTagText, isCcBillPay && styles.activeCcBillPayTagText]}>
-                    Credit Card Bill Pay
-                  </Text>
-                </TouchableOpacity>
+                <Text style={[styles.label, { marginBottom: 0 }]}>Details</Text>
+                {isTargetCreditCard && (
+                  <TouchableOpacity
+                    style={[styles.ccBillPayTag, isCcBillPay && styles.activeCcBillPayTag]}
+                    onPress={() => setIsCcBillPay(!isCcBillPay)}
+                  >
+                    <Text style={[styles.ccBillPayTagText, isCcBillPay && styles.activeCcBillPayTagText]}>
+                      Credit Card Bill Pay
+                    </Text>
+                  </TouchableOpacity>
+                )}
               </View>
-              {!isCcBillPay && (
+              {!(isTargetCreditCard && isCcBillPay) && (
                 <TextInput
                   style={styles.input}
                   value={transferDetails}
@@ -649,29 +868,82 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
             {/* Account Selector */}
             <View style={styles.inputGroup}>
               <Text style={styles.label}>{isCheckingSelected ? 'Account' : 'Payment Card'}</Text>
-              <TouchableOpacity
-                style={styles.selectorButton}
-                onPress={() => setCardModalVisible(true)}
-              >
-                <Text style={styles.selectorButtonText}>
-                  {selectedCard
-                    ? selectedCard.name
-                    : 'Select Card/Account'}
-                </Text>
-                <Text style={styles.dropdownArrow}>▼</Text>
-              </TouchableOpacity>
+              {Platform.OS === 'web' ? (
+                <View style={styles.webSelectContainer}>
+                  <select
+                    style={getWebSelectStyle(selectedCard)}
+                    value={selectedCardId}
+                    onChange={(e: any) => setSelectedCardId(e.target.value)}
+                  >
+                    <option value="" disabled>Select Card/Account</option>
+                    {cards.filter(c => !c.isBrokerage && !isClosedCard(c) && !c.isHidden).map(item => {
+                      const t = getCardTypeStyles(item);
+                      return (
+                        <option
+                          key={item.id}
+                          value={item.id}
+                          style={{
+                            backgroundColor: t.optionBg,
+                            color: t.optionColor,
+                            fontWeight: 600,
+                          }}
+                        >
+                          {t.prefix}{item.name}
+                        </option>
+                      );
+                    })}
+                  </select>
+                  <View style={styles.webSelectArrow} pointerEvents="none">
+                    <Text style={styles.dropdownArrow}>▼</Text>
+                  </View>
+                </View>
+              ) : (
+                <TouchableOpacity
+                  style={styles.selectorButton}
+                  onPress={() => setCardModalVisible(true)}
+                >
+                  <View style={styles.selectorButtonInner}>
+                    <Text style={styles.selectorButtonText}>
+                      {selectedCard
+                        ? selectedCard.name
+                        : 'Select Card/Account'}
+                    </Text>
+                    {selectedCard && renderCardBadge(selectedCard)}
+                  </View>
+                  <Text style={styles.dropdownArrow}>▼</Text>
+                </TouchableOpacity>
+              )}
             </View>
 
             {/* Category Selector */}
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Category</Text>
-              <TouchableOpacity
-                style={styles.selectorButton}
-                onPress={() => setCategoryModalVisible(true)}
-              >
-                <Text style={styles.selectorButtonText}>{category}</Text>
-                <Text style={styles.dropdownArrow}>▼</Text>
-              </TouchableOpacity>
+              {Platform.OS === 'web' ? (
+                <View style={styles.webSelectContainer}>
+                  <select
+                    style={getWebSelectStyle()}
+                    value={category}
+                    onChange={(e: any) => setCategory(e.target.value)}
+                  >
+                    {CATEGORIES.map(item => (
+                      <option key={item} value={item}>
+                        {item}
+                      </option>
+                    ))}
+                  </select>
+                  <View style={styles.webSelectArrow} pointerEvents="none">
+                    <Text style={styles.dropdownArrow}>▼</Text>
+                  </View>
+                </View>
+              ) : (
+                <TouchableOpacity
+                  style={styles.selectorButton}
+                  onPress={() => setCategoryModalVisible(true)}
+                >
+                  <Text style={styles.selectorButtonText}>{category}</Text>
+                  <Text style={styles.dropdownArrow}>▼</Text>
+                </TouchableOpacity>
+              )}
             </View>
 
             {/* Description or From/To Name */}
@@ -706,110 +978,121 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
               </View>
             )}
 
-            {/* Amount input & Option buttons row (Credit Card vs Checking/Saving layout) */}
-            {!isCheckingSelected ? (
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Amount (USD)</Text>
-                <View style={styles.dateRow}>
-                  {!(logType === 'transaction' && !isCheckingSelected && isReward) ? (
-                    <TextInput
-                      style={[styles.input, styles.dateInput]}
-                      value={amount}
-                      onChangeText={setAmount}
-                      placeholder="0.00"
-                      placeholderTextColor="#94a3b8"
-                      keyboardType="decimal-pad"
-                    />
-                  ) : (
-                    <View style={styles.dateInput} />
-                  )}
-                  <TouchableOpacity
-                    style={[styles.quickDateButton, styles.todayDateButton, isFee && styles.activeOrangeBtn]}
-                    onPress={() => {
-                      setIsFee(!isFee);
-                      setIsReward(false);
-                    }}
-                  >
-                    <Text style={[styles.quickDateText, isFee && styles.activeOrangeBtnText]}>Fee</Text>
-                  </TouchableOpacity>
+            {/* Amount & Date Side-by-Side Centered Row */}
+            <View style={styles.amountDateRow}>
+              {/* Amount */}
+              <View style={styles.amountDateCol}>
+                <Text style={[styles.label, styles.centeredLabel]}>Amount</Text>
+                <TextInput
+                  style={[styles.input, styles.centeredInput]}
+                  value={amount}
+                  onChangeText={setAmount}
+                  placeholder="0.00"
+                  placeholderTextColor="#94a3b8"
+                  keyboardType="decimal-pad"
+                />
+              </View>
 
-                  <TouchableOpacity
-                    style={[styles.quickDateButton, styles.yesterdayDateButton, isReward && styles.activeLiteGreenBtn]}
-                    onPress={() => {
-                      setIsReward(!isReward);
-                      setIsFee(false);
-                    }}
-                  >
-                    <Text style={[styles.quickDateText, isReward && styles.activeLiteGreenBtnText]}>Reward</Text>
-                  </TouchableOpacity>
-                </View>
+              {/* Date */}
+              <View style={styles.amountDateCol}>
+                <Text style={[styles.label, styles.centeredLabel]}>Date</Text>
+                {Platform.OS === 'web' ? (
+                  <input
+                    type="date"
+                    style={webDateInputStyle}
+                    value={date}
+                    onChange={(e: any) => setDate(e.target.value)}
+                  />
+                ) : (
+                  <TextInput
+                    style={[styles.input, styles.centeredInput]}
+                    value={date}
+                    onChangeText={setDate}
+                    placeholder="YYYY-MM-DD"
+                    placeholderTextColor="#94a3b8"
+                    returnKeyType="done"
+                    onSubmitEditing={Keyboard.dismiss}
+                  />
+                )}
+              </View>
+            </View>
+
+            {/* Option Buttons Row (Fee/Reward for Credit Card, From/To/Interest for Deposit accounts) */}
+            {!isCheckingSelected ? (
+              <View style={styles.transactionOptionRow}>
+                <TouchableOpacity
+                  style={[styles.quickDateButton, { flex: 1 }, isFee && styles.activeOrangeBtn]}
+                  onPress={() => {
+                    setIsFee(!isFee);
+                    setIsReward(false);
+                  }}
+                >
+                  <Text style={[styles.quickDateText, isFee && styles.activeOrangeBtnText]}>Fee</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.quickDateButton, { flex: 1 }, isReward && styles.activeLiteGreenBtn]}
+                  onPress={() => {
+                    setIsReward(!isReward);
+                    setIsFee(false);
+                  }}
+                >
+                  <Text style={[styles.quickDateText, isReward && styles.activeLiteGreenBtnText]}>Reward</Text>
+                </TouchableOpacity>
               </View>
             ) : (
-              // Checking/Saving/Brokerage Layout: From & To next to Amount, and Interest (Savings Only) next to Amount
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Amount (USD)</Text>
-                <View style={styles.dateRow}>
-                  <TextInput
-                    style={[styles.input, styles.dateInput]}
-                    value={amount}
-                    onChangeText={setAmount}
-                    placeholder="0.00"
-                    placeholderTextColor="#94a3b8"
-                    keyboardType="decimal-pad"
-                  />
-                  
-                  {/* From Button */}
+              <View style={styles.transactionOptionRow}>
+                {/* From Button */}
+                <TouchableOpacity
+                  style={[
+                    styles.quickDateButton,
+                    { flex: 1 },
+                    fromOrTo === 'From' && !isInterest && styles.activeLiteGreenBtn
+                  ]}
+                  onPress={() => {
+                    setFromOrTo('From');
+                    setIsInterest(false);
+                  }}
+                >
+                  <Text style={[styles.quickDateText, fromOrTo === 'From' && !isInterest && styles.activeLiteGreenBtnText]}>
+                    From
+                  </Text>
+                </TouchableOpacity>
+
+                {/* To Button */}
+                <TouchableOpacity
+                  style={[
+                    styles.quickDateButton,
+                    { flex: 1 },
+                    fromOrTo === 'To' && !isInterest && styles.activeOrangeBtn
+                  ]}
+                  onPress={() => {
+                    setFromOrTo('To');
+                    setIsInterest(false);
+                  }}
+                >
+                  <Text style={[styles.quickDateText, fromOrTo === 'To' && !isInterest && styles.activeOrangeBtnText]}>
+                    To
+                  </Text>
+                </TouchableOpacity>
+
+                {/* Interest Button (Savings Only) */}
+                {selectedCard?.isSaving && (
                   <TouchableOpacity
                     style={[
                       styles.quickDateButton,
-                      selectedCard?.isSaving ? { flex: 0.8 } : styles.todayDateButton,
-                      fromOrTo === 'From' && !isInterest && styles.activeLiteGreenBtn
+                      { flex: 1 },
+                      isInterest && styles.activeOptionBtn
                     ]}
                     onPress={() => {
-                      setFromOrTo('From');
-                      setIsInterest(false);
+                      setIsInterest(!isInterest);
                     }}
                   >
-                    <Text style={[styles.quickDateText, fromOrTo === 'From' && !isInterest && styles.activeLiteGreenBtnText]}>
-                      From
+                    <Text style={[styles.quickDateText, isInterest && styles.activeOptionBtnText]}>
+                      Interest
                     </Text>
                   </TouchableOpacity>
-
-                  {/* To Button */}
-                  <TouchableOpacity
-                    style={[
-                      styles.quickDateButton,
-                      selectedCard?.isSaving ? { flex: 0.8 } : styles.yesterdayDateButton,
-                      fromOrTo === 'To' && !isInterest && styles.activeOrangeBtn
-                    ]}
-                    onPress={() => {
-                      setFromOrTo('To');
-                      setIsInterest(false);
-                    }}
-                  >
-                    <Text style={[styles.quickDateText, fromOrTo === 'To' && !isInterest && styles.activeOrangeBtnText]}>
-                      To
-                    </Text>
-                  </TouchableOpacity>
-
-                  {/* Interest Button (Savings Only) */}
-                  {selectedCard?.isSaving && (
-                    <TouchableOpacity
-                      style={[
-                        styles.quickDateButton,
-                        { flex: 1.1 },
-                        isInterest && styles.activeOptionBtn
-                      ]}
-                      onPress={() => {
-                        setIsInterest(!isInterest);
-                      }}
-                    >
-                      <Text style={[styles.quickDateText, isInterest && styles.activeOptionBtnText]}>
-                        Interest
-                      </Text>
-                    </TouchableOpacity>
-                  )}
-                </View>
+                )}
               </View>
             )}
 
@@ -885,7 +1168,7 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
 
                     {/* Zelle Details */}
                     <View style={[styles.inputGroup, { marginBottom: 0 }]}>
-                      <Text style={styles.label}>Zelle Details</Text>
+                      <Text style={styles.label}>Details</Text>
                       <TextInput
                         style={[styles.input, styles.textArea]}
                         value={zelleDetails}
@@ -902,35 +1185,6 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
             )}
           </>
         )}
-
-        {/* Date Selector */}
-        <View style={styles.inputGroup}>
-          <Text style={styles.label}>Date</Text>
-          <View style={styles.dateRow}>
-            <TextInput
-              style={[styles.input, styles.dateInput]}
-              value={date}
-              onChangeText={setDate}
-              placeholder="YYYY-MM-DD"
-              placeholderTextColor="#94a3b8"
-              returnKeyType="done"
-              onSubmitEditing={Keyboard.dismiss}
-              onFocus={scrollToBottom}
-            />
-            <TouchableOpacity
-              style={[styles.quickDateButton, styles.todayDateButton, date === getTodayString() && styles.activeQuickDate]}
-              onPress={() => handleQuickDateSelect('today')}
-            >
-              <Text style={[styles.quickDateText, date === getTodayString() && styles.activeQuickDateText]}>Today</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.quickDateButton, styles.yesterdayDateButton, date === getYesterdayString() && styles.activeQuickDate]}
-              onPress={() => handleQuickDateSelect('yesterday')}
-            >
-              <Text style={[styles.quickDateText, date === getYesterdayString() && styles.activeQuickDateText]}>Yesterday</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
 
         {/* Action Buttons */}
         <View style={styles.buttonContainer}>
@@ -1125,62 +1379,91 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#f8fafc',
   },
   scrollContent: {
     flexGrow: 1,
+    paddingVertical: 20,
     paddingBottom: Platform.OS === 'ios' ? 380 : Platform.OS === 'web' ? 40 : 300,
   },
   formCard: {
     backgroundColor: '#ffffff',
-    borderRadius: 0,
-    padding: 20,
-    margin: 16,
+    borderRadius: 12,
+    padding: 24,
+    marginHorizontal: 16,
     borderWidth: 1,
-    borderColor: '#cbd5e1',
+    borderColor: '#e2e8f0',
     maxWidth: 600,
     width: Platform.OS === 'web' ? '100%' : undefined,
     alignSelf: 'center',
+    shadowColor: '#0f172a',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.04,
+    shadowRadius: 12,
+    elevation: 2,
   },
   formTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
+    fontSize: 18,
+    fontWeight: '800',
     color: '#0f172a',
-    marginBottom: 16,
+    marginBottom: 20,
     textAlign: 'center',
     textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    letterSpacing: 0.75,
   },
   logTypeToggleRow: {
     flexDirection: 'row',
     width: '100%',
-    gap: 8,
+    backgroundColor: '#f1f5f9',
+    borderRadius: 10,
+    padding: 4,
+    gap: 6,
     marginBottom: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e2e8f0',
-    paddingBottom: 12,
   },
   logTypeBtn: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     height: 38,
-    backgroundColor: '#e2e8f0',
-    borderWidth: 1,
-    borderColor: '#cbd5e1',
+    borderRadius: 8,
+    backgroundColor: 'transparent',
   },
   activeLogTypeBtn: {
     backgroundColor: '#0f172a',
-    borderColor: '#0f172a',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 1,
   },
   logTypeText: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '700',
-    color: '#475569',
+    color: '#64748b',
     textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   activeLogTypeText: {
     color: '#ffffff',
+  },
+  transferDropdownsRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 16,
+    alignItems: 'flex-start',
+  },
+  transferDropdownCol: {
+    flex: 1,
+  },
+  centeredTwoLineLabel: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: '#475569',
+    marginBottom: 8,
+    textTransform: 'uppercase',
+    textAlign: 'center',
+    lineHeight: 16,
+    letterSpacing: 0.5,
   },
   inputGroup: {
     marginBottom: 16,
@@ -1189,15 +1472,16 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: 'bold',
     color: '#475569',
-    marginBottom: 6,
+    marginBottom: 8,
     textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   input: {
     borderWidth: 1,
     borderColor: '#cbd5e1',
-    borderRadius: 0,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    borderRadius: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
     fontSize: 14,
     color: '#0f172a',
     backgroundColor: '#ffffff',
@@ -1211,18 +1495,68 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 1,
     borderColor: '#cbd5e1',
-    borderRadius: 0,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    borderRadius: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 11,
     backgroundColor: '#ffffff',
+  },
+  selectorButtonInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    marginRight: 8,
+    gap: 8,
   },
   selectorButtonText: {
     fontSize: 14,
+    fontWeight: '500',
     color: '#0f172a',
   },
   dropdownArrow: {
-    fontSize: 12,
+    fontSize: 11,
     color: '#64748b',
+  },
+  webSelectContainer: {
+    position: 'relative',
+    width: '100%',
+  },
+  webSelectArrow: {
+    position: 'absolute',
+    right: 14,
+    top: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  cardBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  cardBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+  },
+  amountDateRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 16,
+    alignItems: 'flex-start',
+  },
+  amountDateCol: {
+    flex: 1,
+  },
+  centeredLabel: {
+    textAlign: 'center',
+  },
+  centeredInput: {
+    textAlign: 'center',
+  },
+  transactionOptionRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 16,
   },
   dateRow: {
     flexDirection: 'row',
@@ -1241,19 +1575,19 @@ const styles = StyleSheet.create({
   quickDateButton: {
     alignItems: 'center',
     justifyContent: 'center',
-    height: 38,
-    backgroundColor: '#e2e8f0',
-    borderRadius: 0,
+    height: 42,
+    backgroundColor: '#f1f5f9',
+    borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#cbd5e1',
+    borderColor: '#e2e8f0',
   },
   activeQuickDate: {
     backgroundColor: '#0f172a',
     borderColor: '#0f172a',
   },
   quickDateText: {
-    fontSize: 11,
-    fontWeight: '600',
+    fontSize: 12,
+    fontWeight: '700',
     color: '#475569',
     paddingHorizontal: 2,
   },
@@ -1263,13 +1597,13 @@ const styles = StyleSheet.create({
   buttonContainer: {
     flexDirection: 'row',
     gap: 12,
-    marginTop: 12,
+    marginTop: 16,
   },
   cancelButton: {
     flex: 1,
-    backgroundColor: '#f1f5f9',
-    borderRadius: 0,
-    paddingVertical: 10,
+    backgroundColor: '#f8fafc',
+    borderRadius: 8,
+    paddingVertical: 12,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
@@ -1278,52 +1612,68 @@ const styles = StyleSheet.create({
   cancelButtonText: {
     color: '#475569',
     fontSize: 14,
-    fontWeight: 'bold',
+    fontWeight: '700',
     textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   submitButton: {
     flex: 2,
     backgroundColor: '#0f172a',
-    borderRadius: 0,
-    paddingVertical: 10,
+    borderRadius: 8,
+    paddingVertical: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#0f172a',
+    borderWidth: 0,
+    shadowColor: '#0f172a',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 2,
   },
   submitButtonText: {
     color: '#ffffff',
     fontSize: 14,
-    fontWeight: 'bold',
+    fontWeight: '800',
     textTransform: 'uppercase',
+    letterSpacing: 0.8,
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.4)',
-    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(15, 23, 42, 0.5)',
+    justifyContent: Platform.OS === 'web' ? 'center' : 'flex-end',
+    alignItems: Platform.OS === 'web' ? 'center' : undefined,
+    padding: Platform.OS === 'web' ? 20 : 0,
   },
   modalContent: {
     backgroundColor: '#ffffff',
-    borderTopLeftRadius: 0,
-    borderTopRightRadius: 0,
-    padding: 20,
-    maxHeight: '70%',
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    borderRadius: Platform.OS === 'web' ? 16 : undefined,
+    padding: 24,
+    maxHeight: '80%',
+    width: Platform.OS === 'web' ? 440 : '100%',
     borderWidth: 1,
-    borderColor: '#cbd5e1',
+    borderColor: '#e2e8f0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.15,
+    shadowRadius: 20,
+    elevation: 5,
   },
   modalTitle: {
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: '800',
     color: '#0f172a',
     marginBottom: 16,
     textAlign: 'center',
     textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   modalItem: {
     paddingVertical: 12,
     paddingHorizontal: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f1f5f9',
+    borderRadius: 8,
+    marginVertical: 4,
   },
   modalItemSelected: {
     backgroundColor: '#f1f5f9',
@@ -1339,16 +1689,16 @@ const styles = StyleSheet.create({
   modalCloseButton: {
     marginTop: 16,
     backgroundColor: '#f1f5f9',
-    borderRadius: 0,
-    paddingVertical: 10,
+    borderRadius: 8,
+    paddingVertical: 12,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#cbd5e1',
+    borderColor: '#e2e8f0',
   },
   modalCloseButtonText: {
     color: '#475569',
     fontSize: 14,
-    fontWeight: 'bold',
+    fontWeight: '700',
     textTransform: 'uppercase',
   },
   fromToRow: {
@@ -1360,8 +1710,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   disabledInput: {
-    backgroundColor: '#f1f5f9',
+    backgroundColor: '#f8fafc',
     color: '#94a3b8',
+    borderColor: '#e2e8f0',
   },
   zelleToggleBtn: {
     alignItems: 'center',
@@ -1371,6 +1722,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#e2e8f0',
     borderWidth: 1,
     borderColor: '#cbd5e1',
+    borderRadius: 8,
   },
   activeZelleToggleBtn: {
     backgroundColor: '#0f172a',
@@ -1385,13 +1737,14 @@ const styles = StyleSheet.create({
     color: '#ffffff',
   },
   textArea: {
-    minHeight: 60,
+    minHeight: 64,
     textAlignVertical: 'top',
   },
   zelleDetailsContainer: {
     borderWidth: 1,
     borderColor: '#e2e8f0',
-    padding: 12,
+    borderRadius: 8,
+    padding: 14,
     backgroundColor: '#f8fafc',
     marginBottom: 16,
     gap: 12,
@@ -1408,6 +1761,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#e2e8f0',
     borderWidth: 1,
     borderColor: '#cbd5e1',
+    borderRadius: 6,
   },
   activeZelleTypeBtn: {
     backgroundColor: '#0f172a',
@@ -1435,33 +1789,34 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#ffffff',
+    borderRadius: 8,
   },
   activeOptionBtn: {
-    backgroundColor: '#0f172a',
-    borderColor: '#0f172a',
+    backgroundColor: '#ede9fe',
+    borderColor: '#c4b5fd',
   },
   activeFeeBtn: {
-    backgroundColor: '#dc2626',
-    borderColor: '#dc2626',
+    backgroundColor: '#fee2e2',
+    borderColor: '#fca5a5',
   },
   activeRewardBtn: {
-    backgroundColor: '#16a34a',
-    borderColor: '#16a34a',
+    backgroundColor: '#dcfce7',
+    borderColor: '#86efac',
   },
   activeOrangeBtn: {
-    backgroundColor: '#ea580c', // Dark orange
-    borderColor: '#ea580c',
+    backgroundColor: '#ffedd5',
+    borderColor: '#fdba74',
   },
   activeOrangeBtnText: {
-    color: '#ffffff',
+    color: '#c2410c',
     fontWeight: 'bold',
   },
   activeLiteGreenBtn: {
-    backgroundColor: '#dcfce7', // Lite green
-    borderColor: '#bbf7d0',
+    backgroundColor: '#dcfce7',
+    borderColor: '#86efac',
   },
   activeLiteGreenBtnText: {
-    color: '#14532d', // Dark green text for readability
+    color: '#15803d',
     fontWeight: 'bold',
   },
   optionBtnText: {
@@ -1470,30 +1825,30 @@ const styles = StyleSheet.create({
     color: '#475569',
   },
   activeOptionBtnText: {
-    color: '#ffffff',
+    color: '#6d28d9',
     fontWeight: 'bold',
   },
   transferDetailsHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 6,
+    marginBottom: 8,
   },
   ccBillPayTag: {
-    paddingHorizontal: 8,
+    paddingHorizontal: 10,
     paddingVertical: 4,
     borderWidth: 1,
     borderColor: '#cbd5e1',
-    backgroundColor: '#ffffff',
-    borderRadius: 4,
+    backgroundColor: '#f8fafc',
+    borderRadius: 6,
   },
   activeCcBillPayTag: {
-    backgroundColor: '#1e40af',
-    borderColor: '#1e40af',
+    backgroundColor: '#2563eb',
+    borderColor: '#2563eb',
   },
   ccBillPayTagText: {
     fontSize: 10,
-    fontWeight: 'bold',
+    fontWeight: '700',
     color: '#64748b',
     textTransform: 'uppercase',
   },
@@ -1507,7 +1862,7 @@ const styles = StyleSheet.create({
     padding: 12,
     borderRadius: 8,
     marginHorizontal: 16,
-    marginTop: 16,
+    marginBottom: 16,
     alignItems: 'center',
     justifyContent: 'center',
     maxWidth: 600,
