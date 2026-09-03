@@ -343,7 +343,7 @@ export const CreditCardsTab: React.FC<CreditCardsTabProps> = ({
               style={styles.addCardTabBtn}
               onPress={onNavigateToSettings}
             >
-              <Text style={styles.addCardTabBtnText}>+ Add Card</Text>
+              <Text style={styles.addCardTabBtnText}>➕ Add Card</Text>
             </TouchableOpacity>
           )}
         </ScrollView>
@@ -416,13 +416,13 @@ export const CreditCardsTab: React.FC<CreditCardsTabProps> = ({
 
             {creditCardsOnly.length === 0 ? (
               <View style={styles.emptyOverviewBox}>
-                <Text style={styles.emptyOverviewTitle}>💳 No Credit Cards Configured</Text>
+                <Text style={styles.emptyOverviewTitle}>No Credit Cards Configured</Text>
                 <Text style={styles.emptyOverviewSub}>
                   You don't have any credit cards configured yet. Add your credit cards to track credit age, balances, spent, paid, rewards, and annual fees.
                 </Text>
                 {onNavigateToSettings && (
                   <TouchableOpacity style={styles.emptyActionBtn} onPress={onNavigateToSettings}>
-                    <Text style={styles.emptyActionBtnText}>+ Add Credit Card</Text>
+                    <Text style={styles.emptyActionBtnText}>➕ Add Credit Card</Text>
                   </TouchableOpacity>
                 )}
               </View>
@@ -444,7 +444,7 @@ export const CreditCardsTab: React.FC<CreditCardsTabProps> = ({
                     <Text style={[styles.ovHeaderCell, isWeb ? styles.ovColRewardsWeb : styles.ovColRewardsMobile]}>Rewards</Text>
                     <Text style={[styles.ovHeaderCell, isWeb ? styles.ovColFeesWeb : styles.ovColFeesMobile]}>Annual Fees</Text>
                     <Text style={[styles.ovHeaderCell, isWeb ? styles.ovColDueWeb : styles.ovColDueMobile]}>Balance Due</Text>
-                    <Text style={[styles.ovHeaderCell, isWeb ? styles.ovColActionWeb : styles.ovColActionMobile, { textAlign: 'center' }]}>Actions</Text>
+                    <Text style={[styles.ovHeaderCell, isWeb ? styles.ovColActionWeb : styles.ovColActionMobile, { textAlign: 'center', borderRightWidth: 0 }]}>Actions</Text>
                   </View>
 
                   {/* Table Rows */}
@@ -468,7 +468,7 @@ export const CreditCardsTab: React.FC<CreditCardsTabProps> = ({
                           onPress={() => setSelectedCardId(card.id)}
                         >
                           <Text style={[styles.ovCardNameText, closed && styles.closedText]}>
-                            💳 {card.name}
+                            {card.name}
                           </Text>
                           {closed && <Text style={styles.closedBadge}>CLOSED</Text>}
                         </TouchableOpacity>
@@ -561,7 +561,7 @@ export const CreditCardsTab: React.FC<CreditCardsTabProps> = ({
                         </View>
 
                         {/* Action Button */}
-                        <View style={[styles.ovCell, isWeb ? styles.ovColActionWeb : styles.ovColActionMobile, { justifyContent: 'center', alignItems: 'center' }]}>
+                        <View style={[styles.ovCell, isWeb ? styles.ovColActionWeb : styles.ovColActionMobile, { justifyContent: 'center', alignItems: 'center', borderRightWidth: 0 }]}>
                           <TouchableOpacity
                             style={styles.viewSheetBtn}
                             onPress={() => setSelectedCardId(card.id)}
@@ -585,12 +585,6 @@ export const CreditCardsTab: React.FC<CreditCardsTabProps> = ({
           {/* Card Header Banner (Only Current Balance kept as requested!) */}
           <View style={styles.headerBanner}>
             <View style={styles.bannerLeftRow}>
-              <TouchableOpacity
-                style={styles.backButton}
-                onPress={() => setSelectedCardId('all')}
-              >
-                <Text style={styles.backButtonText}>← All Cards</Text>
-              </TouchableOpacity>
               <Text style={styles.headerLabel}>
                 {activeCard.name}
               </Text>
@@ -674,11 +668,11 @@ export const CreditCardsTab: React.FC<CreditCardsTabProps> = ({
                           </Text>
                           
                           <View style={[styles.cellActions, isWeb ? styles.colActionsWeb : styles.colActionsMobile]}>
-                            <TouchableOpacity style={styles.actionBtn} onPress={() => onEdit(item)}>
-                              <Text style={styles.editBtnText}>Edit</Text>
+                            <TouchableOpacity style={styles.actionBtn} onPress={() => onEdit(item)} accessibilityLabel="Edit">
+                              <Text style={styles.actionIconText}>✏️</Text>
                             </TouchableOpacity>
-                            <TouchableOpacity style={styles.actionBtn} onPress={() => confirmDelete(item.id)}>
-                              <Text style={styles.deleteBtnText}>Del</Text>
+                            <TouchableOpacity style={styles.actionBtn} onPress={() => confirmDelete(item.id)} accessibilityLabel="Delete">
+                              <Text style={styles.actionIconText}>🗑️</Text>
                             </TouchableOpacity>
                           </View>
                         </View>
@@ -948,7 +942,7 @@ const styles = StyleSheet.create({
     flexDirection: 'column',
   },
   overviewTableMobile: {
-    width: 980,
+    width: 1030,
     flexDirection: 'column',
   },
   overviewTableHeaderRow: {
@@ -968,7 +962,7 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   overviewRowMobile: {
-    width: 980,
+    width: 1030,
   },
   closedTableRow: {
     backgroundColor: '#f8fafc',
@@ -1030,10 +1024,10 @@ const styles = StyleSheet.create({
   },
   // Overview Mobile columns (fixed width)
   ovColNameMobile: {
-    width: 170,
+    width: 160,
   },
   ovColDateMobile: {
-    width: 145,
+    width: 140,
   },
   ovColAgeMobile: {
     width: 110,
@@ -1051,10 +1045,10 @@ const styles = StyleSheet.create({
     width: 95,
   },
   ovColDueMobile: {
-    width: 105,
+    width: 110,
   },
   ovColActionMobile: {
-    width: 100,
+    width: 130,
   },
   ovNameCell: {
     flexDirection: 'row',
@@ -1145,20 +1139,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-  },
-  backButton: {
-    backgroundColor: '#e2e8f0',
-    paddingVertical: 4,
-    paddingHorizontal: 8,
-    borderRadius: 4,
-    borderWidth: 1,
-    borderColor: '#cbd5e1',
-  },
-  backButtonText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#475569',
-    textTransform: 'uppercase',
   },
   headerLabel: {
     fontSize: 15,
@@ -1305,7 +1285,10 @@ const styles = StyleSheet.create({
   },
   actionBtn: {
     paddingVertical: 2,
-    paddingHorizontal: 6,
+    paddingHorizontal: 4,
+  },
+  actionIconText: {
+    fontSize: 13,
   },
   editBtnText: {
     fontSize: 12,

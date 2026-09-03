@@ -151,7 +151,7 @@ export const CheckingTab: React.FC<CheckingTabProps> = ({
           </Text>
           {onNavigateToSettings && (
             <TouchableOpacity style={styles.emptyActionBtn} onPress={onNavigateToSettings}>
-              <Text style={styles.emptyActionBtnText}>+ Add Bank Account</Text>
+              <Text style={styles.emptyActionBtnText}>➕ Add Bank Account</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -243,7 +243,7 @@ export const CheckingTab: React.FC<CheckingTabProps> = ({
               style={styles.addAccountTabBtn}
               onPress={onNavigateToSettings}
             >
-              <Text style={styles.addAccountTabBtnText}>+ Add Account</Text>
+              <Text style={styles.addAccountTabBtnText}>➕ Add Account</Text>
             </TouchableOpacity>
           )}
         </ScrollView>
@@ -326,16 +326,16 @@ export const CheckingTab: React.FC<CheckingTabProps> = ({
                       <View style={[styles.cellActions, isWeb ? styles.colBrokActionsWeb : styles.colBrokActionsMobile]}>
                         {editingBrokerageId === item.id ? (
                           <>
-                            <TouchableOpacity style={styles.actionBtn} onPress={() => handleSaveBrokerage(item.id)}>
-                              <Text style={styles.editBtnText}>Save</Text>
+                            <TouchableOpacity style={styles.actionBtn} onPress={() => handleSaveBrokerage(item.id)} accessibilityLabel="Save">
+                              <Text style={styles.actionIconText}>💾</Text>
                             </TouchableOpacity>
-                            <TouchableOpacity style={styles.actionBtn} onPress={() => setEditingBrokerageId(null)}>
-                              <Text style={styles.deleteBtnText}>Cancel</Text>
+                            <TouchableOpacity style={styles.actionBtn} onPress={() => setEditingBrokerageId(null)} accessibilityLabel="Cancel">
+                              <Text style={styles.actionIconText}>❌</Text>
                             </TouchableOpacity>
                           </>
                         ) : (
-                          <TouchableOpacity style={styles.actionBtn} onPress={() => handleStartEditBrokerage(item.id, getAccountBalance(item.id))}>
-                            <Text style={styles.editBtnText}>Edit</Text>
+                          <TouchableOpacity style={styles.actionBtn} onPress={() => handleStartEditBrokerage(item.id, getAccountBalance(item.id))} accessibilityLabel="Edit">
+                            <Text style={styles.actionIconText}>✏️</Text>
                           </TouchableOpacity>
                         )}
                       </View>
@@ -431,11 +431,11 @@ export const CheckingTab: React.FC<CheckingTabProps> = ({
                             {item.category || 'Others'}
                           </Text>
                           <View style={[styles.cellActions, isWeb ? styles.colActionsWeb : styles.colActionsMobile]}>
-                            <TouchableOpacity style={styles.actionBtn} onPress={() => onEdit(item)}>
-                              <Text style={styles.editBtnText}>Edit</Text>
+                            <TouchableOpacity style={styles.actionBtn} onPress={() => onEdit(item)} accessibilityLabel="Edit">
+                              <Text style={styles.actionIconText}>✏️</Text>
                             </TouchableOpacity>
-                            <TouchableOpacity style={styles.actionBtn} onPress={() => confirmDelete(item.id)}>
-                              <Text style={styles.deleteBtnText}>Del</Text>
+                            <TouchableOpacity style={styles.actionBtn} onPress={() => confirmDelete(item.id)} accessibilityLabel="Delete">
+                              <Text style={styles.actionIconText}>🗑️</Text>
                             </TouchableOpacity>
                           </View>
                         </View>
@@ -747,7 +747,10 @@ const styles = StyleSheet.create({
   },
   actionBtn: {
     paddingVertical: 2,
-    paddingHorizontal: 6,
+    paddingHorizontal: 4,
+  },
+  actionIconText: {
+    fontSize: 13,
   },
   editBtnText: {
     fontSize: 12,

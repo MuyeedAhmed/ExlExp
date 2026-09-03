@@ -1337,12 +1337,12 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
         <View style={styles.buttonContainer}>
           {editingExpense && (
             <TouchableOpacity style={styles.cancelButton} onPress={onCancelEditing}>
-              <Text style={styles.cancelButtonText}>Cancel</Text>
+              <Text style={styles.cancelButtonText}>❌ Cancel</Text>
             </TouchableOpacity>
           )}
           <TouchableOpacity style={styles.submitButton} onPress={handleSubmit}>
             <Text style={styles.submitButtonText}>
-              {editingExpense ? 'Update' : 'Add'}
+              {editingExpense ? '💾 Update' : '➕ Add'}
             </Text>
           </TouchableOpacity>
         </View>

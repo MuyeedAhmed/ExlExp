@@ -29,9 +29,61 @@ import { Settings } from './src/components/Settings';
 import { LoginScreen } from './src/components/LoginScreen';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+// @ts-ignore
+if (typeof ErrorUtils !== 'undefined') {
+  // @ts-ignore
+  const originalHandler = ErrorUtils.getGlobalHandler && ErrorUtils.getGlobalHandler();
+  // @ts-ignore
+  ErrorUtils.setGlobalHandler((error: any, isFatal?: boolean) => {
+    console.error('GLOBAL JS RUNTIME ERROR:', error, isFatal);
+    if (originalHandler) {
+      originalHandler(error, isFatal);
+    }
+  });
+}
+
+interface ErrorBoundaryState {
+  hasError: boolean;
+  error: Error | null;
+}
+
+class ErrorBoundary extends React.Component<{ children: React.ReactNode }, ErrorBoundaryState> {
+  constructor(props: { children: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error('CRITICAL ERROR CAUGHT BY ERRORBOUNDARY:', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <SafeAreaView style={{ flex: 1, backgroundColor: '#ffffff', padding: 24, justifyContent: 'center' }}>
+          <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#dc2626', marginBottom: 12 }}>
+            App Runtime Error
+          </Text>
+          <Text style={{ fontSize: 14, color: '#334155', lineHeight: 20, marginBottom: 12 }}>
+            {this.state.error?.message || String(this.state.error)}
+          </Text>
+          <Text style={{ fontSize: 11, color: '#64748b' }}>
+            {this.state.error?.stack}
+          </Text>
+        </SafeAreaView>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 type TabType = 'dashboard' | 'checking' | 'credit_cards' | 'add' | 'settings';
 
-export default function App() {
+function MainApp() {
   const { width } = useWindowDimensions();
   const isWeb = width > 768;
 
@@ -491,7 +543,6 @@ export default function App() {
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>ExlExp</Text>
-        <Text style={styles.headerSubtitle}>Personal Spending Tracker</Text>
       </View>
 
       {/* Main Content Area */}
@@ -561,11 +612,19 @@ export default function App() {
   );
 }
 
+export default function App() {
+  return (
+    <ErrorBoundary>
+      <MainApp />
+    </ErrorBoundary>
+  );
+}
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#ffffff',
-    paddingTop: Platform.OS === 'android' ? RNStatusBar.currentHeight : 0,
+    paddingTop: Platform.OS === 'android' ? (RNStatusBar.currentHeight || 0) : 0,
   },
   loadingContainer: {
     flex: 1,
@@ -591,14 +650,6 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '800',
     color: '#0f172a',
-  },
-  headerSubtitle: {
-    fontSize: 11,
-    color: '#64748b',
-    marginTop: 2,
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
   },
   content: {
     flex: 1,

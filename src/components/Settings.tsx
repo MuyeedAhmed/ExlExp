@@ -284,8 +284,8 @@ export const Settings: React.FC<SettingsProps> = ({
             }
             placeholderTextColor="#94a3b8"
           />
-          <TouchableOpacity style={styles.addButton} onPress={handleAddChecking}>
-            <Text style={styles.addButtonText}>Add Account</Text>
+          <TouchableOpacity style={styles.addButton} onPress={handleAddChecking} accessibilityLabel="Add Account">
+            <Text style={styles.addButtonText}>➕</Text>
           </TouchableOpacity>
         </View>
  
@@ -306,7 +306,7 @@ export const Settings: React.FC<SettingsProps> = ({
                   </TouchableOpacity>
                 </View>
 
-                <View style={[styles.listItemTextContainer, { flex: 1 }]}>
+                <View style={styles.listItemTextContainer}>
                   {editingCardId === card.id ? (
                     <TextInput
                       style={[
@@ -327,31 +327,37 @@ export const Settings: React.FC<SettingsProps> = ({
                   ) : (
                     <View style={styles.cardItemRow}>
                       <Text style={styles.cardEmojiIcon}>{getAccountIcon(card)}</Text>
-                      <Text style={[styles.listItemTitle, card.isHidden && styles.hiddenCardTitle]}>
-                        {card.name}
-                      </Text>
-                      {card.isHidden && (
-                        <View style={styles.hiddenTagBadge}>
-                          <Text style={styles.hiddenTagText}>Hidden</Text>
+                      <View style={styles.cardItemInfo}>
+                        <View style={styles.cardTitleRow}>
+                          <Text style={[styles.listItemTitle, card.isHidden && styles.hiddenCardTitle]}>
+                            {card.name}
+                          </Text>
+                          {card.isHidden && (
+                            <View style={styles.hiddenTagBadge}>
+                              <Text style={styles.hiddenTagText}>Hidden</Text>
+                            </View>
+                          )}
                         </View>
-                      )}
+                      </View>
                     </View>
                   )}
                 </View>
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <View style={styles.actionButtonsRow}>
                   {editingCardId === card.id ? (
                     <>
                       <TouchableOpacity
                         style={styles.saveEditBtn}
                         onPress={() => handleSaveRename(card.id)}
+                        accessibilityLabel="Save"
                       >
-                        <Text style={styles.saveEditBtnText}>Save</Text>
+                        <Text style={styles.saveEditBtnText}>💾</Text>
                       </TouchableOpacity>
                       <TouchableOpacity
                         style={styles.cancelEditBtn}
                         onPress={() => setEditingCardId(null)}
+                        accessibilityLabel="Cancel"
                       >
-                        <Text style={styles.cancelEditBtnText}>Cancel</Text>
+                        <Text style={styles.cancelEditBtnText}>❌</Text>
                       </TouchableOpacity>
                     </>
                   ) : (
@@ -365,16 +371,18 @@ export const Settings: React.FC<SettingsProps> = ({
                         </Text>
                       </TouchableOpacity>
                       <TouchableOpacity
-                        style={styles.editButton}
+                        style={styles.editIconButton}
                         onPress={() => handleStartRename(card.id, card.name)}
+                        accessibilityLabel="Rename"
                       >
-                        <Text style={styles.editButtonText}>Rename</Text>
+                        <Text style={styles.editIconText}>✏️</Text>
                       </TouchableOpacity>
                       <TouchableOpacity
-                        style={styles.deleteButton}
+                        style={styles.deleteIconButton}
                         onPress={() => confirmDeleteCard(card.id, card.name)}
+                        accessibilityLabel="Remove"
                       >
-                        <Text style={styles.deleteButtonText}>Remove</Text>
+                        <Text style={styles.deleteIconText}>🗑️</Text>
                       </TouchableOpacity>
                     </>
                   )}
@@ -405,8 +413,8 @@ export const Settings: React.FC<SettingsProps> = ({
             placeholder="YYYY-MM-DD"
             placeholderTextColor="#94a3b8"
           />
-          <TouchableOpacity style={styles.addButton} onPress={handleAddCard}>
-            <Text style={styles.addButtonText}>Add Card</Text>
+          <TouchableOpacity style={styles.addButton} onPress={handleAddCard} accessibilityLabel="Add Card">
+            <Text style={styles.addButtonText}>➕</Text>
           </TouchableOpacity>
         </View>
  
@@ -427,7 +435,7 @@ export const Settings: React.FC<SettingsProps> = ({
                   </TouchableOpacity>
                 </View>
 
-                <View style={[styles.listItemTextContainer, { flex: 1 }]}>
+                <View style={styles.listItemTextContainer}>
                   {editingCardId === card.id ? (
                     <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
                       <TextInput
@@ -467,8 +475,8 @@ export const Settings: React.FC<SettingsProps> = ({
                   ) : (
                     <View style={styles.cardItemRow}>
                       <Text style={styles.cardEmojiIcon}>💳</Text>
-                      <View style={{ flex: 1 }}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      <View style={styles.cardItemInfo}>
+                        <View style={styles.cardTitleRow}>
                           <Text style={[styles.listItemTitle, card.isHidden && styles.hiddenCardTitle]}>
                             {card.name}
                           </Text>
@@ -485,20 +493,22 @@ export const Settings: React.FC<SettingsProps> = ({
                     </View>
                   )}
                 </View>
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <View style={styles.actionButtonsRow}>
                   {editingCardId === card.id ? (
                     <>
                       <TouchableOpacity
                         style={styles.saveEditBtn}
                         onPress={() => handleSaveRename(card.id)}
+                        accessibilityLabel="Save"
                       >
-                        <Text style={styles.saveEditBtnText}>Save</Text>
+                        <Text style={styles.saveEditBtnText}>💾</Text>
                       </TouchableOpacity>
                       <TouchableOpacity
                         style={styles.cancelEditBtn}
                         onPress={() => setEditingCardId(null)}
+                        accessibilityLabel="Cancel"
                       >
-                        <Text style={styles.cancelEditBtnText}>Cancel</Text>
+                        <Text style={styles.cancelEditBtnText}>❌</Text>
                       </TouchableOpacity>
                     </>
                   ) : (
@@ -512,16 +522,18 @@ export const Settings: React.FC<SettingsProps> = ({
                         </Text>
                       </TouchableOpacity>
                       <TouchableOpacity
-                        style={styles.editButton}
+                        style={styles.editIconButton}
                         onPress={() => handleStartRename(card.id, card.name, card.openDate)}
+                        accessibilityLabel="Edit"
                       >
-                        <Text style={styles.editButtonText}>Edit</Text>
+                        <Text style={styles.editIconText}>✏️</Text>
                       </TouchableOpacity>
                       <TouchableOpacity
-                        style={styles.deleteButton}
+                        style={styles.deleteIconButton}
                         onPress={() => confirmDeleteCard(card.id, card.name)}
+                        accessibilityLabel="Remove"
                       >
-                        <Text style={styles.deleteButtonText}>Remove</Text>
+                        <Text style={styles.deleteIconText}>🗑️</Text>
                       </TouchableOpacity>
                     </>
                   )}
@@ -781,15 +793,16 @@ const styles = StyleSheet.create({
   addButton: {
     backgroundColor: '#0f172a',
     borderRadius: 6,
-    paddingHorizontal: 16,
+    paddingHorizontal: 12,
     alignItems: 'center',
     justifyContent: 'center',
     height: 38,
+    minWidth: 42,
   },
   addButtonText: {
     color: '#ffffff',
     fontWeight: 'bold',
-    fontSize: 13,
+    fontSize: 15,
   },
   listContainer: {
     gap: 0,
@@ -811,11 +824,23 @@ const styles = StyleSheet.create({
   listItemTextContainer: {
     flexDirection: 'column',
     flex: 1,
+    minWidth: 0,
+    marginRight: 8,
   },
   cardItemRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+  },
+  cardItemInfo: {
+    flex: 1,
+    minWidth: 0,
+  },
+  cardTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    flexWrap: 'wrap',
   },
   cardEmojiIcon: {
     fontSize: 16,
@@ -838,63 +863,68 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: '#0f172a',
+    flexShrink: 1,
   },
   listItemSub: {
     fontSize: 12,
     color: '#64748b',
     marginTop: 2,
   },
+  actionButtonsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    flexShrink: 0,
+  },
   saveEditBtn: {
     backgroundColor: '#0f172a',
     borderRadius: 6,
-    paddingVertical: 5,
-    paddingHorizontal: 10,
-    marginRight: 6,
+    width: 30,
+    height: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   saveEditBtnText: {
-    color: '#ffffff',
-    fontSize: 12,
-    fontWeight: 'bold',
+    fontSize: 13,
   },
   cancelEditBtn: {
     backgroundColor: '#f1f5f9',
     borderWidth: 1,
     borderColor: '#cbd5e1',
     borderRadius: 6,
-    paddingVertical: 5,
-    paddingHorizontal: 10,
+    width: 30,
+    height: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   cancelEditBtnText: {
-    color: '#475569',
-    fontSize: 12,
-    fontWeight: '600',
+    fontSize: 11,
   },
-  deleteButton: {
+  deleteIconButton: {
     backgroundColor: '#fee2e2',
     borderWidth: 1,
     borderColor: '#fca5a5',
     borderRadius: 6,
-    paddingVertical: 5,
-    paddingHorizontal: 10,
+    width: 30,
+    height: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  deleteButtonText: {
-    color: '#dc2626',
-    fontWeight: '600',
-    fontSize: 12,
+  deleteIconText: {
+    fontSize: 13,
   },
-  editButton: {
+  editIconButton: {
     backgroundColor: '#f1f5f9',
     borderWidth: 1,
     borderColor: '#cbd5e1',
     borderRadius: 6,
-    paddingVertical: 5,
-    paddingHorizontal: 10,
-    marginRight: 6,
+    width: 30,
+    height: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  editButtonText: {
-    color: '#334155',
-    fontWeight: '600',
-    fontSize: 12,
+  editIconText: {
+    fontSize: 13,
   },
   emptyText: {
     padding: 16,
@@ -927,13 +957,12 @@ const styles = StyleSheet.create({
     borderColor: '#e2e8f0',
     borderRadius: 6,
     paddingVertical: 5,
-    paddingHorizontal: 10,
-    marginRight: 6,
+    paddingHorizontal: 8,
   },
   hideButtonText: {
     color: '#64748b',
     fontWeight: '600',
-    fontSize: 12,
+    fontSize: 11,
   },
   userHeaderRow: {
     flexDirection: 'row',
