@@ -416,7 +416,7 @@ export const CreditCardsTab: React.FC<CreditCardsTabProps> = ({
 
             {creditCardsOnly.length === 0 ? (
               <View style={styles.emptyOverviewBox}>
-                <Text style={styles.emptyOverviewTitle}>💳 No Credit Cards Configured</Text>
+                <Text style={styles.emptyOverviewTitle}>No Credit Cards Configured</Text>
                 <Text style={styles.emptyOverviewSub}>
                   You don't have any credit cards configured yet. Add your credit cards to track credit age, balances, spent, paid, rewards, and annual fees.
                 </Text>
@@ -444,7 +444,7 @@ export const CreditCardsTab: React.FC<CreditCardsTabProps> = ({
                     <Text style={[styles.ovHeaderCell, isWeb ? styles.ovColRewardsWeb : styles.ovColRewardsMobile]}>Rewards</Text>
                     <Text style={[styles.ovHeaderCell, isWeb ? styles.ovColFeesWeb : styles.ovColFeesMobile]}>Annual Fees</Text>
                     <Text style={[styles.ovHeaderCell, isWeb ? styles.ovColDueWeb : styles.ovColDueMobile]}>Balance Due</Text>
-                    <Text style={[styles.ovHeaderCell, isWeb ? styles.ovColActionWeb : styles.ovColActionMobile, { textAlign: 'center' }]}>Actions</Text>
+                    <Text style={[styles.ovHeaderCell, isWeb ? styles.ovColActionWeb : styles.ovColActionMobile, { textAlign: 'center', borderRightWidth: 0 }]}>Actions</Text>
                   </View>
 
                   {/* Table Rows */}
@@ -468,7 +468,7 @@ export const CreditCardsTab: React.FC<CreditCardsTabProps> = ({
                           onPress={() => setSelectedCardId(card.id)}
                         >
                           <Text style={[styles.ovCardNameText, closed && styles.closedText]}>
-                            💳 {card.name}
+                            {card.name}
                           </Text>
                           {closed && <Text style={styles.closedBadge}>CLOSED</Text>}
                         </TouchableOpacity>
@@ -561,7 +561,7 @@ export const CreditCardsTab: React.FC<CreditCardsTabProps> = ({
                         </View>
 
                         {/* Action Button */}
-                        <View style={[styles.ovCell, isWeb ? styles.ovColActionWeb : styles.ovColActionMobile, { justifyContent: 'center', alignItems: 'center' }]}>
+                        <View style={[styles.ovCell, isWeb ? styles.ovColActionWeb : styles.ovColActionMobile, { justifyContent: 'center', alignItems: 'center', borderRightWidth: 0 }]}>
                           <TouchableOpacity
                             style={styles.viewSheetBtn}
                             onPress={() => setSelectedCardId(card.id)}
@@ -942,7 +942,7 @@ const styles = StyleSheet.create({
     flexDirection: 'column',
   },
   overviewTableMobile: {
-    width: 980,
+    width: 1030,
     flexDirection: 'column',
   },
   overviewTableHeaderRow: {
@@ -962,7 +962,7 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   overviewRowMobile: {
-    width: 980,
+    width: 1030,
   },
   closedTableRow: {
     backgroundColor: '#f8fafc',
@@ -1024,10 +1024,10 @@ const styles = StyleSheet.create({
   },
   // Overview Mobile columns (fixed width)
   ovColNameMobile: {
-    width: 170,
+    width: 160,
   },
   ovColDateMobile: {
-    width: 145,
+    width: 140,
   },
   ovColAgeMobile: {
     width: 110,
@@ -1045,10 +1045,10 @@ const styles = StyleSheet.create({
     width: 95,
   },
   ovColDueMobile: {
-    width: 105,
+    width: 110,
   },
   ovColActionMobile: {
-    width: 100,
+    width: 130,
   },
   ovNameCell: {
     flexDirection: 'row',

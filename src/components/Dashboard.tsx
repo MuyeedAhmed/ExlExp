@@ -569,7 +569,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                     </svg>
                     <View style={styles.donutCenter}>
                       <Text style={styles.donutCenterLabel}>Spent</Text>
-                      <Text style={styles.donutCenterAmount}>${formatShortK(totalActiveMonthSpending)}</Text>
+                      <Text style={styles.donutCenterAmount}>{formatShortK(totalActiveMonthSpending)}</Text>
                     </View>
                   </View>
                 ) : (
@@ -577,7 +577,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                     <View style={[styles.mobileWheelRing, { borderColor: categorySpending[0]?.color || '#0f172a' }]}>
                       <View style={styles.donutCenter}>
                         <Text style={styles.donutCenterLabel}>Spent</Text>
-                        <Text style={styles.donutCenterAmount}>${formatShortK(totalActiveMonthSpending)}</Text>
+                        <Text style={styles.donutCenterAmount}>{formatShortK(totalActiveMonthSpending)}</Text>
                       </View>
                     </View>
                   </View>
