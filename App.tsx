@@ -491,7 +491,6 @@ export default function App() {
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>ExlExp</Text>
-        <Text style={styles.headerSubtitle}>Personal Spending Tracker</Text>
       </View>
 
       {/* Main Content Area */}
@@ -591,14 +590,6 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '800',
     color: '#0f172a',
-  },
-  headerSubtitle: {
-    fontSize: 11,
-    color: '#64748b',
-    marginTop: 2,
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
   },
   content: {
     flex: 1,

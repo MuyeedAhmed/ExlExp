@@ -585,12 +585,6 @@ export const CreditCardsTab: React.FC<CreditCardsTabProps> = ({
           {/* Card Header Banner (Only Current Balance kept as requested!) */}
           <View style={styles.headerBanner}>
             <View style={styles.bannerLeftRow}>
-              <TouchableOpacity
-                style={styles.backButton}
-                onPress={() => setSelectedCardId('all')}
-              >
-                <Text style={styles.backButtonText}>← All Cards</Text>
-              </TouchableOpacity>
               <Text style={styles.headerLabel}>
                 {activeCard.name}
               </Text>
@@ -1145,20 +1139,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-  },
-  backButton: {
-    backgroundColor: '#e2e8f0',
-    paddingVertical: 4,
-    paddingHorizontal: 8,
-    borderRadius: 4,
-    borderWidth: 1,
-    borderColor: '#cbd5e1',
-  },
-  backButtonText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#475569',
-    textTransform: 'uppercase',
   },
   headerLabel: {
     fontSize: 15,
