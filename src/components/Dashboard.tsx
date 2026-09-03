@@ -9,6 +9,7 @@ import {
   useWindowDimensions,
   Platform,
 } from 'react-native';
+import Svg, { Circle } from 'react-native-svg';
 import { Expense, CreditCard, FutureExpense } from '../types';
 
 const formatCurrency = (val: number): string => {
@@ -573,12 +574,38 @@ export const Dashboard: React.FC<DashboardProps> = ({
                     </View>
                   </View>
                 ) : (
-                  <View style={styles.mobileWheelBox}>
-                    <View style={[styles.mobileWheelRing, { borderColor: categorySpending[0]?.color || '#0f172a' }]}>
-                      <View style={styles.donutCenter}>
-                        <Text style={styles.donutCenterLabel}>Spent</Text>
-                        <Text style={styles.donutCenterAmount}>{formatShortK(totalActiveMonthSpending)}</Text>
-                      </View>
+                  <View style={styles.donutSvgContainer}>
+                    <Svg
+                      width={donutSize}
+                      height={donutSize}
+                      viewBox={`0 0 ${donutSize} ${donutSize}`}
+                      style={{ transform: [{ rotate: '-90deg' }] }}
+                    >
+                      {(() => {
+                        let accumulatedPercent = 0;
+                        return categorySpending.map((cat, idx) => {
+                          const strokeDasharray = `${(cat.percentage / 100) * circumference} ${circumference}`;
+                          const strokeDashoffset = -((accumulatedPercent / 100) * circumference);
+                          accumulatedPercent += cat.percentage;
+                          return (
+                            <Circle
+                              key={idx}
+                              cx={donutSize / 2}
+                              cy={donutSize / 2}
+                              r={radius}
+                              fill="transparent"
+                              stroke={cat.color}
+                              strokeWidth={strokeWidth}
+                              strokeDasharray={strokeDasharray}
+                              strokeDashoffset={strokeDashoffset}
+                            />
+                          );
+                        });
+                      })()}
+                    </Svg>
+                    <View style={styles.donutCenter}>
+                      <Text style={styles.donutCenterLabel}>Spent</Text>
+                      <Text style={styles.donutCenterAmount}>{formatShortK(totalActiveMonthSpending)}</Text>
                     </View>
                   </View>
                 )}
@@ -828,8 +855,6 @@ const styles = StyleSheet.create({
   donutCenter: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' },
   donutCenterLabel: { fontSize: 11, color: '#64748b', fontWeight: '700', textTransform: 'uppercase' },
   donutCenterAmount: { fontSize: 16, fontWeight: '800', color: '#0f172a', fontFamily: Platform.OS === 'ios' ? 'Courier New' : 'monospace' },
-  mobileWheelBox: { width: 160, height: 160, alignItems: 'center', justifyContent: 'center' },
-  mobileWheelRing: { width: 150, height: 150, borderRadius: 75, borderWidth: 20, alignItems: 'center', justifyContent: 'center' },
   categoryLegendList: { flex: 1, width: '100%', gap: 10 },
   legendRow: { paddingVertical: 4 },
   legendTopLine: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
