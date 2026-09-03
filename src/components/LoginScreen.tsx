@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   StyleSheet,
   Text,
@@ -10,6 +10,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  Keyboard,
 } from 'react-native';
 import { supabase } from '../supabaseClient';
 
@@ -24,7 +25,10 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
+  const passwordInputRef = useRef<TextInput>(null);
+
   const handleAuth = async () => {
+    Keyboard.dismiss();
     setErrorMsg(null);
     const trimmedUsername = username.trim().toLowerCase();
     
@@ -98,8 +102,23 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardView}
       >
-        <ScrollView contentContainerStyle={styles.scrollContainer}>
-          <View style={styles.card}>
+        <ScrollView
+          contentContainerStyle={styles.scrollContainer}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+        >
+          <View
+            style={styles.card}
+            {...(Platform.OS === 'web'
+              ? ({
+                  onKeyDown: (e: any) => {
+                    if (e.key === 'Enter') {
+                      handleAuth();
+                    }
+                  },
+                } as any)
+              : {})}
+          >
             <View style={styles.header}>
               <Text style={styles.headerTitle}>ExlExp</Text>
               <Text style={styles.headerSubtitle}>
@@ -125,12 +144,21 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
                   autoCapitalize="none"
                   autoCorrect={false}
                   editable={!loading}
+                  returnKeyType="next"
+                  onSubmitEditing={() => {
+                    if (password) {
+                      handleAuth();
+                    } else {
+                      passwordInputRef.current?.focus();
+                    }
+                  }}
                 />
               </View>
 
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>Password</Text>
                 <TextInput
+                  ref={passwordInputRef}
                   style={styles.input}
                   placeholder="Password"
                   placeholderTextColor="#94a3b8"
@@ -140,6 +168,8 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
                   autoCapitalize="none"
                   autoCorrect={false}
                   editable={!loading}
+                  returnKeyType="go"
+                  onSubmitEditing={handleAuth}
                 />
               </View>
 
