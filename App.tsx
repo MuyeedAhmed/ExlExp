@@ -128,7 +128,7 @@ function MainApp() {
     const username = currentUser;
 
     async function loadData() {
-      // 1. Load cached data from AsyncStorage first for instant startup
+      // 1. Load cached data from AsyncStorage first for instant startup if non-empty
       let cachedExpenses: Expense[] = [];
       let cachedCards: CreditCard[] = [];
       let cachedFutureExpenses: FutureExpense[] = [];
@@ -144,22 +144,25 @@ function MainApp() {
         if (cardData) cachedCards = JSON.parse(cardData);
         if (futureData) cachedFutureExpenses = JSON.parse(futureData);
 
-        if (expData || cardData || futureData) {
+        const hasNonEmptyCache = cachedExpenses.length > 0 || cachedCards.length > 0;
+        if (hasNonEmptyCache) {
           setExpenses(cachedExpenses);
           setCards(cachedCards);
           setFutureExpenses(cachedFutureExpenses);
-          setLoading(false); // Render dashboard instantly
+          setLoading(false); // Render dashboard instantly only if real data was cached
         }
       } catch (cacheError) {
         console.warn('Failed to load cached data from AsyncStorage:', cacheError);
       }
 
-      // 2. Perform background sync from Supabase
+      // 2. Perform sync from Supabase with smooth delay to avoid 0's glance
       try {
         const [freshExpenses, freshCards, freshFutureExpenses] = await Promise.all([
           getExpenses(username),
           getCreditCards(username),
           getFutureExpenses(username),
+          // Smooth minimum delay of 500ms so loading screen displays cleanly without abrupt flicker
+          new Promise(resolve => setTimeout(resolve, 500)),
         ]);
 
         setExpenses(freshExpenses);
@@ -173,7 +176,7 @@ function MainApp() {
           AsyncStorage.setItem(`@ExlExp:${username}:future_expenses`, JSON.stringify(freshFutureExpenses)),
         ]);
       } catch (syncError) {
-        console.error('Background sync from Supabase failed:', syncError);
+        console.error('Sync from Supabase failed:', syncError);
       } finally {
         setLoading(false); // Ensure loading is dismissed
       }
@@ -428,16 +431,21 @@ function MainApp() {
 
   const handleLoginSuccess = async (username: string) => {
     try {
+      setLoading(true); // Always display loading screen immediately upon login
       await AsyncStorage.setItem('@ExlExp:currentUser', username);
       setCurrentUser(username);
     } catch (e) {
       console.error('Failed to save session:', e);
+      setLoading(false);
     }
   };
 
   const handleLogout = async () => {
     try {
       await AsyncStorage.removeItem('@ExlExp:currentUser');
+      setExpenses([]);
+      setCards([]);
+      setFutureExpenses([]);
       setCurrentUser(null);
     } catch (e) {
       console.error('Failed to log out:', e);
@@ -526,8 +534,8 @@ function MainApp() {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#000000" />
-        <Text style={styles.loadingText}>Loading Spending Tracker...</Text>
+        <ActivityIndicator size="large" color="#0f172a" />
+        <Text style={styles.loadingText}>Fetching your accounts & expenses...</Text>
       </View>
     );
   }
