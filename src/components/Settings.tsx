@@ -284,8 +284,8 @@ export const Settings: React.FC<SettingsProps> = ({
             }
             placeholderTextColor="#94a3b8"
           />
-          <TouchableOpacity style={styles.addButton} onPress={handleAddChecking}>
-            <Text style={styles.addButtonText}>Add Account</Text>
+          <TouchableOpacity style={styles.addButton} onPress={handleAddChecking} accessibilityLabel="Add Account">
+            <Text style={styles.addButtonText}>➕</Text>
           </TouchableOpacity>
         </View>
  
@@ -348,14 +348,16 @@ export const Settings: React.FC<SettingsProps> = ({
                       <TouchableOpacity
                         style={styles.saveEditBtn}
                         onPress={() => handleSaveRename(card.id)}
+                        accessibilityLabel="Save"
                       >
-                        <Text style={styles.saveEditBtnText}>Save</Text>
+                        <Text style={styles.saveEditBtnText}>💾</Text>
                       </TouchableOpacity>
                       <TouchableOpacity
                         style={styles.cancelEditBtn}
                         onPress={() => setEditingCardId(null)}
+                        accessibilityLabel="Cancel"
                       >
-                        <Text style={styles.cancelEditBtnText}>Cancel</Text>
+                        <Text style={styles.cancelEditBtnText}>❌</Text>
                       </TouchableOpacity>
                     </>
                   ) : (
@@ -411,8 +413,8 @@ export const Settings: React.FC<SettingsProps> = ({
             placeholder="YYYY-MM-DD"
             placeholderTextColor="#94a3b8"
           />
-          <TouchableOpacity style={styles.addButton} onPress={handleAddCard}>
-            <Text style={styles.addButtonText}>Add Card</Text>
+          <TouchableOpacity style={styles.addButton} onPress={handleAddCard} accessibilityLabel="Add Card">
+            <Text style={styles.addButtonText}>➕</Text>
           </TouchableOpacity>
         </View>
  
@@ -497,14 +499,16 @@ export const Settings: React.FC<SettingsProps> = ({
                       <TouchableOpacity
                         style={styles.saveEditBtn}
                         onPress={() => handleSaveRename(card.id)}
+                        accessibilityLabel="Save"
                       >
-                        <Text style={styles.saveEditBtnText}>Save</Text>
+                        <Text style={styles.saveEditBtnText}>💾</Text>
                       </TouchableOpacity>
                       <TouchableOpacity
                         style={styles.cancelEditBtn}
                         onPress={() => setEditingCardId(null)}
+                        accessibilityLabel="Cancel"
                       >
-                        <Text style={styles.cancelEditBtnText}>Cancel</Text>
+                        <Text style={styles.cancelEditBtnText}>❌</Text>
                       </TouchableOpacity>
                     </>
                   ) : (
@@ -789,15 +793,16 @@ const styles = StyleSheet.create({
   addButton: {
     backgroundColor: '#0f172a',
     borderRadius: 6,
-    paddingHorizontal: 16,
+    paddingHorizontal: 12,
     alignItems: 'center',
     justifyContent: 'center',
     height: 38,
+    minWidth: 42,
   },
   addButtonText: {
     color: '#ffffff',
     fontWeight: 'bold',
-    fontSize: 13,
+    fontSize: 15,
   },
   listContainer: {
     gap: 0,
@@ -874,26 +879,26 @@ const styles = StyleSheet.create({
   saveEditBtn: {
     backgroundColor: '#0f172a',
     borderRadius: 6,
-    paddingVertical: 5,
-    paddingHorizontal: 10,
+    width: 30,
+    height: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   saveEditBtnText: {
-    color: '#ffffff',
-    fontSize: 12,
-    fontWeight: 'bold',
+    fontSize: 13,
   },
   cancelEditBtn: {
     backgroundColor: '#f1f5f9',
     borderWidth: 1,
     borderColor: '#cbd5e1',
     borderRadius: 6,
-    paddingVertical: 5,
-    paddingHorizontal: 10,
+    width: 30,
+    height: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   cancelEditBtnText: {
-    color: '#475569',
-    fontSize: 12,
-    fontWeight: '600',
+    fontSize: 11,
   },
   deleteIconButton: {
     backgroundColor: '#fee2e2',

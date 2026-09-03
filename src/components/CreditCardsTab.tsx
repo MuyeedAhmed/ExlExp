@@ -343,7 +343,7 @@ export const CreditCardsTab: React.FC<CreditCardsTabProps> = ({
               style={styles.addCardTabBtn}
               onPress={onNavigateToSettings}
             >
-              <Text style={styles.addCardTabBtnText}>+ Add Card</Text>
+              <Text style={styles.addCardTabBtnText}>➕ Add Card</Text>
             </TouchableOpacity>
           )}
         </ScrollView>
@@ -422,7 +422,7 @@ export const CreditCardsTab: React.FC<CreditCardsTabProps> = ({
                 </Text>
                 {onNavigateToSettings && (
                   <TouchableOpacity style={styles.emptyActionBtn} onPress={onNavigateToSettings}>
-                    <Text style={styles.emptyActionBtnText}>+ Add Credit Card</Text>
+                    <Text style={styles.emptyActionBtnText}>➕ Add Credit Card</Text>
                   </TouchableOpacity>
                 )}
               </View>
@@ -668,11 +668,11 @@ export const CreditCardsTab: React.FC<CreditCardsTabProps> = ({
                           </Text>
                           
                           <View style={[styles.cellActions, isWeb ? styles.colActionsWeb : styles.colActionsMobile]}>
-                            <TouchableOpacity style={styles.actionBtn} onPress={() => onEdit(item)}>
-                              <Text style={styles.editBtnText}>Edit</Text>
+                            <TouchableOpacity style={styles.actionBtn} onPress={() => onEdit(item)} accessibilityLabel="Edit">
+                              <Text style={styles.actionIconText}>✏️</Text>
                             </TouchableOpacity>
-                            <TouchableOpacity style={styles.actionBtn} onPress={() => confirmDelete(item.id)}>
-                              <Text style={styles.deleteBtnText}>Del</Text>
+                            <TouchableOpacity style={styles.actionBtn} onPress={() => confirmDelete(item.id)} accessibilityLabel="Delete">
+                              <Text style={styles.actionIconText}>🗑️</Text>
                             </TouchableOpacity>
                           </View>
                         </View>
@@ -1285,7 +1285,10 @@ const styles = StyleSheet.create({
   },
   actionBtn: {
     paddingVertical: 2,
-    paddingHorizontal: 6,
+    paddingHorizontal: 4,
+  },
+  actionIconText: {
+    fontSize: 13,
   },
   editBtnText: {
     fontSize: 12,
