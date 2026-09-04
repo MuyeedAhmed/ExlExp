@@ -614,77 +614,188 @@ function MainApp() {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, isWeb && styles.containerWeb]}>
       <StatusBar style="dark" />
-      
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>ExlExp</Text>
-      </View>
+
+      {/* Web Sidebar Navigation (Instagram web style) */}
+      {isWeb && (
+        <View style={styles.webSidebar}>
+          {/* Brand / Logo */}
+          <View style={styles.webSidebarBrand}>
+            <Text style={styles.webSidebarBrandTitle}>ExlExp</Text>
+            <Text style={styles.webSidebarBrandSub}>Personal Finance</Text>
+          </View>
+
+          {/* Nav Menu */}
+          <View style={styles.webSidebarNav}>
+            <TouchableOpacity
+              style={[styles.webNavItem, activeTab === 'dashboard' && styles.webNavItemActive]}
+              onPress={() => {
+                Keyboard.dismiss();
+                setEditingExpense(null);
+                setActiveTab('dashboard');
+              }}
+            >
+              <Text style={styles.webNavIcon}>📊</Text>
+              <Text style={[styles.webNavText, activeTab === 'dashboard' && styles.webNavTextActive]}>
+                Analytics
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.webNavItem, activeTab === 'checking' && styles.webNavItemActive]}
+              onPress={() => {
+                Keyboard.dismiss();
+                setEditingExpense(null);
+                setActiveTab('checking');
+              }}
+            >
+              <Text style={styles.webNavIcon}>🏛️</Text>
+              <Text style={[styles.webNavText, activeTab === 'checking' && styles.webNavTextActive]}>
+                Accounts
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.webNavItem, activeTab === 'credit_cards' && styles.webNavItemActive]}
+              onPress={() => {
+                Keyboard.dismiss();
+                setEditingExpense(null);
+                setActiveTab('credit_cards');
+              }}
+            >
+              <Text style={styles.webNavIcon}>💳</Text>
+              <Text style={[styles.webNavText, activeTab === 'credit_cards' && styles.webNavTextActive]}>
+                Credit Cards
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.webNavItem, activeTab === 'add' && styles.webNavItemActive]}
+              onPress={() => {
+                Keyboard.dismiss();
+                setActiveTab('add');
+              }}
+            >
+              <Text style={styles.webNavIcon}>{editingExpense ? '✏️' : '➕'}</Text>
+              <Text style={[styles.webNavText, activeTab === 'add' && styles.webNavTextActive]}>
+                {editingExpense ? 'Edit Item' : 'Log Expense'}
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.webNavItem, activeTab === 'settings' && styles.webNavItemActive]}
+              onPress={() => {
+                Keyboard.dismiss();
+                setEditingExpense(null);
+                setActiveTab('settings');
+              }}
+            >
+              <Text style={styles.webNavIcon}>⚙️</Text>
+              <Text style={[styles.webNavText, activeTab === 'settings' && styles.webNavTextActive]}>
+                Settings
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Sidebar Footer / User Profile */}
+          <TouchableOpacity
+            style={styles.webSidebarFooter}
+            onPress={() => {
+              Keyboard.dismiss();
+              setEditingExpense(null);
+              setActiveTab('settings');
+            }}
+          >
+            <View style={styles.webSidebarUserAvatar}>
+              <Text style={styles.webSidebarUserAvatarText}>
+                {currentUser === 'local' ? '👤' : currentUser?.charAt(0).toUpperCase() || 'U'}
+              </Text>
+            </View>
+            <View style={styles.webSidebarUserInfo}>
+              <Text style={styles.webSidebarUserName} numberOfLines={1}>
+                {currentUser === 'local' ? 'Local Mode' : `@${currentUser}`}
+              </Text>
+              <Text style={styles.webSidebarUserStatus}>
+                {currentUser === 'local' ? 'Offline Storage' : 'Cloud Synced'}
+              </Text>
+            </View>
+          </TouchableOpacity>
+        </View>
+      )}
 
       {/* Main Content Area */}
-      <View style={styles.content}>
+      <View style={[styles.content, isWeb && styles.contentWeb]}>
+        {/* Header - Mobile only */}
+        {!isWeb && (
+          <View style={styles.header}>
+            <Text style={styles.headerTitle}>ExlExp</Text>
+          </View>
+        )}
+
         {renderContent()}
       </View>
 
-      {/* Tab Navigation Bar */}
-      <View style={[styles.tabBar, isWeb && styles.tabBarWeb]}>
-        <TouchableOpacity
-          style={[styles.tabButton, activeTab === 'dashboard' && styles.activeTabButton]}
-          onPress={() => {
-            Keyboard.dismiss();
-            setEditingExpense(null);
-            setActiveTab('dashboard');
-          }}
-        >
-          <Text style={[styles.tabText, activeTab === 'dashboard' && styles.activeTabText]}>Analytics</Text>
-        </TouchableOpacity>
+      {/* Mobile Tab Navigation Bar - Mobile only */}
+      {!isWeb && (
+        <View style={styles.tabBar}>
+          <TouchableOpacity
+            style={[styles.tabButton, activeTab === 'dashboard' && styles.activeTabButton]}
+            onPress={() => {
+              Keyboard.dismiss();
+              setEditingExpense(null);
+              setActiveTab('dashboard');
+            }}
+          >
+            <Text style={[styles.tabText, activeTab === 'dashboard' && styles.activeTabText]}>Analytics</Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity
-          style={[styles.tabButton, activeTab === 'checking' && styles.activeTabButton]}
-          onPress={() => {
-            Keyboard.dismiss();
-            setEditingExpense(null);
-            setActiveTab('checking');
-          }}
-        >
-          <Text style={[styles.tabText, activeTab === 'checking' && styles.activeTabText]}>Accounts</Text>
-        </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.tabButton, activeTab === 'checking' && styles.activeTabButton]}
+            onPress={() => {
+              Keyboard.dismiss();
+              setEditingExpense(null);
+              setActiveTab('checking');
+            }}
+          >
+            <Text style={[styles.tabText, activeTab === 'checking' && styles.activeTabText]}>Accounts</Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity
-          style={[styles.tabButton, activeTab === 'credit_cards' && styles.activeTabButton]}
-          onPress={() => {
-            Keyboard.dismiss();
-            setEditingExpense(null);
-            setActiveTab('credit_cards');
-          }}
-        >
-          <Text style={[styles.tabText, activeTab === 'credit_cards' && styles.activeTabText]}>Credit Cards</Text>
-        </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.tabButton, activeTab === 'credit_cards' && styles.activeTabButton]}
+            onPress={() => {
+              Keyboard.dismiss();
+              setEditingExpense(null);
+              setActiveTab('credit_cards');
+            }}
+          >
+            <Text style={[styles.tabText, activeTab === 'credit_cards' && styles.activeTabText]}>Credit Cards</Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity
-          style={[styles.tabButton, activeTab === 'add' && styles.activeTabButton]}
-          onPress={() => {
-            Keyboard.dismiss();
-            setActiveTab('add');
-          }}
-        >
-          <Text style={[styles.tabText, activeTab === 'add' && styles.activeTabText]}>
-            {editingExpense ? 'Edit Item' : 'Log'}
-          </Text>
-        </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.tabButton, activeTab === 'add' && styles.activeTabButton]}
+            onPress={() => {
+              Keyboard.dismiss();
+              setActiveTab('add');
+            }}
+          >
+            <Text style={[styles.tabText, activeTab === 'add' && styles.activeTabText]}>
+              {editingExpense ? 'Edit Item' : 'Log'}
+            </Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity
-          style={[styles.tabButton, activeTab === 'settings' && styles.activeTabButton]}
-          onPress={() => {
-            Keyboard.dismiss();
-            setEditingExpense(null);
-            setActiveTab('settings');
-          }}
-        >
-          <Text style={[styles.tabText, activeTab === 'settings' && styles.activeTabText]}>Settings</Text>
-        </TouchableOpacity>
-      </View>
+          <TouchableOpacity
+            style={[styles.tabButton, activeTab === 'settings' && styles.activeTabButton]}
+            onPress={() => {
+              Keyboard.dismiss();
+              setEditingExpense(null);
+              setActiveTab('settings');
+            }}
+          >
+            <Text style={[styles.tabText, activeTab === 'settings' && styles.activeTabText]}>Settings</Text>
+          </TouchableOpacity>
+        </View>
+      )}
     </SafeAreaView>
   );
 }
@@ -702,6 +813,10 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#ffffff',
     paddingTop: Platform.OS === 'android' ? (RNStatusBar.currentHeight || 0) : 0,
+  },
+  containerWeb: {
+    flexDirection: 'row',
+    height: '100%',
   },
   loadingContainer: {
     flex: 1,
@@ -731,6 +846,104 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
   },
+  contentWeb: {
+    flex: 1,
+    height: '100%',
+  },
+  webSidebar: {
+    width: 240,
+    height: '100%',
+    borderRightWidth: 1,
+    borderRightColor: '#e2e8f0',
+    backgroundColor: '#ffffff',
+    paddingHorizontal: 16,
+    paddingVertical: 24,
+    justifyContent: 'space-between',
+  },
+  webSidebarBrand: {
+    paddingHorizontal: 10,
+    marginBottom: 24,
+  },
+  webSidebarBrandTitle: {
+    fontSize: 24,
+    fontWeight: '900',
+    color: '#0f172a',
+    letterSpacing: -0.5,
+  },
+  webSidebarBrandSub: {
+    fontSize: 11,
+    color: '#64748b',
+    fontWeight: '600',
+    marginTop: 2,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  webSidebarNav: {
+    flex: 1,
+    gap: 4,
+  },
+  webNavItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+  },
+  webNavItemActive: {
+    backgroundColor: '#f1f5f9',
+  },
+  webNavIcon: {
+    fontSize: 18,
+    width: 24,
+    textAlign: 'center',
+  },
+  webNavText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#475569',
+  },
+  webNavTextActive: {
+    color: '#0f172a',
+    fontWeight: '700',
+  },
+  webSidebarFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    padding: 10,
+    borderRadius: 8,
+    backgroundColor: '#f8fafc',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  webSidebarUserAvatar: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: '#0f172a',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  webSidebarUserAvatarText: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  webSidebarUserInfo: {
+    flex: 1,
+    minWidth: 0,
+  },
+  webSidebarUserName: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#0f172a',
+  },
+  webSidebarUserStatus: {
+    fontSize: 11,
+    color: '#64748b',
+    marginTop: 1,
+  },
   tabBar: {
     flexDirection: 'row',
     height: Platform.OS === 'android' ? 96 : 48,
@@ -738,16 +951,6 @@ const styles = StyleSheet.create({
     borderTopColor: '#e2e8f0',
     backgroundColor: '#ffffff',
     alignItems: 'flex-start',
-  },
-  tabBarWeb: {
-    maxWidth: 600,
-    alignSelf: 'center',
-    width: '100%',
-    borderRadius: 4,
-    borderWidth: 1,
-    borderColor: '#cbd5e1',
-    marginBottom: 16,
-    height: 44,
   },
   tabButton: {
     flex: 1,
