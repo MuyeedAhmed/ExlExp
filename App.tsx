@@ -20,6 +20,9 @@ import {
   saveCreditCards,
   getFutureExpenses,
   saveFutureExpenses,
+  initializeLocalDefaults,
+  migrateLocalDataToCloud,
+  DEFAULT_LOCAL_CARDS,
 } from './src/storage';
 import { Dashboard } from './src/components/Dashboard';
 import { ExpenseForm } from './src/components/ExpenseForm';
@@ -96,6 +99,7 @@ function MainApp() {
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [selectedCheckingAccountId, setSelectedCheckingAccountId] = useState<string>('');
   const [selectedCreditCardId, setSelectedCreditCardId] = useState<string>('');
+  const [showAuthScreen, setShowAuthScreen] = useState(false);
 
   // Check user session on startup
   useEffect(() => {
@@ -105,17 +109,42 @@ function MainApp() {
         if (storedUser) {
           setCurrentUser(storedUser);
         } else {
-          setLoading(false);
+          // First launch / Guest: default to local-first mode
+          await AsyncStorage.setItem('@ExlExp:currentUser', 'local');
+          await initializeLocalDefaults('local');
+          setCurrentUser('local');
         }
       } catch (e) {
         console.error('Failed to check user session:', e);
+        setCurrentUser('local');
         setLoading(false);
       }
     }
     checkSession();
   }, []);
 
-  // Load user data when currentUser changes (SWR caching + background sync)
+  // Reload data helper
+  const reloadUserData = async (username: string) => {
+    try {
+      const [freshExpenses, freshCards, freshFutureExpenses] = await Promise.all([
+        getExpenses(username),
+        getCreditCards(username),
+        getFutureExpenses(username),
+      ]);
+      setExpenses(freshExpenses);
+      if (freshCards.length === 0 && username === 'local') {
+        await initializeLocalDefaults('local');
+        setCards(DEFAULT_LOCAL_CARDS);
+      } else {
+        setCards(freshCards);
+      }
+      setFutureExpenses(freshFutureExpenses);
+    } catch (e) {
+      console.error('Failed to reload data:', e);
+    }
+  };
+
+  // Load user data when currentUser changes
   useEffect(() => {
     if (!currentUser) {
       setExpenses([]);
@@ -128,7 +157,27 @@ function MainApp() {
     const username = currentUser;
 
     async function loadData() {
-      // 1. Load cached data from AsyncStorage first for instant startup if non-empty
+      // 1. If local mode, load directly from local storage and ensure defaults exist
+      if (username === 'local') {
+        try {
+          await initializeLocalDefaults('local');
+          const [localExpenses, localCards, localFuture] = await Promise.all([
+            getExpenses('local'),
+            getCreditCards('local'),
+            getFutureExpenses('local'),
+          ]);
+          setExpenses(localExpenses);
+          setCards(localCards.length > 0 ? localCards : DEFAULT_LOCAL_CARDS);
+          setFutureExpenses(localFuture);
+        } catch (e) {
+          console.error('Error loading local data:', e);
+        } finally {
+          setLoading(false);
+        }
+        return;
+      }
+
+      // 2. If cloud user, load cached data from AsyncStorage first for instant startup if non-empty
       let cachedExpenses: Expense[] = [];
       let cachedCards: CreditCard[] = [];
       let cachedFutureExpenses: FutureExpense[] = [];
@@ -155,7 +204,7 @@ function MainApp() {
         console.warn('Failed to load cached data from AsyncStorage:', cacheError);
       }
 
-      // 2. Perform sync from Supabase with smooth delay to avoid 0's glance
+      // 3. Perform sync from Supabase with smooth delay to avoid 0's glance
       try {
         const [freshExpenses, freshCards, freshFutureExpenses] = await Promise.all([
           getExpenses(username),
@@ -431,25 +480,37 @@ function MainApp() {
 
   const handleLoginSuccess = async (username: string) => {
     try {
-      setLoading(true); // Always display loading screen immediately upon login
+      setLoading(true);
+      // Migrate local guest data to cloud account if any exists
+      await migrateLocalDataToCloud(username);
       await AsyncStorage.setItem('@ExlExp:currentUser', username);
       setCurrentUser(username);
+      setShowAuthScreen(false);
     } catch (e) {
-      console.error('Failed to save session:', e);
+      console.error('Failed to save session or migrate data:', e);
       setLoading(false);
     }
   };
 
   const handleLogout = async () => {
     try {
-      await AsyncStorage.removeItem('@ExlExp:currentUser');
-      setExpenses([]);
-      setCards([]);
-      setFutureExpenses([]);
-      setCurrentUser(null);
+      setLoading(true);
+      // Switch back to local mode seamlessly
+      await AsyncStorage.setItem('@ExlExp:currentUser', 'local');
+      setCurrentUser('local');
     } catch (e) {
-      console.error('Failed to log out:', e);
+      console.error('Failed to log out and switch to local mode:', e);
+      setLoading(false);
     }
+  };
+
+  const handleManualSync = async () => {
+    if (!currentUser || currentUser === 'local') return;
+    await Promise.all([
+      saveExpenses(expenses, currentUser),
+      saveCreditCards(cards, currentUser),
+      saveFutureExpenses(futureExpenses, currentUser),
+    ]);
   };
 
   // Render correct screen component based on active tab
@@ -513,9 +574,12 @@ function MainApp() {
             onMoveCard={handleMoveCard}
             onToggleCardVisibility={handleToggleCardVisibility}
             onUpdateCard={handleCardUpdate}
-            username={currentUser!}
+            username={currentUser || 'local'}
             onLogout={handleLogout}
             onUsernameChange={setCurrentUser}
+            onOpenAuth={() => setShowAuthScreen(true)}
+            onSyncNow={handleManualSync}
+            onDataReload={() => reloadUserData(currentUser || 'local')}
           />
         );
       default:
@@ -540,8 +604,13 @@ function MainApp() {
     );
   }
 
-  if (!currentUser) {
-    return <LoginScreen onLoginSuccess={handleLoginSuccess} />;
+  if (showAuthScreen) {
+    return (
+      <LoginScreen
+        onLoginSuccess={handleLoginSuccess}
+        onCancel={() => setShowAuthScreen(false)}
+      />
+    );
   }
 
   return (

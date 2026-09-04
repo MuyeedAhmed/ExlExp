@@ -7,6 +7,8 @@
     "@supabase/supabase-js": "^2.112.4",
     "cors": "^2.8.6",
     "expo": "~57.0.18",
+    "expo-file-system": "^57.0.6",
+    "expo-sharing": "^57.0.18",
     "expo-status-bar": "~57.0.1",
     "express": "^4.22.2",
     "pg": "^8.23.0",

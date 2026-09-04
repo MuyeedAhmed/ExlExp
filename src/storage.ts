@@ -9,6 +9,16 @@ const FUTURE_EXPENSES_KEY = '@ExlExp:future_expenses';
 
 
 export const getExpenses = async (username: string): Promise<Expense[]> => {
+  if (username === 'local') {
+    try {
+      const data = await AsyncStorage.getItem(`@ExlExp:local:expenses`);
+      return data ? JSON.parse(data) : [];
+    } catch (e) {
+      console.error('Error fetching local expenses:', e);
+      return [];
+    }
+  }
+
   try {
     let allExpenses: any[] = [];
     let from = 0;
@@ -60,6 +70,18 @@ export const getExpenses = async (username: string): Promise<Expense[]> => {
 };
 
 export const saveExpenses = async (expenses: Expense[], username: string): Promise<void> => {
+  // Always save to local AsyncStorage
+  try {
+    await AsyncStorage.setItem(`@ExlExp:${username}:expenses`, JSON.stringify(expenses));
+  } catch (e) {
+    console.error('Error saving expenses to AsyncStorage:', e);
+  }
+
+  // If local user, do not attempt Supabase sync
+  if (username === 'local') {
+    return;
+  }
+
   // 1. Fetch previous expenses from local AsyncStorage to compute delta
   let oldExpenses: Expense[] = [];
   try {
@@ -69,14 +91,7 @@ export const saveExpenses = async (expenses: Expense[], username: string): Promi
     console.error('Error fetching old expenses from AsyncStorage:', e);
   }
 
-  // 2. Save new list to local AsyncStorage
-  try {
-    await AsyncStorage.setItem(`@ExlExp:${username}:expenses`, JSON.stringify(expenses));
-  } catch (e) {
-    console.error('Error saving expenses to AsyncStorage:', e);
-  }
-
-  // 3. Perform targeted CRUD delta sync to Supabase (avoid downloading the DB!)
+  // 2. Perform targeted CRUD delta sync to Supabase (avoid downloading the DB!)
   try {
     // Map expenses to database format
     const mapExpense = (e: Expense) => {
@@ -150,6 +165,27 @@ export const saveExpenses = async (expenses: Expense[], username: string): Promi
 };
 
 export const getCreditCards = async (username: string): Promise<CreditCard[]> => {
+  if (username === 'local') {
+    try {
+      const data = await AsyncStorage.getItem('@ExlExp:local:credit_cards');
+      if (!data) {
+        return [];
+      }
+      const todayStr = new Date().toISOString().split('T')[0];
+      const parsed: CreditCard[] = JSON.parse(data);
+      const sorted = parsed.map((c, index) => ({
+        ...c,
+        isHidden: !!c.isHidden,
+        openDate: c.openDate || todayStr,
+        priority: typeof c.priority === 'number' ? c.priority : index
+      }));
+      return sorted.sort((a, b) => a.priority - b.priority);
+    } catch (e) {
+      console.error('Error fetching local credit cards from AsyncStorage:', e);
+      return [];
+    }
+  }
+
   try {
     const { data, error } = await supabase
       .from('cards')
@@ -226,6 +262,11 @@ export const saveCreditCards = async (cards: CreditCard[], username: string): Pr
     await AsyncStorage.setItem(`@ExlExp:${username}:credit_cards`, JSON.stringify(mapped));
   } catch (e) {
     console.error('Error saving credit cards settings to AsyncStorage:', e);
+  }
+
+  // If local user, do not sync with Supabase
+  if (username === 'local') {
+    return;
   }
 
   // 2. Write changes to Supabase cards table
@@ -317,6 +358,16 @@ export const saveCreditCards = async (cards: CreditCard[], username: string): Pr
 };
 
 export const getFutureExpenses = async (username: string): Promise<FutureExpense[]> => {
+  if (username === 'local') {
+    try {
+      const data = await AsyncStorage.getItem('@ExlExp:local:future_expenses');
+      return data ? JSON.parse(data) : [];
+    } catch (e) {
+      console.error('Error fetching local future expenses:', e);
+      return [];
+    }
+  }
+
   try {
     const { data, error } = await supabase
       .from('future_expenses')
@@ -338,6 +389,17 @@ export const getFutureExpenses = async (username: string): Promise<FutureExpense
 };
 
 export const saveFutureExpenses = async (futureExpenses: FutureExpense[], username: string): Promise<void> => {
+  // Always save to local AsyncStorage
+  try {
+    await AsyncStorage.setItem(`@ExlExp:${username}:future_expenses`, JSON.stringify(futureExpenses));
+  } catch (e) {
+    console.error('Error saving future expenses to AsyncStorage:', e);
+  }
+
+  if (username === 'local') {
+    return;
+  }
+
   try {
     const { error: delError } = await supabase
       .from('future_expenses')
@@ -352,12 +414,7 @@ export const saveFutureExpenses = async (futureExpenses: FutureExpense[], userna
       if (insError) throw insError;
     }
   } catch (error) {
-    console.log('Supabase offline or error, saving future expenses to local AsyncStorage:', error);
-    try {
-      await AsyncStorage.setItem(`@ExlExp:${username}:future_expenses`, JSON.stringify(futureExpenses));
-    } catch (e) {
-      console.error('Error saving future expenses to AsyncStorage:', e);
-    }
+    console.log('Supabase offline or error, could not sync future expenses to cloud database:', error);
   }
 };
 
@@ -466,6 +523,139 @@ export const updateUsername = async (
     return { success: true };
   } catch (err: any) {
     return { success: false, error: err.message || 'Failed to update username.' };
+  }
+};
+
+export const DEFAULT_LOCAL_CARDS: CreditCard[] = [
+  {
+    id: 'acc-checking-default',
+    name: 'Cash / Checking',
+    isChecking: true,
+    isSaving: false,
+    isBrokerage: false,
+    isHidden: false,
+    priority: 0,
+    openDate: new Date().toISOString().split('T')[0],
+  },
+  {
+    id: 'card-credit-default',
+    name: 'Primary Credit Card',
+    isChecking: false,
+    isSaving: false,
+    isBrokerage: false,
+    isHidden: false,
+    priority: 1,
+    openDate: new Date().toISOString().split('T')[0],
+  },
+];
+
+export const initializeLocalDefaults = async (username: string = 'local'): Promise<void> => {
+  try {
+    const existingCards = await AsyncStorage.getItem(`@ExlExp:${username}:credit_cards`);
+    if (!existingCards || JSON.parse(existingCards).length === 0) {
+      await AsyncStorage.setItem(
+        `@ExlExp:${username}:credit_cards`,
+        JSON.stringify(DEFAULT_LOCAL_CARDS)
+      );
+    }
+  } catch (e) {
+    console.error('Error initializing local defaults:', e);
+  }
+};
+
+export interface BackupData {
+  version: number;
+  exportedAt: string;
+  app: 'ExlExp';
+  expenses: Expense[];
+  cards: CreditCard[];
+  futureExpenses: FutureExpense[];
+}
+
+export const exportAllDataAsJSON = async (username: string): Promise<string> => {
+  const [expenses, cards, futureExpenses] = await Promise.all([
+    getExpenses(username),
+    getCreditCards(username),
+    getFutureExpenses(username),
+  ]);
+
+  const backup: BackupData = {
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    app: 'ExlExp',
+    expenses,
+    cards,
+    futureExpenses,
+  };
+
+  return JSON.stringify(backup, null, 2);
+};
+
+export const importAllDataFromJSON = async (
+  jsonString: string,
+  username: string
+): Promise<{
+  success: boolean;
+  error?: string;
+  count?: { expenses: number; cards: number; futureExpenses: number };
+}> => {
+  try {
+    const data = JSON.parse(jsonString);
+
+    if (!data || typeof data !== 'object') {
+      return { success: false, error: 'Invalid JSON file format.' };
+    }
+
+    const expenses: Expense[] = Array.isArray(data.expenses) ? data.expenses : [];
+    const cards: CreditCard[] = Array.isArray(data.cards) ? data.cards : [];
+    const futureExpenses: FutureExpense[] = Array.isArray(data.futureExpenses) ? data.futureExpenses : [];
+
+    if (expenses.length === 0 && cards.length === 0 && futureExpenses.length === 0) {
+      return { success: false, error: 'No valid ExlExp data found in this file.' };
+    }
+
+    await Promise.all([
+      saveExpenses(expenses, username),
+      saveCreditCards(cards, username),
+      saveFutureExpenses(futureExpenses, username),
+    ]);
+
+    return {
+      success: true,
+      count: {
+        expenses: expenses.length,
+        cards: cards.length,
+        futureExpenses: futureExpenses.length,
+      },
+    };
+  } catch (err: any) {
+    return { success: false, error: err.message || 'Failed to parse JSON backup file.' };
+  }
+};
+
+export const migrateLocalDataToCloud = async (targetUsername: string): Promise<void> => {
+  try {
+    const [localExpenses, localCards, localFuture] = await Promise.all([
+      getExpenses('local'),
+      getCreditCards('local'),
+      getFutureExpenses('local'),
+    ]);
+
+    // Check if local has real data before uploading
+    const hasData = localExpenses.length > 0 || localCards.length > 0 || localFuture.length > 0;
+    if (!hasData) return;
+
+    if (localCards.length > 0) {
+      await saveCreditCards(localCards, targetUsername);
+    }
+    if (localExpenses.length > 0) {
+      await saveExpenses(localExpenses, targetUsername);
+    }
+    if (localFuture.length > 0) {
+      await saveFutureExpenses(localFuture, targetUsername);
+    }
+  } catch (err) {
+    console.error('Failed to migrate local data to cloud:', err);
   }
 };
 
