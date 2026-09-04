@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import {
   StyleSheet,
   Text,
@@ -8,9 +8,12 @@ import {
   TouchableOpacity,
   useWindowDimensions,
   Platform,
+  BackHandler,
 } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
 import { Expense, CreditCard, FutureExpense } from '../types';
+import { AllTransactionsPage } from './AllTransactionsPage';
+import { consolidateTransactions } from '../transactionUtils';
 
 const formatCurrency = (val: number): string => {
   if (Math.abs(val) < 0.005) return '0.00';
@@ -88,18 +91,16 @@ const PALETTE = [
 
 const getCategoryColor = (name: string): string => {
   if (!name) return '#64748b';
-  const clean = name.trim().toLowerCase();
-  if (CATEGORY_COLORS[clean]) {
-    return CATEGORY_COLORS[clean];
-  }
-  // Deterministic string hash fallback so colors never change across months
+  if (CATEGORY_COLORS[name]) return CATEGORY_COLORS[name];
   let hash = 0;
-  for (let i = 0; i < clean.length; i++) {
-    hash = clean.charCodeAt(i) + ((hash << 5) - hash);
+  for (let i = 0; i < name.length; i++) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash);
   }
   const index = Math.abs(hash) % PALETTE.length;
   return PALETTE[index];
 };
+
+const getDynamicColor = getCategoryColor;
 
 interface DashboardProps {
   expenses: Expense[];
@@ -108,6 +109,8 @@ interface DashboardProps {
   onAddFutureExpense: (expense: Omit<FutureExpense, 'id'>) => void;
   onDeleteFutureExpense: (id: string) => void;
   onNavigateToSettings?: () => void;
+  onEditExpense?: (expense: Expense) => void;
+  onDeleteExpense?: (id: string) => void;
 }
 
 export const Dashboard: React.FC<DashboardProps> = ({
@@ -117,28 +120,61 @@ export const Dashboard: React.FC<DashboardProps> = ({
   onAddFutureExpense,
   onDeleteFutureExpense,
   onNavigateToSettings,
+  onEditExpense,
+  onDeleteExpense,
 }) => {
   const { width } = useWindowDimensions();
   const isWeb = width > 768;
+
+  // View state for All Transactions subpage
+  const [showAllTransactions, setShowAllTransactions] = useState(false);
+
+  // Handle hardware back press on Android when viewing All Transactions
+  useEffect(() => {
+    if (Platform.OS !== 'android') return;
+    const handleBackPress = () => {
+      if (showAllTransactions) {
+        setShowAllTransactions(false);
+        return true;
+      }
+      return false;
+    };
+    const sub = BackHandler.addEventListener('hardwareBackPress', handleBackPress);
+    return () => sub.remove();
+  }, [showAllTransactions]);
 
   // Future Expense Form State
   const [futureDesc, setFutureDesc] = useState('');
   const [futureAmount, setFutureAmount] = useState('');
   const [futureDate, setFutureDate] = useState('');
 
-  // Month selector states
-  const availableMonths = useMemo(() => {
-    const monthsSet = new Set<string>();
+  // 10 most recent transactions (fast O(1) early limit)
+  const recent10Transactions = useMemo(() => {
+    return consolidateTransactions(expenses, cards, 10);
+  }, [expenses, cards]);
+
+  // Rolling last 12 months for trends and the spending wheel
+  const last12Months = useMemo(() => {
     const today = new Date();
-    const currentMonthStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
-    monthsSet.add(currentMonthStr);
-    expenses.forEach(e => {
-      if (e.date && e.date.length >= 7) {
-        monthsSet.add(e.date.substring(0, 7));
-      }
-    });
-    return Array.from(monthsSet).sort().reverse();
-  }, [expenses]);
+    const list: {
+      key: string;
+      label: string;
+      year: string;
+      fullLabel: string;
+    }[] = [];
+    for (let i = 0; i < 12; i++) {
+      const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      const label = d.toLocaleDateString('en-US', { month: 'short' });
+      const year = `'${String(d.getFullYear()).slice(-2)}`;
+      const fullLabel = d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+      list.push({ key, label, year, fullLabel });
+    }
+    return list;
+  }, []);
+
+  // Available months for the wheel (strictly last 12 months)
+  const availableMonths = useMemo(() => last12Months.map(m => m.key), [last12Months]);
 
   const [selectedMonth, setSelectedMonth] = useState<string>('');
   const activeMonth = selectedMonth || availableMonths[0] || '';
@@ -207,77 +243,25 @@ export const Dashboard: React.FC<DashboardProps> = ({
     return checkingBalance - creditCardDebt - futureExpensesTotal;
   }, [checkingBalance, creditCardDebt, futureExpensesTotal]);
 
-  // 12-Month Rolling Spending Trend
-  const monthlySpendingTrend = useMemo(() => {
-    const today = new Date();
-    const months: {
-      key: string;
-      label: string;
-      year: string;
-      fullLabel: string;
-      totalSpending: number;
-    }[] = [];
+  // 12-Month Rolling Spending Trend & Category Breakdown in a SINGLE O(N) pass
+  const { monthlySpendingTrend, categorySpendingByMonth } = useMemo(() => {
+    const monthKeysSet = new Set(availableMonths);
+    const monthSpendMap = new Map<string, number>();
+    const monthCategoryMap = new Map<string, { [cat: string]: number }>();
 
-    for (let i = 11; i >= 0; i--) {
-      const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
-      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-      const label = d.toLocaleDateString('en-US', { month: 'short' });
-      const year = `'${String(d.getFullYear()).slice(-2)}`;
-      const fullLabel = d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+    availableMonths.forEach(k => {
+      monthSpendMap.set(k, 0);
+      monthCategoryMap.set(k, {});
+    });
 
-      let monthSpend = 0;
-      expenses.forEach(e => {
-        if (e.isTransfer || e.category === 'Transfer' || e.category === 'Salary') return;
-        if (!e.date || !e.date.startsWith(key)) return;
+    // Single pass over expenses
+    for (let i = 0; i < expenses.length; i++) {
+      const e = expenses[i];
+      if (e.isTransfer || e.category === 'Transfer' || e.category === 'Salary') continue;
+      if (!e.date || e.date.length < 7) continue;
 
-        const card = cardMap.get(e.creditCardId);
-        const isDeposit = card?.isChecking || card?.isSaving || card?.isBrokerage;
-
-        if (isDeposit) {
-          if (e.amount < 0 && !e.isInterest) {
-            monthSpend += Math.abs(e.amount);
-          } else if (e.amount > 0) {
-            monthSpend -= e.amount;
-          }
-        } else {
-          if (e.amount > 0 && !e.isReward) {
-            monthSpend += e.amount;
-          } else if (e.amount < 0) {
-            monthSpend += e.amount;
-          }
-        }
-      });
-
-      months.push({
-        key,
-        label,
-        year,
-        fullLabel,
-        totalSpending: Math.max(0, monthSpend),
-      });
-    }
-
-    const total12Months = months.reduce((s, m) => s + m.totalSpending, 0);
-    const avgMonthly = total12Months / 12;
-    const maxSpending = Math.max(...months.map(m => m.totalSpending), 1);
-
-    return {
-      months,
-      total12Months,
-      avgMonthly,
-      maxSpending,
-    };
-  }, [expenses, cardMap]);
-
-  // Category Spending Breakdown for the active month
-  const categorySpending = useMemo(() => {
-    const sums: { [category: string]: number } = {};
-    expenses.forEach(e => {
-      // Exclude transfers and salaries from spending analytics
-      if (e.isTransfer || e.category === 'Transfer' || e.category === 'Salary') return;
-
-      // Filter by selected month
-      if (!e.date || !e.date.startsWith(activeMonth)) return;
+      const monthKey = e.date.substring(0, 7);
+      if (!monthKeysSet.has(monthKey)) continue; // Drop all data older than last 12 months!
 
       const card = cardMap.get(e.creditCardId);
       const isDeposit = card?.isChecking || card?.isSaving || card?.isBrokerage;
@@ -290,9 +274,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
           spendAmt = -e.amount;
         }
       } else {
-        if (e.amount > 0 && !e.isFee && !e.isReward) {
-          spendAmt = e.amount;
-        } else if (e.isFee && e.amount > 0) {
+        if (e.amount > 0 && !e.isReward) {
           spendAmt = e.amount;
         } else if (e.amount < 0) {
           spendAmt = e.amount;
@@ -300,30 +282,62 @@ export const Dashboard: React.FC<DashboardProps> = ({
       }
 
       if (spendAmt !== 0) {
+        monthSpendMap.set(monthKey, (monthSpendMap.get(monthKey) || 0) + spendAmt);
+        const catMap = monthCategoryMap.get(monthKey)!;
         const cat = e.category || 'Others';
-        sums[cat] = (sums[cat] || 0) + spendAmt;
+        catMap[cat] = (catMap[cat] || 0) + spendAmt;
       }
+    }
+
+    // Build trend in chronological order (11 months ago to current month)
+    const trendMonths = [...last12Months].reverse().map(m => ({
+      ...m,
+      totalSpending: Math.max(0, monthSpendMap.get(m.key) || 0),
+    }));
+
+    const total12Months = trendMonths.reduce((s, m) => s + m.totalSpending, 0);
+    const avgMonthly = total12Months / 12;
+    const maxSpending = Math.max(...trendMonths.map(m => m.totalSpending), 1);
+
+    // Format category spending for each of the 12 months
+    const formattedCategories: { [monthKey: string]: { name: string; amount: number; percentage: number; color: string }[] } = {};
+
+    monthCategoryMap.forEach((sums, monthKey) => {
+      const totalMonthSpend = Math.max(
+        0.001,
+        Object.values(sums).reduce((acc, curr) => acc + (curr > 0 ? curr : 0), 0)
+      );
+
+      formattedCategories[monthKey] = Object.entries(sums)
+        .map(([name, amount]) => {
+          const positiveAmt = Math.max(0, amount);
+          const percentage = totalMonthSpend > 0 ? (positiveAmt / totalMonthSpend) * 100 : 0;
+          return {
+            name,
+            amount,
+            percentage,
+            color: getCategoryColor(name),
+          };
+        })
+        .filter(item => Math.abs(item.amount) >= 0.005)
+        .sort((a, b) => b.amount - a.amount);
     });
 
-    const totalMonthSpend = Math.max(
-      0.001,
-      Object.values(sums).reduce((acc, curr) => acc + (curr > 0 ? curr : 0), 0)
-    );
+    return {
+      monthlySpendingTrend: {
+        months: trendMonths,
+        total12Months,
+        avgMonthly,
+        maxSpending,
+      },
+      categorySpendingByMonth: formattedCategories,
+    };
+  }, [expenses, cardMap, availableMonths, last12Months]);
 
-    return Object.entries(sums)
-      .map(([name, amount]) => {
-        const positiveAmt = Math.max(0, amount);
-        const percentage = totalMonthSpend > 0 ? (positiveAmt / totalMonthSpend) * 100 : 0;
-        return {
-          name,
-          amount,
-          percentage,
-          color: getCategoryColor(name),
-        };
-      })
-      .filter(item => Math.abs(item.amount) >= 0.005)
-      .sort((a, b) => b.amount - a.amount);
-  }, [expenses, cardMap, activeMonth]);
+  // Category Spending Breakdown for the active month (O(1) instant lookup)
+  const categorySpending = useMemo(() => {
+    return categorySpendingByMonth[activeMonth] || [];
+  }, [categorySpendingByMonth, activeMonth]);
 
   const totalActiveMonthSpending = useMemo(() => {
     return categorySpending.reduce((sum, item) => sum + Math.max(0, item.amount), 0);
@@ -350,6 +364,18 @@ export const Dashboard: React.FC<DashboardProps> = ({
   const strokeWidth = 24;
   const radius = (donutSize - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
+
+  if (showAllTransactions) {
+    return (
+      <AllTransactionsPage
+        expenses={expenses}
+        cards={cards}
+        onBack={() => setShowAllTransactions(false)}
+        onEditExpense={onEditExpense}
+        onDeleteExpense={onDeleteExpense}
+      />
+    );
+  }
 
   return (
     <ScrollView
@@ -646,6 +672,60 @@ export const Dashboard: React.FC<DashboardProps> = ({
         </View>
       </View>
 
+      {/* Current Transactions Window (10 Most Recent) */}
+      <View style={[styles.sheetGrid, { marginTop: 12 }]}>
+        <View style={styles.sheetHeaderRow}>
+          <Text style={[styles.sheetHeaderCell, { flex: 1 }]}>
+            Current Transactions (10 Most Recent)
+          </Text>
+        </View>
+
+        {recent10Transactions.length === 0 ? (
+          <View style={styles.emptyCardRow}>
+            <Text style={styles.emptyCardText}>No transactions recorded yet.</Text>
+          </View>
+        ) : (
+          recent10Transactions.map(item => {
+            const dateStr = item.date ? item.date.substring(5) : '';
+
+            return (
+              <View key={item.id} style={styles.twoLineTxRow}>
+                {/* Line 1: Date, Card/Account, Amount */}
+                <View style={styles.txLine1}>
+                  <Text style={[styles.txDate, styles.monoText]}>{dateStr}</Text>
+                  <Text style={styles.txAccount} numberOfLines={1} ellipsizeMode="tail">
+                    {item.displayAccount}
+                  </Text>
+                  <Text style={[styles.txAmount, styles.monoText, { color: item.amountColor }]}>
+                    {item.formattedAmount}
+                  </Text>
+                </View>
+
+                {/* Line 2: Empty under date, Desc */}
+                <View style={styles.txLine2}>
+                  <View style={styles.txDateSpacer} />
+                  <Text style={styles.txDesc} numberOfLines={1} ellipsizeMode="tail">
+                    {item.description}
+                  </Text>
+                </View>
+              </View>
+            );
+          })
+        )}
+
+        {expenses.length > 0 && (
+          <TouchableOpacity
+            style={styles.showAllFooterBtn}
+            onPress={() => setShowAllTransactions(true)}
+            accessibilityLabel="Show all transactions"
+          >
+            <Text style={styles.showAllFooterBtnText}>
+              Show all transactions →
+            </Text>
+          </TouchableOpacity>
+        )}
+      </View>
+
       {/* Checking Accounts List - Spreadsheet Grid Style */}
       <View style={[styles.sheetGrid, { marginTop: 12 }]}>
         <View style={styles.sheetHeaderRow}>
@@ -785,7 +865,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#ffffff' },
-  contentContainer: { padding: 16, paddingBottom: 48 },
+  contentContainer: { padding: 16, paddingBottom: Platform.OS === 'web' ? 24 : 48 },
   title: { fontSize: 18, fontWeight: 'bold', color: '#0f172a', marginBottom: 12 },
   sheetGrid: { borderWidth: 1, borderColor: '#cbd5e1', backgroundColor: '#ffffff', borderRadius: 4, overflow: 'hidden' },
   sheetHeaderRow: { flexDirection: 'row', backgroundColor: '#e2e8f0', borderBottomWidth: 1, borderBottomColor: '#cbd5e1' },
@@ -866,4 +946,62 @@ const styles = StyleSheet.create({
   legendPercentText: { fontSize: 11, color: '#64748b', fontWeight: '700', width: 44, textAlign: 'right' },
   categoryBarTrack: { height: 5, backgroundColor: '#f1f5f9', borderRadius: 3, overflow: 'hidden' },
   categoryBarFill: { height: '100%', borderRadius: 3 },
+  twoLineTxRow: {
+    paddingVertical: 9,
+    paddingHorizontal: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f9',
+    backgroundColor: '#ffffff',
+  },
+  txLine1: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  txDate: {
+    fontSize: 11,
+    color: '#64748b',
+    width: 44,
+  },
+  txAccount: {
+    flex: 1,
+    marginLeft: 6,
+    marginRight: 8,
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#1e293b',
+  },
+  txAmount: {
+    fontSize: 13,
+    fontWeight: '700',
+    textAlign: 'right',
+  },
+  txLine2: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 2,
+  },
+  txDateSpacer: {
+    width: 44,
+  },
+  txDesc: {
+    flex: 1,
+    marginLeft: 6,
+    marginRight: 8,
+    fontSize: 12,
+    color: '#64748b',
+  },
+  showAllFooterBtn: {
+    backgroundColor: '#f8fafc',
+    borderTopWidth: 1,
+    borderTopColor: '#cbd5e1',
+    paddingVertical: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  showAllFooterBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#0f172a',
+  },
 });

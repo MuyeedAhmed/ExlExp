@@ -292,7 +292,10 @@ export const CheckingTab: React.FC<CheckingTabProps> = ({
                 <Text style={[styles.headerCell, isWeb ? styles.colBrokActionsWeb : styles.colBrokActionsMobile]}>Actions</Text>
               </View>
               {/* Brokerage Table Rows */}
-              <ScrollView style={styles.rowsScroll}>
+              <ScrollView
+                style={styles.rowsScroll}
+                contentContainerStyle={[styles.rowsScrollContent, !isWeb && styles.rowsScrollContentMobile]}
+              >
                 {brokerageAccounts.length === 0 ? (
                   <Text style={styles.emptyText}>No brokerage accounts configured.</Text>
                 ) : (
@@ -367,7 +370,10 @@ export const CheckingTab: React.FC<CheckingTabProps> = ({
               </View>
 
               {/* Table Rows */}
-              <ScrollView style={styles.rowsScroll}>
+              <ScrollView
+                style={styles.rowsScroll}
+                contentContainerStyle={[styles.rowsScrollContent, !isWeb && styles.rowsScrollContentMobile]}
+              >
                 {checkingExpenses.length === 0 ? (
                   <Text style={styles.emptyText}>No transactions recorded.</Text>
                 ) : (
@@ -382,7 +388,7 @@ export const CheckingTab: React.FC<CheckingTabProps> = ({
                         <View key={item.id} style={[styles.tableRow, isWeb ? styles.tableRowWeb : (activeAccount?.isSaving ? styles.tableRowMobileSaving : styles.tableRowMobileChecking)]}>
                           <Text style={[styles.cell, isWeb ? styles.colDateWeb : styles.colDateMobile, styles.monoText]}>{item.date ? item.date.substring(5) : ''}</Text>
                           <Text style={[styles.cell, isWeb ? (activeAccount?.isSaving ? styles.colFromToSavingWeb : styles.colFromToWeb) : styles.colFromToMobile]} numberOfLines={1}>
-                            {item.fromTo || item.description || ''}
+                            {item.fromTo || ((item.details?.startsWith('Zelle ') || item.description?.startsWith('Zelle ')) ? 'Zelle' : item.description) || ''}
                           </Text>
                           {activeAccount?.isSaving ? (
                             <>
@@ -606,6 +612,12 @@ const styles = StyleSheet.create({
   },
   rowsScroll: {
     flex: 1,
+  },
+  rowsScrollContent: {
+    paddingBottom: 20,
+  },
+  rowsScrollContentMobile: {
+    paddingBottom: 48,
   },
   tableRow: {
     flexDirection: 'row',

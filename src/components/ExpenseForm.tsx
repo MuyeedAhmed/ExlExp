@@ -31,7 +31,22 @@ interface ExpenseFormProps {
   onNavigateToSettings?: () => void;
 }
 
-const parseZelleDetails = (detailsStr: string) => {
+const parseZelleDetails = (detailsStr: string, fromToStr?: string, descStr?: string) => {
+  if (fromToStr === 'Zelle') {
+    const dMatch = (detailsStr || '').match(/^Zelle (To|From) (.+?) \((.*?)\)$/);
+    if (dMatch) {
+      return { type: dMatch[1] as 'To' | 'From', name: dMatch[2], details: dMatch[3] };
+    }
+    const dMatchNoParen = (detailsStr || '').match(/^Zelle (To|From) (.+)$/);
+    if (dMatchNoParen) {
+      return { type: dMatchNoParen[1] as 'To' | 'From', name: dMatchNoParen[2], details: '' };
+    }
+    const descMatch = (descStr || '').match(/^Zelle (To|From) (.+)$/);
+    if (descMatch) {
+      return { type: descMatch[1] as 'To' | 'From', name: descMatch[2], details: detailsStr || '' };
+    }
+    return { type: 'To' as 'To' | 'From', name: '', details: detailsStr || '' };
+  }
   if (!detailsStr) return null;
   const match = detailsStr.match(/^Zelle (To|From) (.+?) \((.*?)\)$/);
   if (match) {
@@ -39,6 +54,14 @@ const parseZelleDetails = (detailsStr: string) => {
       type: match[1] as 'To' | 'From',
       name: match[2],
       details: match[3],
+    };
+  }
+  const match2 = detailsStr.match(/^Zelle (To|From) (.+)$/);
+  if (match2) {
+    return {
+      type: match2[1] as 'To' | 'From',
+      name: match2[2],
+      details: '',
     };
   }
   return null;
@@ -420,15 +443,16 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
         if (isDepositAcc) {
           setAmount(Math.abs(editingExpense.amount).toString());
           setFromOrTo(editingExpense.amount >= 0 ? 'From' : 'To');
-          setFromTo(editingExpense.fromTo || editingExpense.description || '');
-          const zelleInfo = parseZelleDetails(editingExpense.details || '');
+          const zelleInfo = parseZelleDetails(editingExpense.details || '', editingExpense.fromTo, editingExpense.description);
           if (zelleInfo) {
             setIsZelle(true);
             setZelleName(zelleInfo.name);
             setZelleDetails(zelleInfo.details);
+            setFromTo('Zelle');
             setDetails('');
           } else {
             setIsZelle(false);
+            setFromTo(editingExpense.fromTo || editingExpense.description || '');
             setDetails(editingExpense.details || '');
             setZelleName('');
             setZelleDetails('');
@@ -448,9 +472,12 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
     }
   }, [editingExpense, cards]);
 
-  // Clear name fields if Zelle is enabled
+  // Set From / To to "Zelle" automatically when Zelle is enabled
   useEffect(() => {
     if (isZelle) {
+      setFromTo('Zelle');
+      setIsInterest(false);
+    } else if (fromTo === 'Zelle') {
       setFromTo('');
     }
   }, [isZelle]);
@@ -624,7 +651,7 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
           finalDetails = details.trim() || 'Savings Interest';
           finalDescription = 'Interest';
         } else if (isZelle) {
-          finalFromTo = '';
+          finalFromTo = 'Zelle';
           finalDetails = `Zelle ${fromOrTo} ${zelleName.trim()} (${zelleDetails.trim()})`;
           finalDescription = `Zelle ${fromOrTo} ${zelleName.trim()}`;
         } else {
@@ -736,7 +763,7 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
           accessible={false}
           disabled={Platform.OS === 'web'}
         >
-          <View style={Platform.OS === 'web' ? { width: '100%', alignItems: 'center' } : undefined}>
+          <View style={{ width: '100%', alignItems: 'center' }}>
             {showToast && (
               <View style={styles.toastContainer}>
                 <Text style={styles.toastText}>✓ Log successfully added!</Text>
@@ -1095,13 +1122,13 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
                 <Text style={styles.label}>From / To Name</Text>
                 <TextInput
                   style={[styles.input, (isZelle || isInterest) && styles.disabledInput]}
-                  value={fromTo}
+                  value={isZelle ? 'Zelle' : fromTo}
                   onChangeText={setFromTo}
                   placeholder={
                     isInterest
                       ? "Interest"
                       : isZelle
-                      ? "(Cleared for Zelle)"
+                      ? "Zelle"
                       : "e.g. Landlord, Employer, John Doe"
                   }
                   placeholderTextColor="#94a3b8"
@@ -1336,8 +1363,8 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
         {/* Action Buttons */}
         <View style={styles.buttonContainer}>
           {editingExpense && (
-            <TouchableOpacity style={styles.cancelButton} onPress={onCancelEditing}>
-              <Text style={styles.cancelButtonText}>❌ Cancel</Text>
+            <TouchableOpacity style={styles.cancelButton} onPress={onCancelEditing} accessibilityLabel="Cancel editing">
+              <Text style={styles.cancelButtonText}>✕ Cancel</Text>
             </TouchableOpacity>
           )}
           <TouchableOpacity style={styles.submitButton} onPress={handleSubmit}>
@@ -1758,18 +1785,18 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
-    paddingVertical: 20,
-    paddingBottom: Platform.OS === 'ios' ? 380 : Platform.OS === 'web' ? 40 : 300,
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+    paddingBottom: Platform.OS === 'ios' ? 120 : Platform.OS === 'web' ? 40 : 100,
   },
   formCard: {
     backgroundColor: '#ffffff',
     borderRadius: 12,
-    padding: 24,
-    marginHorizontal: 16,
+    padding: 20,
     borderWidth: 1,
     borderColor: '#e2e8f0',
     maxWidth: 600,
-    width: Platform.OS === 'web' ? '100%' : undefined,
+    width: '100%',
     alignSelf: 'center',
     shadowColor: '#0f172a',
     shadowOffset: { width: 0, height: 4 },
@@ -2011,20 +2038,21 @@ const styles = StyleSheet.create({
   },
   cancelButton: {
     flex: 1,
-    backgroundColor: '#f8fafc',
+    minWidth: 100,
+    backgroundColor: '#f1f5f9',
     borderRadius: 8,
     paddingVertical: 12,
+    paddingHorizontal: 16,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
     borderColor: '#cbd5e1',
   },
   cancelButtonText: {
-    color: '#475569',
+    color: '#334155',
     fontSize: 14,
     fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    textAlign: 'center',
   },
   submitButton: {
     flex: 2,
