@@ -11,6 +11,8 @@ import {
 } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
 import { Expense, CreditCard, FutureExpense } from '../types';
+import { AllTransactionsPage } from './AllTransactionsPage';
+import { consolidateTransactions } from '../transactionUtils';
 
 const formatCurrency = (val: number): string => {
   if (Math.abs(val) < 0.005) return '0.00';
@@ -88,18 +90,16 @@ const PALETTE = [
 
 const getCategoryColor = (name: string): string => {
   if (!name) return '#64748b';
-  const clean = name.trim().toLowerCase();
-  if (CATEGORY_COLORS[clean]) {
-    return CATEGORY_COLORS[clean];
-  }
-  // Deterministic string hash fallback so colors never change across months
+  if (CATEGORY_COLORS[name]) return CATEGORY_COLORS[name];
   let hash = 0;
-  for (let i = 0; i < clean.length; i++) {
-    hash = clean.charCodeAt(i) + ((hash << 5) - hash);
+  for (let i = 0; i < name.length; i++) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash);
   }
   const index = Math.abs(hash) % PALETTE.length;
   return PALETTE[index];
 };
+
+const getDynamicColor = getCategoryColor;
 
 interface DashboardProps {
   expenses: Expense[];
@@ -108,6 +108,8 @@ interface DashboardProps {
   onAddFutureExpense: (expense: Omit<FutureExpense, 'id'>) => void;
   onDeleteFutureExpense: (id: string) => void;
   onNavigateToSettings?: () => void;
+  onEditExpense?: (expense: Expense) => void;
+  onDeleteExpense?: (id: string) => void;
 }
 
 export const Dashboard: React.FC<DashboardProps> = ({
@@ -117,14 +119,29 @@ export const Dashboard: React.FC<DashboardProps> = ({
   onAddFutureExpense,
   onDeleteFutureExpense,
   onNavigateToSettings,
+  onEditExpense,
+  onDeleteExpense,
 }) => {
   const { width } = useWindowDimensions();
   const isWeb = width > 768;
+
+  // View state for All Transactions subpage
+  const [showAllTransactions, setShowAllTransactions] = useState(false);
 
   // Future Expense Form State
   const [futureDesc, setFutureDesc] = useState('');
   const [futureAmount, setFutureAmount] = useState('');
   const [futureDate, setFutureDate] = useState('');
+
+  // Consolidated transactions (unifying 2 legs of transfers into 1)
+  const unifiedTransactions = useMemo(() => {
+    return consolidateTransactions(expenses, cards);
+  }, [expenses, cards]);
+
+  // 10 most recent transactions
+  const recent10Transactions = useMemo(() => {
+    return unifiedTransactions.slice(0, 10);
+  }, [unifiedTransactions]);
 
   // Month selector states
   const availableMonths = useMemo(() => {
@@ -350,6 +367,18 @@ export const Dashboard: React.FC<DashboardProps> = ({
   const strokeWidth = 24;
   const radius = (donutSize - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
+
+  if (showAllTransactions) {
+    return (
+      <AllTransactionsPage
+        expenses={expenses}
+        cards={cards}
+        onBack={() => setShowAllTransactions(false)}
+        onEditExpense={onEditExpense}
+        onDeleteExpense={onDeleteExpense}
+      />
+    );
+  }
 
   return (
     <ScrollView
@@ -678,6 +707,60 @@ export const Dashboard: React.FC<DashboardProps> = ({
         )}
       </View>
 
+      {/* Current Transactions Window (10 Most Recent) */}
+      <View style={[styles.sheetGrid, { marginTop: 12 }]}>
+        <View style={styles.sheetHeaderRow}>
+          <Text style={[styles.sheetHeaderCell, { flex: 1 }]}>
+            Current Transactions (10 Most Recent)
+          </Text>
+        </View>
+
+        {recent10Transactions.length === 0 ? (
+          <View style={styles.emptyCardRow}>
+            <Text style={styles.emptyCardText}>No transactions recorded yet.</Text>
+          </View>
+        ) : (
+          recent10Transactions.map(item => {
+            const dateStr = item.date ? item.date.substring(5) : '';
+
+            return (
+              <View key={item.id} style={styles.twoLineTxRow}>
+                {/* Line 1: Date, Card/Account, Amount */}
+                <View style={styles.txLine1}>
+                  <Text style={[styles.txDate, styles.monoText]}>{dateStr}</Text>
+                  <Text style={styles.txAccount} numberOfLines={1} ellipsizeMode="tail">
+                    {item.displayAccount}
+                  </Text>
+                  <Text style={[styles.txAmount, styles.monoText, { color: item.amountColor }]}>
+                    {item.formattedAmount}
+                  </Text>
+                </View>
+
+                {/* Line 2: Empty under date, Desc */}
+                <View style={styles.txLine2}>
+                  <View style={styles.txDateSpacer} />
+                  <Text style={styles.txDesc} numberOfLines={1} ellipsizeMode="tail">
+                    {item.description}
+                  </Text>
+                </View>
+              </View>
+            );
+          })
+        )}
+
+        {unifiedTransactions.length > 0 && (
+          <TouchableOpacity
+            style={styles.showAllFooterBtn}
+            onPress={() => setShowAllTransactions(true)}
+            accessibilityLabel="Show all transactions"
+          >
+            <Text style={styles.showAllFooterBtnText}>
+              Show all {unifiedTransactions.length} transactions →
+            </Text>
+          </TouchableOpacity>
+        )}
+      </View>
+
       {/* Credit Card List - Spreadsheet Grid Style */}
       <View style={[styles.sheetGrid, { marginTop: 12 }]}>
         <View style={styles.sheetHeaderRow}>
@@ -866,4 +949,62 @@ const styles = StyleSheet.create({
   legendPercentText: { fontSize: 11, color: '#64748b', fontWeight: '700', width: 44, textAlign: 'right' },
   categoryBarTrack: { height: 5, backgroundColor: '#f1f5f9', borderRadius: 3, overflow: 'hidden' },
   categoryBarFill: { height: '100%', borderRadius: 3 },
+  twoLineTxRow: {
+    paddingVertical: 9,
+    paddingHorizontal: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f9',
+    backgroundColor: '#ffffff',
+  },
+  txLine1: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  txDate: {
+    fontSize: 11,
+    color: '#64748b',
+    width: 44,
+  },
+  txAccount: {
+    flex: 1,
+    marginLeft: 6,
+    marginRight: 8,
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#1e293b',
+  },
+  txAmount: {
+    fontSize: 13,
+    fontWeight: '700',
+    textAlign: 'right',
+  },
+  txLine2: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 2,
+  },
+  txDateSpacer: {
+    width: 44,
+  },
+  txDesc: {
+    flex: 1,
+    marginLeft: 6,
+    marginRight: 8,
+    fontSize: 12,
+    color: '#64748b',
+  },
+  showAllFooterBtn: {
+    backgroundColor: '#f8fafc',
+    borderTopWidth: 1,
+    borderTopColor: '#cbd5e1',
+    paddingVertical: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  showAllFooterBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#0f172a',
+  },
 });

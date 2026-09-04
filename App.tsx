@@ -536,6 +536,8 @@ function MainApp() {
             onAddFutureExpense={handleFutureExpenseAdd}
             onDeleteFutureExpense={handleFutureExpenseDelete}
             onNavigateToSettings={() => setActiveTab('settings')}
+            onEditExpense={handleExpenseEditRequest}
+            onDeleteExpense={handleExpenseDelete}
           />
         );
       case 'add':
