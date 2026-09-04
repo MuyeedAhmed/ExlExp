@@ -378,7 +378,7 @@ const styles = StyleSheet.create({
     paddingBottom: 24,
   },
   rowsContentContainerMobile: {
-    paddingBottom: 100, // Ample clearance for centered floating button
+    paddingBottom: 48, // Button height clearance
   },
   twoLineTxRow: {
     paddingVertical: 10,

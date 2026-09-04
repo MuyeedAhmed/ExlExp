@@ -866,7 +866,7 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   overviewContentMobile: {
-    paddingBottom: 100,
+    paddingBottom: 48,
   },
   kpiGrid: {
     flexDirection: 'row',
@@ -1207,7 +1207,7 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
   },
   rowsScrollContentMobile: {
-    paddingBottom: 100,
+    paddingBottom: 48,
   },
   tableRow: {
     flexDirection: 'row',

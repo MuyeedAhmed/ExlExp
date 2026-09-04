@@ -617,7 +617,7 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
   },
   rowsScrollContentMobile: {
-    paddingBottom: 100,
+    paddingBottom: 48,
   },
   tableRow: {
     flexDirection: 'row',
