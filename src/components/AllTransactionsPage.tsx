@@ -65,13 +65,11 @@ export const AllTransactionsPage: React.FC<AllTransactionsPageProps> = ({
         const query = searchQuery.trim().toLowerCase();
         const descMatch = (item.description || '').toLowerCase().includes(query);
         const accountMatch = item.displayAccount.toLowerCase().includes(query);
-        const senderMatch = (item.senderAccountName || '').toLowerCase().includes(query);
-        const receiverMatch = (item.receiverAccountName || '').toLowerCase().includes(query);
         const amountMatch =
           item.formattedAmount.includes(query) || String(item.amount).includes(query);
         const dateMatch = item.date.includes(query);
 
-        if (!descMatch && !accountMatch && !senderMatch && !receiverMatch && !amountMatch && !dateMatch) {
+        if (!descMatch && !accountMatch && !amountMatch && !dateMatch) {
           return false;
         }
       }

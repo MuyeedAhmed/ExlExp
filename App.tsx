@@ -524,89 +524,7 @@ function MainApp() {
     ]);
   };
 
-  // Render correct screen component based on active tab
-  const renderContent = () => {
-    switch (activeTab) {
-      case 'dashboard':
-        return (
-          <Dashboard
-            expenses={expenses}
-            cards={cards}
-            futureExpenses={futureExpenses}
-            onAddFutureExpense={handleFutureExpenseAdd}
-            onDeleteFutureExpense={handleFutureExpenseDelete}
-            onNavigateToSettings={() => setActiveTab('settings')}
-            onEditExpense={handleExpenseEditRequest}
-            onDeleteExpense={handleExpenseDelete}
-          />
-        );
-      case 'add':
-        return (
-          <ExpenseForm
-            cards={cards}
-            expenses={expenses}
-            onSubmit={handleExpenseSubmit}
-            editingExpense={editingExpense}
-            onCancelEditing={handleCancelEditing}
-            onNavigateToSettings={() => setActiveTab('settings')}
-          />
-        );
-      case 'checking':
-        return (
-          <CheckingTab
-            expenses={expenses}
-            cards={cards}
-            onDelete={handleExpenseDelete}
-            onEdit={handleExpenseEditRequest}
-            onBrokerageBalanceUpdate={handleBrokerageBalanceUpdate}
-            selectedAccountId={selectedCheckingAccountId}
-            onSelectAccount={setSelectedCheckingAccountId}
-            onNavigateToSettings={() => setActiveTab('settings')}
-          />
-        );
-      case 'credit_cards':
-        return (
-          <CreditCardsTab
-            expenses={expenses}
-            cards={cards}
-            onDelete={handleExpenseDelete}
-            onEdit={handleExpenseEditRequest}
-            selectedCardId={selectedCreditCardId}
-            onSelectCard={setSelectedCreditCardId}
-            onUpdateCard={handleCardUpdate}
-            onNavigateToSettings={() => setActiveTab('settings')}
-          />
-        );
-      case 'settings':
-        return (
-          <Settings
-            cards={cards}
-            onAddCard={handleCardAdd}
-            onDeleteCard={handleCardDelete}
-            onRenameCard={handleCardRename}
-            onMoveCard={handleMoveCard}
-            onToggleCardVisibility={handleToggleCardVisibility}
-            onUpdateCard={handleCardUpdate}
-            username={currentUser || 'local'}
-            onLogout={handleLogout}
-            onUsernameChange={setCurrentUser}
-            onOpenAuth={() => setShowAuthScreen(true)}
-            onSyncNow={handleManualSync}
-            onDataReload={() => reloadUserData(currentUser || 'local')}
-          />
-        );
-      default:
-        return (
-          <Dashboard
-            expenses={expenses}
-            cards={cards}
-            futureExpenses={futureExpenses}
-            onAddFutureExpense={handleFutureExpenseAdd}
-            onDeleteFutureExpense={handleFutureExpenseDelete}
-          />
-        );
-    }
-  };
+
 
   if (loading) {
     return (
@@ -754,7 +672,73 @@ function MainApp() {
           </View>
         )}
 
-        {renderContent()}
+        {activeTab === 'dashboard' && (
+          <Dashboard
+            expenses={expenses}
+            cards={cards}
+            futureExpenses={futureExpenses}
+            onAddFutureExpense={handleFutureExpenseAdd}
+            onDeleteFutureExpense={handleFutureExpenseDelete}
+            onNavigateToSettings={() => setActiveTab('settings')}
+            onEditExpense={handleExpenseEditRequest}
+            onDeleteExpense={handleExpenseDelete}
+          />
+        )}
+
+        {activeTab === 'checking' && (
+          <CheckingTab
+            expenses={expenses}
+            cards={cards}
+            onDelete={handleExpenseDelete}
+            onEdit={handleExpenseEditRequest}
+            onBrokerageBalanceUpdate={handleBrokerageBalanceUpdate}
+            selectedAccountId={selectedCheckingAccountId}
+            onSelectAccount={setSelectedCheckingAccountId}
+            onNavigateToSettings={() => setActiveTab('settings')}
+          />
+        )}
+
+        {activeTab === 'credit_cards' && (
+          <CreditCardsTab
+            expenses={expenses}
+            cards={cards}
+            onDelete={handleExpenseDelete}
+            onEdit={handleExpenseEditRequest}
+            selectedCardId={selectedCreditCardId}
+            onSelectCard={setSelectedCreditCardId}
+            onUpdateCard={handleCardUpdate}
+            onNavigateToSettings={() => setActiveTab('settings')}
+          />
+        )}
+
+        {activeTab === 'settings' && (
+          <Settings
+            cards={cards}
+            onAddCard={handleCardAdd}
+            onDeleteCard={handleCardDelete}
+            onRenameCard={handleCardRename}
+            onMoveCard={handleMoveCard}
+            onToggleCardVisibility={handleToggleCardVisibility}
+            onUpdateCard={handleCardUpdate}
+            username={currentUser || 'local'}
+            onLogout={handleLogout}
+            onUsernameChange={setCurrentUser}
+            onOpenAuth={() => setShowAuthScreen(true)}
+            onSyncNow={handleManualSync}
+            onDataReload={() => reloadUserData(currentUser || 'local')}
+          />
+        )}
+
+        {activeTab === 'add' && (
+          <ExpenseForm
+            cards={cards}
+            expenses={expenses}
+            onSubmit={handleExpenseSubmit}
+            editingExpense={editingExpense}
+            onCancelEditing={handleCancelEditing}
+            onNavigateToSettings={() => setActiveTab('settings')}
+          />
+        )}
       </View>
 
       {/* Floating Action Button for Mobile App */}

@@ -736,7 +736,7 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
           accessible={false}
           disabled={Platform.OS === 'web'}
         >
-          <View style={Platform.OS === 'web' ? { width: '100%', alignItems: 'center' } : undefined}>
+          <View style={{ width: '100%', alignItems: 'center' }}>
             {showToast && (
               <View style={styles.toastContainer}>
                 <Text style={styles.toastText}>✓ Log successfully added!</Text>
@@ -1336,8 +1336,8 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
         {/* Action Buttons */}
         <View style={styles.buttonContainer}>
           {editingExpense && (
-            <TouchableOpacity style={styles.cancelButton} onPress={onCancelEditing}>
-              <Text style={styles.cancelButtonText}>❌ Cancel</Text>
+            <TouchableOpacity style={styles.cancelButton} onPress={onCancelEditing} accessibilityLabel="Cancel editing">
+              <Text style={styles.cancelButtonText}>✕ Cancel</Text>
             </TouchableOpacity>
           )}
           <TouchableOpacity style={styles.submitButton} onPress={handleSubmit}>
@@ -1758,18 +1758,18 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
-    paddingVertical: 20,
-    paddingBottom: Platform.OS === 'ios' ? 380 : Platform.OS === 'web' ? 40 : 300,
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+    paddingBottom: Platform.OS === 'ios' ? 120 : Platform.OS === 'web' ? 40 : 100,
   },
   formCard: {
     backgroundColor: '#ffffff',
     borderRadius: 12,
-    padding: 24,
-    marginHorizontal: 16,
+    padding: 20,
     borderWidth: 1,
     borderColor: '#e2e8f0',
     maxWidth: 600,
-    width: Platform.OS === 'web' ? '100%' : undefined,
+    width: '100%',
     alignSelf: 'center',
     shadowColor: '#0f172a',
     shadowOffset: { width: 0, height: 4 },
@@ -2011,20 +2011,21 @@ const styles = StyleSheet.create({
   },
   cancelButton: {
     flex: 1,
-    backgroundColor: '#f8fafc',
+    minWidth: 100,
+    backgroundColor: '#f1f5f9',
     borderRadius: 8,
     paddingVertical: 12,
+    paddingHorizontal: 16,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
     borderColor: '#cbd5e1',
   },
   cancelButtonText: {
-    color: '#475569',
+    color: '#334155',
     fontSize: 14,
     fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    textAlign: 'center',
   },
   submitButton: {
     flex: 2,
