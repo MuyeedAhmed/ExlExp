@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import {
   StyleSheet,
   Text,
@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   useWindowDimensions,
   Platform,
+  BackHandler,
 } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
 import { Expense, CreditCard, FutureExpense } from '../types';
@@ -127,6 +128,20 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
   // View state for All Transactions subpage
   const [showAllTransactions, setShowAllTransactions] = useState(false);
+
+  // Handle hardware back press on Android when viewing All Transactions
+  useEffect(() => {
+    if (Platform.OS !== 'android') return;
+    const handleBackPress = () => {
+      if (showAllTransactions) {
+        setShowAllTransactions(false);
+        return true;
+      }
+      return false;
+    };
+    const sub = BackHandler.addEventListener('hardwareBackPress', handleBackPress);
+    return () => sub.remove();
+  }, [showAllTransactions]);
 
   // Future Expense Form State
   const [futureDesc, setFutureDesc] = useState('');

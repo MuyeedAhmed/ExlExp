@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   StyleSheet,
   Text,
@@ -10,6 +10,7 @@ import {
   StatusBar as RNStatusBar,
   useWindowDimensions,
   Keyboard,
+  BackHandler,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { Expense, CreditCard, FutureExpense } from './src/types';
@@ -96,11 +97,39 @@ function MainApp() {
   const [cards, setCards] = useState<CreditCard[]>([]);
   const [futureExpenses, setFutureExpenses] = useState<FutureExpense[]>([]);
   const [activeTab, setActiveTab] = useState<TabType>('dashboard');
+  const [tabHistory, setTabHistory] = useState<TabType[]>(['dashboard']);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [selectedCheckingAccountId, setSelectedCheckingAccountId] = useState<string>('');
   const [selectedCreditCardId, setSelectedCreditCardId] = useState<string>('');
   const [showAuthScreen, setShowAuthScreen] = useState(false);
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
+
+  const navigateToTab = (nextTab: TabType) => {
+    setActiveTab(nextTab);
+    setTabHistory(prev => {
+      if (prev.length > 0 && prev[prev.length - 1] === nextTab) {
+        return prev;
+      }
+      const updated = [...prev, nextTab];
+      return updated.length > 25 ? updated.slice(updated.length - 25) : updated;
+    });
+  };
+
+  const navigationStateRef = useRef({
+    tabHistory,
+    activeTab,
+    editingExpense,
+    showAuthScreen,
+  });
+
+  useEffect(() => {
+    navigationStateRef.current = {
+      tabHistory,
+      activeTab,
+      editingExpense,
+      showAuthScreen,
+    };
+  }, [tabHistory, activeTab, editingExpense, showAuthScreen]);
 
   // Track keyboard visibility for floating action button
   useEffect(() => {
@@ -329,10 +358,10 @@ function MainApp() {
       if (targetCard) {
         if (targetCard.isChecking || targetCard.isSaving || targetCard.isBrokerage) {
           setSelectedCheckingAccountId(targetCard.isBrokerage ? 'brokerage' : targetCard.id);
-          setActiveTab('checking');
+          navigateToTab('checking');
         } else {
           setSelectedCreditCardId(targetCard.id);
-          setActiveTab('credit_cards');
+          navigateToTab('credit_cards');
         }
       }
     }
@@ -352,17 +381,23 @@ function MainApp() {
 
   const handleExpenseEditRequest = (expense: Expense) => {
     setEditingExpense(expense);
-    setActiveTab('add'); // Switch to form tab
+    navigateToTab('add'); // Switch to form tab
   };
 
   const handleCancelEditing = () => {
     const isChecking = editingExpense && cards.find(c => c.id === editingExpense.creditCardId)?.isChecking;
     setEditingExpense(null);
-    if (isChecking) {
-      setActiveTab('checking');
-    } else {
-      setActiveTab('credit_cards');
-    }
+    setTabHistory(prev => {
+      if (prev.length > 1) {
+        const next = prev.slice(0, prev.length - 1);
+        setActiveTab(next[next.length - 1]);
+        return next;
+      } else {
+        const fallback = isChecking ? 'checking' : 'credit_cards';
+        setActiveTab(fallback);
+        return [fallback];
+      }
+    });
   };
 
   // Credit Card Handlers
@@ -524,6 +559,50 @@ function MainApp() {
     ]);
   };
 
+  const cancelEditingRef = useRef(handleCancelEditing);
+  cancelEditingRef.current = handleCancelEditing;
+
+  // Root Android hardware back button handler
+  useEffect(() => {
+    if (Platform.OS !== 'android') return;
+
+    const handleHardwareBack = () => {
+      const {
+        tabHistory: currentHistory,
+        activeTab: currentTab,
+        editingExpense: currentEditing,
+        showAuthScreen: currentShowAuth,
+      } = navigationStateRef.current;
+
+      // 1. If login / auth screen is open, dismiss it
+      if (currentShowAuth) {
+        setShowAuthScreen(false);
+        return true;
+      }
+
+      // 2. If editing an expense on the 'add' tab, cancel editing and return to previous tab
+      if (currentTab === 'add' && currentEditing) {
+        cancelEditingRef.current();
+        return true;
+      }
+
+      // 3. If there is tab history to pop, navigate back to previous tab
+      if (currentHistory.length > 1) {
+        const newHistory = currentHistory.slice(0, currentHistory.length - 1);
+        const prevTab = newHistory[newHistory.length - 1];
+        setTabHistory(newHistory);
+        setActiveTab(prevTab);
+        return true;
+      }
+
+      // 4. At root tab with no prior history: allow default Android exit behavior
+      return false;
+    };
+
+    const sub = BackHandler.addEventListener('hardwareBackPress', handleHardwareBack);
+    return () => sub.remove();
+  }, []);
+
 
 
   if (loading) {
@@ -565,7 +644,7 @@ function MainApp() {
             ]}
             onPress={() => {
               Keyboard.dismiss();
-              setActiveTab('add');
+              navigateToTab('add');
             }}
             activeOpacity={0.85}
             accessibilityLabel="Log Expense"
@@ -585,7 +664,7 @@ function MainApp() {
               onPress={() => {
                 Keyboard.dismiss();
                 setEditingExpense(null);
-                setActiveTab('dashboard');
+                navigateToTab('dashboard');
               }}
             >
               <Text style={styles.webNavIcon}>📊</Text>
@@ -599,7 +678,7 @@ function MainApp() {
               onPress={() => {
                 Keyboard.dismiss();
                 setEditingExpense(null);
-                setActiveTab('checking');
+                navigateToTab('checking');
               }}
             >
               <Text style={styles.webNavIcon}>🏛️</Text>
@@ -613,7 +692,7 @@ function MainApp() {
               onPress={() => {
                 Keyboard.dismiss();
                 setEditingExpense(null);
-                setActiveTab('credit_cards');
+                navigateToTab('credit_cards');
               }}
             >
               <Text style={styles.webNavIcon}>💳</Text>
@@ -627,7 +706,7 @@ function MainApp() {
               onPress={() => {
                 Keyboard.dismiss();
                 setEditingExpense(null);
-                setActiveTab('settings');
+                navigateToTab('settings');
               }}
             >
               <Text style={styles.webNavIcon}>⚙️</Text>
@@ -643,7 +722,7 @@ function MainApp() {
             onPress={() => {
               Keyboard.dismiss();
               setEditingExpense(null);
-              setActiveTab('settings');
+              navigateToTab('settings');
             }}
           >
             <View style={styles.webSidebarUserAvatar}>
@@ -679,7 +758,7 @@ function MainApp() {
             futureExpenses={futureExpenses}
             onAddFutureExpense={handleFutureExpenseAdd}
             onDeleteFutureExpense={handleFutureExpenseDelete}
-            onNavigateToSettings={() => setActiveTab('settings')}
+            onNavigateToSettings={() => navigateToTab('settings')}
             onEditExpense={handleExpenseEditRequest}
             onDeleteExpense={handleExpenseDelete}
           />
@@ -694,7 +773,7 @@ function MainApp() {
             onBrokerageBalanceUpdate={handleBrokerageBalanceUpdate}
             selectedAccountId={selectedCheckingAccountId}
             onSelectAccount={setSelectedCheckingAccountId}
-            onNavigateToSettings={() => setActiveTab('settings')}
+            onNavigateToSettings={() => navigateToTab('settings')}
           />
         )}
 
@@ -707,7 +786,7 @@ function MainApp() {
             selectedCardId={selectedCreditCardId}
             onSelectCard={setSelectedCreditCardId}
             onUpdateCard={handleCardUpdate}
-            onNavigateToSettings={() => setActiveTab('settings')}
+            onNavigateToSettings={() => navigateToTab('settings')}
           />
         )}
 
@@ -736,7 +815,7 @@ function MainApp() {
             onSubmit={handleExpenseSubmit}
             editingExpense={editingExpense}
             onCancelEditing={handleCancelEditing}
-            onNavigateToSettings={() => setActiveTab('settings')}
+            onNavigateToSettings={() => navigateToTab('settings')}
           />
         )}
       </View>
@@ -749,7 +828,7 @@ function MainApp() {
             onPress={() => {
               Keyboard.dismiss();
               setEditingExpense(null);
-              setActiveTab('add');
+              navigateToTab('add');
             }}
             activeOpacity={0.85}
             accessibilityLabel="Log Expense"
@@ -768,7 +847,7 @@ function MainApp() {
             onPress={() => {
               Keyboard.dismiss();
               setEditingExpense(null);
-              setActiveTab('dashboard');
+              navigateToTab('dashboard');
             }}
           >
             <Text style={[styles.tabText, activeTab === 'dashboard' && styles.activeTabText]}>Analytics</Text>
@@ -779,7 +858,7 @@ function MainApp() {
             onPress={() => {
               Keyboard.dismiss();
               setEditingExpense(null);
-              setActiveTab('checking');
+              navigateToTab('checking');
             }}
           >
             <Text style={[styles.tabText, activeTab === 'checking' && styles.activeTabText]}>Accounts</Text>
@@ -790,7 +869,7 @@ function MainApp() {
             onPress={() => {
               Keyboard.dismiss();
               setEditingExpense(null);
-              setActiveTab('credit_cards');
+              navigateToTab('credit_cards');
             }}
           >
             <Text style={[styles.tabText, activeTab === 'credit_cards' && styles.activeTabText]}>Credit Cards</Text>
@@ -801,7 +880,7 @@ function MainApp() {
             onPress={() => {
               Keyboard.dismiss();
               setEditingExpense(null);
-              setActiveTab('settings');
+              navigateToTab('settings');
             }}
           >
             <Text style={[styles.tabText, activeTab === 'settings' && styles.activeTabText]}>Settings</Text>

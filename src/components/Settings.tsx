@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   StyleSheet,
   Text,
@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   Modal,
   TextInput,
+  BackHandler,
 } from 'react-native';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
@@ -55,6 +56,26 @@ export const Settings: React.FC<SettingsProps> = ({
   initialSubpage = 'main',
 }) => {
   const [currentSubpage, setCurrentSubpage] = useState<Subpage>(initialSubpage);
+
+  // Handle Android hardware back button inside Settings subpages
+  useEffect(() => {
+    if (Platform.OS !== 'android') return;
+
+    const handleHardwareBack = () => {
+      if (currentSubpage === 'add_account') {
+        setCurrentSubpage('accounts');
+        return true;
+      }
+      if (currentSubpage === 'accounts' || currentSubpage === 'user') {
+        setCurrentSubpage('main');
+        return true;
+      }
+      return false; // let App.tsx handle switching back to previous tab
+    };
+
+    const sub = BackHandler.addEventListener('hardwareBackPress', handleHardwareBack);
+    return () => sub.remove();
+  }, [currentSubpage]);
 
   // Backup & Restore State
   const [isExporting, setIsExporting] = useState(false);

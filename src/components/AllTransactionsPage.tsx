@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   StyleSheet,
   Text,
@@ -8,6 +8,7 @@ import {
   ScrollView,
   Platform,
   Alert,
+  BackHandler,
 } from 'react-native';
 import { Expense, CreditCard } from '../types';
 import { consolidateTransactions, UnifiedTransaction } from '../transactionUtils';
@@ -28,6 +29,17 @@ export const AllTransactionsPage: React.FC<AllTransactionsPageProps> = ({
   onDeleteExpense,
 }) => {
   const isWeb = Platform.OS === 'web';
+
+  // Handle Android hardware back press to return to dashboard
+  useEffect(() => {
+    if (Platform.OS !== 'android') return;
+    const handleHardwareBack = () => {
+      onBack();
+      return true;
+    };
+    const sub = BackHandler.addEventListener('hardwareBackPress', handleHardwareBack);
+    return () => sub.remove();
+  }, [onBack]);
 
   const [visibleCount, setVisibleCount] = useState<number>(50);
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -108,8 +120,9 @@ export const AllTransactionsPage: React.FC<AllTransactionsPageProps> = ({
     <View style={styles.container}>
       {/* Top Header */}
       <View style={styles.topHeader}>
-        <TouchableOpacity style={styles.backButton} onPress={onBack}>
-          <Text style={styles.backButtonText}>‹ Analytics</Text>
+        <TouchableOpacity style={styles.backButton} onPress={onBack} accessibilityLabel="Back to Analytics">
+          <Text style={styles.backButtonIcon}>‹</Text>
+          <Text style={styles.backButtonText}>Analytics</Text>
         </TouchableOpacity>
         <Text style={styles.pageTitle}>All Transactions</Text>
         <Text style={styles.pageSubtitle}>
@@ -293,8 +306,23 @@ const styles = StyleSheet.create({
     borderBottomColor: '#f1f5f9',
   },
   backButton: {
-    paddingVertical: 4,
-    marginBottom: 4,
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    backgroundColor: '#f1f5f9',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    marginBottom: 8,
+  },
+  backButtonIcon: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: '#0f172a',
+    marginTop: -2,
   },
   backButtonText: {
     fontSize: 15,

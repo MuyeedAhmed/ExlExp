@@ -156,8 +156,9 @@ export const UserPage: React.FC<UserPageProps> = ({
     <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
       {/* Top Header with Back Button */}
       <View style={styles.topHeader}>
-        <TouchableOpacity style={styles.backButton} onPress={onBack}>
-          <Text style={styles.backButtonText}>‹ Settings</Text>
+        <TouchableOpacity style={styles.backButton} onPress={onBack} accessibilityLabel="Back to Settings">
+          <Text style={styles.backButtonIcon}>‹</Text>
+          <Text style={styles.backButtonText}>Settings</Text>
         </TouchableOpacity>
       </View>
 
@@ -396,11 +397,24 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   backButton: {
-    paddingVertical: 6,
-    paddingRight: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    backgroundColor: '#f1f5f9',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  backButtonIcon: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: '#0f172a',
+    marginTop: -2,
   },
   backButtonText: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: '700',
     color: '#0f172a',
   },
