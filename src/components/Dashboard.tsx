@@ -657,38 +657,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
         </View>
       </View>
 
-      {/* Checking Accounts List - Spreadsheet Grid Style */}
-      <View style={[styles.sheetGrid, { marginTop: 12 }]}>
-        <View style={styles.sheetHeaderRow}>
-          <Text style={[styles.sheetHeaderCell, { flex: 2 }]}>Checking Accounts Registry (Active)</Text>
-          <Text style={[styles.sheetHeaderCell, { flex: 1, textAlign: 'right' }]}>Current Balance</Text>
-        </View>
-        {activeCheckingAccounts.length === 0 ? (
-          <View style={styles.emptyCardRow}>
-            <Text style={styles.emptyCardText}>
-              No checking accounts with active balance.
-            </Text>
-            {onNavigateToSettings && (
-              <TouchableOpacity style={styles.btnSmall} onPress={onNavigateToSettings}>
-                <Text style={styles.btnSmallText}>➕ Add Account</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-        ) : (
-          activeCheckingAccounts.map(account => {
-            const bal = cardBalances[account.id] || 0.0;
-            return (
-              <View key={account.id} style={styles.sheetRow}>
-                <Text style={[styles.sheetCell, { flex: 2 }]}>🏛️ {account.name}</Text>
-                <Text style={[styles.sheetCell, { flex: 1, textAlign: 'right' }, styles.monoText, bal >= 0.005 ? { color: '#16a34a' } : (bal < -0.005 ? { color: '#dc2626' } : { color: '#334155' })]}>
-                  ${formatCurrency(bal)}
-                </Text>
-              </View>
-            );
-          })
-        )}
-      </View>
-
       {/* Current Transactions Window (10 Most Recent) */}
       <View style={[styles.sheetGrid, { marginTop: 12 }]}>
         <View style={styles.sheetHeaderRow}>
@@ -740,6 +708,38 @@ export const Dashboard: React.FC<DashboardProps> = ({
               Show all transactions →
             </Text>
           </TouchableOpacity>
+        )}
+      </View>
+
+      {/* Checking Accounts List - Spreadsheet Grid Style */}
+      <View style={[styles.sheetGrid, { marginTop: 12 }]}>
+        <View style={styles.sheetHeaderRow}>
+          <Text style={[styles.sheetHeaderCell, { flex: 2 }]}>Checking Accounts Registry (Active)</Text>
+          <Text style={[styles.sheetHeaderCell, { flex: 1, textAlign: 'right' }]}>Current Balance</Text>
+        </View>
+        {activeCheckingAccounts.length === 0 ? (
+          <View style={styles.emptyCardRow}>
+            <Text style={styles.emptyCardText}>
+              No checking accounts with active balance.
+            </Text>
+            {onNavigateToSettings && (
+              <TouchableOpacity style={styles.btnSmall} onPress={onNavigateToSettings}>
+                <Text style={styles.btnSmallText}>➕ Add Account</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        ) : (
+          activeCheckingAccounts.map(account => {
+            const bal = cardBalances[account.id] || 0.0;
+            return (
+              <View key={account.id} style={styles.sheetRow}>
+                <Text style={[styles.sheetCell, { flex: 2 }]}>🏛️ {account.name}</Text>
+                <Text style={[styles.sheetCell, { flex: 1, textAlign: 'right' }, styles.monoText, bal >= 0.005 ? { color: '#16a34a' } : (bal < -0.005 ? { color: '#dc2626' } : { color: '#334155' })]}>
+                  ${formatCurrency(bal)}
+                </Text>
+              </View>
+            );
+          })
         )}
       </View>
 

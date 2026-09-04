@@ -388,7 +388,7 @@ export const CheckingTab: React.FC<CheckingTabProps> = ({
                         <View key={item.id} style={[styles.tableRow, isWeb ? styles.tableRowWeb : (activeAccount?.isSaving ? styles.tableRowMobileSaving : styles.tableRowMobileChecking)]}>
                           <Text style={[styles.cell, isWeb ? styles.colDateWeb : styles.colDateMobile, styles.monoText]}>{item.date ? item.date.substring(5) : ''}</Text>
                           <Text style={[styles.cell, isWeb ? (activeAccount?.isSaving ? styles.colFromToSavingWeb : styles.colFromToWeb) : styles.colFromToMobile]} numberOfLines={1}>
-                            {item.fromTo || item.description || ''}
+                            {item.fromTo || ((item.details?.startsWith('Zelle ') || item.description?.startsWith('Zelle ')) ? 'Zelle' : item.description) || ''}
                           </Text>
                           {activeAccount?.isSaving ? (
                             <>

@@ -31,7 +31,22 @@ interface ExpenseFormProps {
   onNavigateToSettings?: () => void;
 }
 
-const parseZelleDetails = (detailsStr: string) => {
+const parseZelleDetails = (detailsStr: string, fromToStr?: string, descStr?: string) => {
+  if (fromToStr === 'Zelle') {
+    const dMatch = (detailsStr || '').match(/^Zelle (To|From) (.+?) \((.*?)\)$/);
+    if (dMatch) {
+      return { type: dMatch[1] as 'To' | 'From', name: dMatch[2], details: dMatch[3] };
+    }
+    const dMatchNoParen = (detailsStr || '').match(/^Zelle (To|From) (.+)$/);
+    if (dMatchNoParen) {
+      return { type: dMatchNoParen[1] as 'To' | 'From', name: dMatchNoParen[2], details: '' };
+    }
+    const descMatch = (descStr || '').match(/^Zelle (To|From) (.+)$/);
+    if (descMatch) {
+      return { type: descMatch[1] as 'To' | 'From', name: descMatch[2], details: detailsStr || '' };
+    }
+    return { type: 'To' as 'To' | 'From', name: '', details: detailsStr || '' };
+  }
   if (!detailsStr) return null;
   const match = detailsStr.match(/^Zelle (To|From) (.+?) \((.*?)\)$/);
   if (match) {
@@ -39,6 +54,14 @@ const parseZelleDetails = (detailsStr: string) => {
       type: match[1] as 'To' | 'From',
       name: match[2],
       details: match[3],
+    };
+  }
+  const match2 = detailsStr.match(/^Zelle (To|From) (.+)$/);
+  if (match2) {
+    return {
+      type: match2[1] as 'To' | 'From',
+      name: match2[2],
+      details: '',
     };
   }
   return null;
@@ -420,15 +443,16 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
         if (isDepositAcc) {
           setAmount(Math.abs(editingExpense.amount).toString());
           setFromOrTo(editingExpense.amount >= 0 ? 'From' : 'To');
-          setFromTo(editingExpense.fromTo || editingExpense.description || '');
-          const zelleInfo = parseZelleDetails(editingExpense.details || '');
+          const zelleInfo = parseZelleDetails(editingExpense.details || '', editingExpense.fromTo, editingExpense.description);
           if (zelleInfo) {
             setIsZelle(true);
             setZelleName(zelleInfo.name);
             setZelleDetails(zelleInfo.details);
+            setFromTo('Zelle');
             setDetails('');
           } else {
             setIsZelle(false);
+            setFromTo(editingExpense.fromTo || editingExpense.description || '');
             setDetails(editingExpense.details || '');
             setZelleName('');
             setZelleDetails('');
@@ -448,9 +472,12 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
     }
   }, [editingExpense, cards]);
 
-  // Clear name fields if Zelle is enabled
+  // Set From / To to "Zelle" automatically when Zelle is enabled
   useEffect(() => {
     if (isZelle) {
+      setFromTo('Zelle');
+      setIsInterest(false);
+    } else if (fromTo === 'Zelle') {
       setFromTo('');
     }
   }, [isZelle]);
@@ -624,7 +651,7 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
           finalDetails = details.trim() || 'Savings Interest';
           finalDescription = 'Interest';
         } else if (isZelle) {
-          finalFromTo = '';
+          finalFromTo = 'Zelle';
           finalDetails = `Zelle ${fromOrTo} ${zelleName.trim()} (${zelleDetails.trim()})`;
           finalDescription = `Zelle ${fromOrTo} ${zelleName.trim()}`;
         } else {
@@ -1095,13 +1122,13 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
                 <Text style={styles.label}>From / To Name</Text>
                 <TextInput
                   style={[styles.input, (isZelle || isInterest) && styles.disabledInput]}
-                  value={fromTo}
+                  value={isZelle ? 'Zelle' : fromTo}
                   onChangeText={setFromTo}
                   placeholder={
                     isInterest
                       ? "Interest"
                       : isZelle
-                      ? "(Cleared for Zelle)"
+                      ? "Zelle"
                       : "e.g. Landlord, Employer, John Doe"
                   }
                   placeholderTextColor="#94a3b8"
