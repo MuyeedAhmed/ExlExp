@@ -100,6 +100,17 @@ function MainApp() {
   const [selectedCheckingAccountId, setSelectedCheckingAccountId] = useState<string>('');
   const [selectedCreditCardId, setSelectedCreditCardId] = useState<string>('');
   const [showAuthScreen, setShowAuthScreen] = useState(false);
+  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
+
+  // Track keyboard visibility for floating action button
+  useEffect(() => {
+    const showSub = Keyboard.addListener('keyboardDidShow', () => setIsKeyboardVisible(true));
+    const hideSub = Keyboard.addListener('keyboardDidHide', () => setIsKeyboardVisible(false));
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
 
   // Check user session on startup
   useEffect(() => {
@@ -626,6 +637,27 @@ function MainApp() {
             <Text style={styles.webSidebarBrandSub}>Personal Finance</Text>
           </View>
 
+          {/* Eye-catching Highlighted Log Expense Button (Over Analytics) */}
+          <TouchableOpacity
+            style={[
+              styles.webLogButton,
+              activeTab === 'add' && styles.webLogButtonActive,
+            ]}
+            onPress={() => {
+              Keyboard.dismiss();
+              setActiveTab('add');
+            }}
+            activeOpacity={0.85}
+            accessibilityLabel="Log Expense"
+          >
+            <View style={styles.webLogButtonContent}>
+              <Text style={styles.webLogButtonIcon}>{editingExpense ? '✏️' : '➕'}</Text>
+              <Text style={styles.webLogButtonText}>
+                {editingExpense ? 'Edit Item' : 'Log Expense'}
+              </Text>
+            </View>
+          </TouchableOpacity>
+
           {/* Nav Menu */}
           <View style={styles.webSidebarNav}>
             <TouchableOpacity
@@ -667,19 +699,6 @@ function MainApp() {
               <Text style={styles.webNavIcon}>💳</Text>
               <Text style={[styles.webNavText, activeTab === 'credit_cards' && styles.webNavTextActive]}>
                 Credit Cards
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.webNavItem, activeTab === 'add' && styles.webNavItemActive]}
-              onPress={() => {
-                Keyboard.dismiss();
-                setActiveTab('add');
-              }}
-            >
-              <Text style={styles.webNavIcon}>{editingExpense ? '✏️' : '➕'}</Text>
-              <Text style={[styles.webNavText, activeTab === 'add' && styles.webNavTextActive]}>
-                {editingExpense ? 'Edit Item' : 'Log Expense'}
               </Text>
             </TouchableOpacity>
 
@@ -736,6 +755,25 @@ function MainApp() {
         {renderContent()}
       </View>
 
+      {/* Floating Action Button for Mobile App */}
+      {!isWeb && activeTab !== 'add' && !isKeyboardVisible && (
+        <View style={styles.floatingButtonContainer} pointerEvents="box-none">
+          <TouchableOpacity
+            style={styles.floatingLogButton}
+            onPress={() => {
+              Keyboard.dismiss();
+              setEditingExpense(null);
+              setActiveTab('add');
+            }}
+            activeOpacity={0.85}
+            accessibilityLabel="Log Expense"
+          >
+            <Text style={styles.floatingLogIcon}>➕</Text>
+            <Text style={styles.floatingLogText}>Log Expense</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
       {/* Mobile Tab Navigation Bar - Mobile only */}
       {!isWeb && (
         <View style={styles.tabBar}>
@@ -770,18 +808,6 @@ function MainApp() {
             }}
           >
             <Text style={[styles.tabText, activeTab === 'credit_cards' && styles.activeTabText]}>Credit Cards</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.tabButton, activeTab === 'add' && styles.activeTabButton]}
-            onPress={() => {
-              Keyboard.dismiss();
-              setActiveTab('add');
-            }}
-          >
-            <Text style={[styles.tabText, activeTab === 'add' && styles.activeTabText]}>
-              {editingExpense ? 'Edit Item' : 'Log'}
-            </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -862,7 +888,7 @@ const styles = StyleSheet.create({
   },
   webSidebarBrand: {
     paddingHorizontal: 10,
-    marginBottom: 24,
+    marginBottom: 16,
   },
   webSidebarBrandTitle: {
     fontSize: 24,
@@ -877,6 +903,41 @@ const styles = StyleSheet.create({
     marginTop: 2,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
+  },
+  webLogButton: {
+    backgroundColor: '#0f172a',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 10,
+    marginBottom: 20,
+    shadowColor: '#0f172a',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 4,
+    borderWidth: 1.5,
+    borderColor: '#1e293b',
+  },
+  webLogButtonActive: {
+    backgroundColor: '#1e293b',
+    borderColor: '#38bdf8',
+    shadowOpacity: 0.4,
+  },
+  webLogButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  webLogButtonIcon: {
+    fontSize: 16,
+    color: '#ffffff',
+  },
+  webLogButtonText: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#ffffff',
+    letterSpacing: 0.4,
   },
   webSidebarNav: {
     flex: 1,
@@ -943,6 +1004,39 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: '#64748b',
     marginTop: 1,
+  },
+  floatingButtonContainer: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: Platform.OS === 'android' ? 106 : 58,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 999,
+  },
+  floatingLogButton: {
+    backgroundColor: '#0f172a',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 22,
+    borderRadius: 28,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  floatingLogIcon: {
+    fontSize: 16,
+    color: '#ffffff',
+  },
+  floatingLogText: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#ffffff',
+    letterSpacing: 0.3,
   },
   tabBar: {
     flexDirection: 'row',

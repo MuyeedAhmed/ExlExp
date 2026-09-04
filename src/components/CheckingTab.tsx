@@ -292,7 +292,10 @@ export const CheckingTab: React.FC<CheckingTabProps> = ({
                 <Text style={[styles.headerCell, isWeb ? styles.colBrokActionsWeb : styles.colBrokActionsMobile]}>Actions</Text>
               </View>
               {/* Brokerage Table Rows */}
-              <ScrollView style={styles.rowsScroll}>
+              <ScrollView
+                style={styles.rowsScroll}
+                contentContainerStyle={[styles.rowsScrollContent, !isWeb && styles.rowsScrollContentMobile]}
+              >
                 {brokerageAccounts.length === 0 ? (
                   <Text style={styles.emptyText}>No brokerage accounts configured.</Text>
                 ) : (
@@ -367,7 +370,10 @@ export const CheckingTab: React.FC<CheckingTabProps> = ({
               </View>
 
               {/* Table Rows */}
-              <ScrollView style={styles.rowsScroll}>
+              <ScrollView
+                style={styles.rowsScroll}
+                contentContainerStyle={[styles.rowsScrollContent, !isWeb && styles.rowsScrollContentMobile]}
+              >
                 {checkingExpenses.length === 0 ? (
                   <Text style={styles.emptyText}>No transactions recorded.</Text>
                 ) : (
@@ -606,6 +612,12 @@ const styles = StyleSheet.create({
   },
   rowsScroll: {
     flex: 1,
+  },
+  rowsScrollContent: {
+    paddingBottom: 20,
+  },
+  rowsScrollContentMobile: {
+    paddingBottom: 100,
   },
   tableRow: {
     flexDirection: 'row',

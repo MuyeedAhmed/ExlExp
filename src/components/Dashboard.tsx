@@ -785,7 +785,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#ffffff' },
-  contentContainer: { padding: 16, paddingBottom: 48 },
+  contentContainer: { padding: 16, paddingBottom: 100 },
   title: { fontSize: 18, fontWeight: 'bold', color: '#0f172a', marginBottom: 12 },
   sheetGrid: { borderWidth: 1, borderColor: '#cbd5e1', backgroundColor: '#ffffff', borderRadius: 4, overflow: 'hidden' },
   sheetHeaderRow: { flexDirection: 'row', backgroundColor: '#e2e8f0', borderBottomWidth: 1, borderBottomColor: '#cbd5e1' },

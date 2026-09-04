@@ -373,7 +373,7 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     padding: 16,
-    paddingBottom: 40,
+    paddingBottom: 100,
     gap: 20,
   },
   title: {

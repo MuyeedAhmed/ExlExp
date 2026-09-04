@@ -353,7 +353,10 @@ export const CreditCardsTab: React.FC<CreditCardsTabProps> = ({
       {/* 1. OVERVIEW PAGE (Default Landing Page)                   */}
       {/* ========================================================= */}
       {isOverview ? (
-        <ScrollView style={styles.overviewScroll} contentContainerStyle={styles.overviewContent}>
+        <ScrollView
+          style={styles.overviewScroll}
+          contentContainerStyle={[styles.overviewContent, !isWeb && styles.overviewContentMobile]}
+        >
           {/* Summary KPIs Row */}
           <View style={styles.kpiGrid}>
             {/* Average Credit Age */}
@@ -621,7 +624,10 @@ export const CreditCardsTab: React.FC<CreditCardsTabProps> = ({
               </View>
 
               {/* Table Rows */}
-              <ScrollView style={styles.rowsScroll}>
+              <ScrollView
+                style={styles.rowsScroll}
+                contentContainerStyle={[styles.rowsScrollContent, !isWeb && styles.rowsScrollContentMobile]}
+              >
                 {cardExpenses.length === 0 ? (
                   <Text style={styles.emptyText}>No transactions recorded for this card.</Text>
                 ) : (
@@ -858,6 +864,9 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
     gap: 20,
     width: '100%',
+  },
+  overviewContentMobile: {
+    paddingBottom: 100,
   },
   kpiGrid: {
     flexDirection: 'row',
@@ -1193,6 +1202,12 @@ const styles = StyleSheet.create({
   },
   rowsScroll: {
     flex: 1,
+  },
+  rowsScrollContent: {
+    paddingBottom: 20,
+  },
+  rowsScrollContentMobile: {
+    paddingBottom: 100,
   },
   tableRow: {
     flexDirection: 'row',
