@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   StyleSheet,
   Text,
@@ -9,9 +9,17 @@ import {
   Alert,
   Platform,
   ActivityIndicator,
+  Modal,
 } from 'react-native';
+import * as FileSystem from 'expo-file-system/legacy';
+import * as Sharing from 'expo-sharing';
 import { CreditCard } from '../types';
-import { updatePassword, updateUsername } from '../storage';
+import {
+  updatePassword,
+  updateUsername,
+  exportAllDataAsJSON,
+  importAllDataFromJSON,
+} from '../storage';
 
 interface SettingsProps {
   cards: CreditCard[];
@@ -24,6 +32,9 @@ interface SettingsProps {
   onLogout: () => void;
   onUsernameChange?: (newUsername: string) => void;
   onUpdateCard?: (updatedCard: CreditCard) => void;
+  onOpenAuth?: () => void;
+  onSyncNow?: () => Promise<void>;
+  onDataReload?: () => Promise<void>;
 }
 
 const getAccountIcon = (card: CreditCard) => {
@@ -44,7 +55,11 @@ export const Settings: React.FC<SettingsProps> = ({
   onLogout,
   onUsernameChange,
   onUpdateCard,
+  onOpenAuth,
+  onSyncNow,
+  onDataReload,
 }) => {
+  const isLocal = username === 'local';
   const todayStr = new Date().toISOString().split('T')[0];
 
   // New Card Form State
@@ -75,6 +90,134 @@ export const Settings: React.FC<SettingsProps> = ({
   const [userErrorMsg, setUserErrorMsg] = useState<string | null>(null);
   const [userSuccessMsg, setUserSuccessMsg] = useState<string | null>(null);
   const [showUsernameForm, setShowUsernameForm] = useState(false);
+
+  // Data Backup & Restore State
+  const [isExporting, setIsExporting] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
+  const [backupSuccessMsg, setBackupSuccessMsg] = useState<string | null>(null);
+  const [backupErrorMsg, setBackupErrorMsg] = useState<string | null>(null);
+  const [showImportPasteModal, setShowImportPasteModal] = useState(false);
+  const [importJsonText, setImportJsonText] = useState('');
+  const [isSyncingCloud, setIsSyncingCloud] = useState(false);
+  const [cloudSyncMsg, setCloudSyncMsg] = useState<string | null>(null);
+
+  const handleExportJSON = async () => {
+    try {
+      setBackupErrorMsg(null);
+      setBackupSuccessMsg(null);
+      setIsExporting(true);
+      const jsonString = await exportAllDataAsJSON(username);
+      const today = new Date().toISOString().split('T')[0];
+      const fileName = `exlexp_backup_${today}.json`;
+
+      if (Platform.OS === 'web') {
+        const blob = new Blob([jsonString], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        setBackupSuccessMsg(`Backup downloaded as ${fileName}`);
+      } else {
+        const baseDir = FileSystem.documentDirectory || FileSystem.cacheDirectory;
+        if (!baseDir) {
+          throw new Error('Device storage directory is not accessible.');
+        }
+        const fileUri = `${baseDir}${fileName}`;
+        await FileSystem.writeAsStringAsync(fileUri, jsonString, {
+          encoding: FileSystem.EncodingType.UTF8,
+        });
+
+        const isAvailable = await Sharing.isAvailableAsync();
+        if (isAvailable) {
+          await Sharing.shareAsync(fileUri, {
+            mimeType: 'application/json',
+            dialogTitle: 'Save ExlExp Backup',
+            UTI: 'public.json',
+          });
+          setBackupSuccessMsg(`Backup exported: ${fileName}`);
+        } else {
+          Alert.alert('Backup Saved', `Saved backup to: ${fileUri}`);
+          setBackupSuccessMsg(`Backup saved to ${fileUri}`);
+        }
+      }
+    } catch (err: any) {
+      console.error('Export error:', err);
+      setBackupErrorMsg(err.message || 'Failed to export backup.');
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const processImportString = async (text: string) => {
+    try {
+      setIsImporting(true);
+      setBackupErrorMsg(null);
+      setBackupSuccessMsg(null);
+
+      const res = await importAllDataFromJSON(text, username);
+      if (res.success) {
+        setBackupSuccessMsg(
+          `Restored ${res.count?.expenses || 0} expenses and ${res.count?.cards || 0} accounts/cards!`
+        );
+        setShowImportPasteModal(false);
+        setImportJsonText('');
+        if (onDataReload) {
+          await onDataReload();
+        }
+      } else {
+        setBackupErrorMsg(res.error || 'Failed to import backup.');
+      }
+    } catch (err: any) {
+      setBackupErrorMsg(err.message || 'Error processing import data.');
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
+  const triggerImport = () => {
+    if (Platform.OS === 'web') {
+      try {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = '.json,application/json';
+        input.onchange = (e: any) => {
+          const file = e.target?.files?.[0];
+          if (!file) return;
+          const reader = new FileReader();
+          reader.onload = async (event) => {
+            const content = event.target?.result as string;
+            if (content) {
+              await processImportString(content);
+            }
+          };
+          reader.readAsText(file);
+        };
+        input.click();
+      } catch (err: any) {
+        console.error('Web file picker error:', err);
+      }
+    } else {
+      setShowImportPasteModal(true);
+    }
+  };
+
+  const handleManualSyncNow = async () => {
+    if (!onSyncNow) return;
+    try {
+      setIsSyncingCloud(true);
+      setCloudSyncMsg(null);
+      await onSyncNow();
+      setCloudSyncMsg('Cloud sync completed successfully!');
+    } catch (e: any) {
+      setCloudSyncMsg(`Sync error: ${e.message || 'Failed to sync'}`);
+    } finally {
+      setIsSyncingCloud(false);
+    }
+  };
 
   const handlePasswordUpdate = async () => {
     setPassErrorMsg(null);
@@ -544,164 +687,305 @@ export const Settings: React.FC<SettingsProps> = ({
         </View>
       </View>
 
-      {/* Account Section, Password & Username Update, and Logout */}
+      {/* Data Backup & Restore Section */}
       <View style={styles.sectionCard}>
-        <Text style={styles.sectionTitle}>User Account & Security</Text>
-        
-        {/* User Info Row */}
-        <View style={styles.userHeaderRow}>
-          <View>
-            <Text style={styles.userLabel}>Logged in as</Text>
-            <Text style={styles.usernameText}>{username}</Text>
+        <Text style={styles.sectionTitle}>Data Backup & Restore</Text>
+        <Text style={styles.backupDesc}>
+          Safely export your transactions, accounts, and scheduled bills as a JSON file to store outside your device, or restore from a previous backup.
+        </Text>
+
+        {backupSuccessMsg && (
+          <View style={styles.successBanner}>
+            <Text style={styles.successBannerText}>{backupSuccessMsg}</Text>
           </View>
+        )}
+        {backupErrorMsg && (
+          <View style={styles.errorBanner}>
+            <Text style={styles.errorBannerText}>{backupErrorMsg}</Text>
+          </View>
+        )}
+
+        <View style={styles.backupButtonsRow}>
           <TouchableOpacity
-            style={styles.logoutButton}
-            onPress={onLogout}
+            style={styles.backupBtn}
+            onPress={handleExportJSON}
+            disabled={isExporting}
           >
-            <Text style={styles.logoutButtonText}>Log Out</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Change Password Sub-section */}
-        <View style={styles.subSection}>
-          <Text style={styles.subSectionTitle}>Update Password</Text>
-
-          {passErrorMsg && (
-            <View style={styles.errorBanner}>
-              <Text style={styles.errorBannerText}>{passErrorMsg}</Text>
-            </View>
-          )}
-          {passSuccessMsg && (
-            <View style={styles.successBanner}>
-              <Text style={styles.successBannerText}>{passSuccessMsg}</Text>
-            </View>
-          )}
-
-          <View style={styles.accountFormGroup}>
-            <Text style={styles.accountFieldLabel}>Current Password</Text>
-            <TextInput
-              style={styles.accountInput}
-              placeholder="Enter current password"
-              placeholderTextColor="#94a3b8"
-              secureTextEntry
-              value={currentPassword}
-              onChangeText={setCurrentPassword}
-              autoCapitalize="none"
-              editable={!isUpdatingPassword}
-            />
-          </View>
-
-          <View style={styles.accountFormGroup}>
-            <Text style={styles.accountFieldLabel}>New Password</Text>
-            <TextInput
-              style={styles.accountInput}
-              placeholder="Enter new password"
-              placeholderTextColor="#94a3b8"
-              secureTextEntry
-              value={newPassword}
-              onChangeText={setNewPassword}
-              autoCapitalize="none"
-              editable={!isUpdatingPassword}
-            />
-          </View>
-
-          <View style={styles.accountFormGroup}>
-            <Text style={styles.accountFieldLabel}>Confirm New Password</Text>
-            <TextInput
-              style={styles.accountInput}
-              placeholder="Confirm new password"
-              placeholderTextColor="#94a3b8"
-              secureTextEntry
-              value={confirmPassword}
-              onChangeText={setConfirmPassword}
-              autoCapitalize="none"
-              editable={!isUpdatingPassword}
-            />
-          </View>
-
-          <TouchableOpacity
-            style={[styles.accountActionButton, isUpdatingPassword && styles.disabledButton]}
-            onPress={handlePasswordUpdate}
-            disabled={isUpdatingPassword}
-          >
-            {isUpdatingPassword ? (
-              <ActivityIndicator size="small" color="#ffffff" />
+            {isExporting ? (
+              <ActivityIndicator size="small" color="#0f172a" />
             ) : (
-              <Text style={styles.accountActionButtonText}>Save New Password</Text>
+              <Text style={styles.backupBtnText}>📤 Export Backup (JSON)</Text>
+            )}
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.backupBtn}
+            onPress={triggerImport}
+            disabled={isImporting}
+          >
+            {isImporting ? (
+              <ActivityIndicator size="small" color="#0f172a" />
+            ) : (
+              <Text style={styles.backupBtnText}>📥 Restore from JSON</Text>
             )}
           </TouchableOpacity>
         </View>
+      </View>
 
-        {/* Change Username Sub-section */}
-        <View style={[styles.subSection, { marginTop: 24, borderTopWidth: 1, borderTopColor: '#f1f5f9', paddingTop: 20 }]}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-            <Text style={styles.subSectionTitle}>Update Username</Text>
-            <TouchableOpacity
-              onPress={() => setShowUsernameForm(!showUsernameForm)}
-              style={styles.toggleFormButton}
-            >
-              <Text style={styles.toggleFormButtonText}>
-                {showUsernameForm ? 'Cancel' : 'Change'}
-              </Text>
-            </TouchableOpacity>
+      {/* Account Section, Password & Username Update, and Logout */}
+      <View style={styles.sectionCard}>
+        <Text style={styles.sectionTitle}>Account & Cloud Sync</Text>
+
+        {isLocal ? (
+          <View style={styles.localModeContainer}>
+            <View style={styles.badgeRow}>
+              <View style={styles.statusDotGreen} />
+              <Text style={styles.badgeGreenText}>Local Storage Mode (Private & Offline)</Text>
+            </View>
+            <Text style={styles.localModeDesc}>
+              All transactions, accounts, and scheduled bills are stored strictly on this device. No account or cloud storage fees required.
+            </Text>
+            {onOpenAuth && (
+              <TouchableOpacity
+                style={styles.enableCloudBtn}
+                onPress={onOpenAuth}
+              >
+                <Text style={styles.enableCloudBtnText}>☁️ Sign In / Enable Cloud Sync</Text>
+              </TouchableOpacity>
+            )}
           </View>
-
-          {showUsernameForm && (
-            <>
-              {userErrorMsg && (
-                <View style={styles.errorBanner}>
-                  <Text style={styles.errorBannerText}>{userErrorMsg}</Text>
+        ) : (
+          <>
+            {/* User Info Row */}
+            <View style={styles.userHeaderRow}>
+              <View>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <View style={styles.statusDotBlue} />
+                  <Text style={styles.userLabel}>Cloud Sync Active</Text>
                 </View>
-              )}
-              {userSuccessMsg && (
-                <View style={styles.successBanner}>
-                  <Text style={styles.successBannerText}>{userSuccessMsg}</Text>
-                </View>
-              )}
-
-              <View style={styles.accountFormGroup}>
-                <Text style={styles.accountFieldLabel}>New Username</Text>
-                <TextInput
-                  style={styles.accountInput}
-                  placeholder="e.g. max_new"
-                  placeholderTextColor="#94a3b8"
-                  value={newUsername}
-                  onChangeText={setNewUsername}
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  editable={!isUpdatingUsername}
-                />
+                <Text style={styles.usernameText}>{username}</Text>
               </View>
+              <View style={{ flexDirection: 'row', gap: 8 }}>
+                {onSyncNow && (
+                  <TouchableOpacity
+                    style={styles.syncNowButton}
+                    onPress={handleManualSyncNow}
+                    disabled={isSyncingCloud}
+                  >
+                    {isSyncingCloud ? (
+                      <ActivityIndicator size="small" color="#0f172a" />
+                    ) : (
+                      <Text style={styles.syncNowButtonText}>🔄 Sync</Text>
+                    )}
+                  </TouchableOpacity>
+                )}
+                <TouchableOpacity
+                  style={styles.logoutButton}
+                  onPress={onLogout}
+                >
+                  <Text style={styles.logoutButtonText}>Log Out</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {cloudSyncMsg && (
+              <View style={[styles.successBanner, { marginTop: 12 }]}>
+                <Text style={styles.successBannerText}>{cloudSyncMsg}</Text>
+              </View>
+            )}
+
+            {/* Change Password Sub-section */}
+            <View style={styles.subSection}>
+              <Text style={styles.subSectionTitle}>Update Password</Text>
+
+              {passErrorMsg && (
+                <View style={styles.errorBanner}>
+                  <Text style={styles.errorBannerText}>{passErrorMsg}</Text>
+                </View>
+              )}
+              {passSuccessMsg && (
+                <View style={styles.successBanner}>
+                  <Text style={styles.successBannerText}>{passSuccessMsg}</Text>
+                </View>
+              )}
 
               <View style={styles.accountFormGroup}>
-                <Text style={styles.accountFieldLabel}>Verify with Current Password</Text>
+                <Text style={styles.accountFieldLabel}>Current Password</Text>
                 <TextInput
                   style={styles.accountInput}
                   placeholder="Enter current password"
                   placeholderTextColor="#94a3b8"
                   secureTextEntry
-                  value={usernamePassword}
-                  onChangeText={setUsernamePassword}
+                  value={currentPassword}
+                  onChangeText={setCurrentPassword}
                   autoCapitalize="none"
-                  editable={!isUpdatingUsername}
+                  editable={!isUpdatingPassword}
+                />
+              </View>
+
+              <View style={styles.accountFormGroup}>
+                <Text style={styles.accountFieldLabel}>New Password</Text>
+                <TextInput
+                  style={styles.accountInput}
+                  placeholder="Enter new password"
+                  placeholderTextColor="#94a3b8"
+                  secureTextEntry
+                  value={newPassword}
+                  onChangeText={setNewPassword}
+                  autoCapitalize="none"
+                  editable={!isUpdatingPassword}
+                />
+              </View>
+
+              <View style={styles.accountFormGroup}>
+                <Text style={styles.accountFieldLabel}>Confirm New Password</Text>
+                <TextInput
+                  style={styles.accountInput}
+                  placeholder="Confirm new password"
+                  placeholderTextColor="#94a3b8"
+                  secureTextEntry
+                  value={confirmPassword}
+                  onChangeText={setConfirmPassword}
+                  autoCapitalize="none"
+                  editable={!isUpdatingPassword}
                 />
               </View>
 
               <TouchableOpacity
-                style={[styles.accountActionButton, isUpdatingUsername && styles.disabledButton]}
-                onPress={handleUsernameUpdate}
-                disabled={isUpdatingUsername}
+                style={[styles.accountActionButton, isUpdatingPassword && styles.disabledButton]}
+                onPress={handlePasswordUpdate}
+                disabled={isUpdatingPassword}
               >
-                {isUpdatingUsername ? (
+                {isUpdatingPassword ? (
                   <ActivityIndicator size="small" color="#ffffff" />
                 ) : (
-                  <Text style={styles.accountActionButtonText}>Save New Username</Text>
+                  <Text style={styles.accountActionButtonText}>Save New Password</Text>
                 )}
               </TouchableOpacity>
-            </>
-          )}
-        </View>
+            </View>
+
+            {/* Change Username Sub-section */}
+            <View style={[styles.subSection, { marginTop: 24, borderTopWidth: 1, borderTopColor: '#f1f5f9', paddingTop: 20 }]}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                <Text style={styles.subSectionTitle}>Update Username</Text>
+                <TouchableOpacity
+                  onPress={() => setShowUsernameForm(!showUsernameForm)}
+                  style={styles.toggleFormButton}
+                >
+                  <Text style={styles.toggleFormButtonText}>
+                    {showUsernameForm ? 'Cancel' : 'Change'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              {showUsernameForm && (
+                <>
+                  {userErrorMsg && (
+                    <View style={styles.errorBanner}>
+                      <Text style={styles.errorBannerText}>{userErrorMsg}</Text>
+                    </View>
+                  )}
+                  {userSuccessMsg && (
+                    <View style={styles.successBanner}>
+                      <Text style={styles.successBannerText}>{userSuccessMsg}</Text>
+                    </View>
+                  )}
+
+                  <View style={styles.accountFormGroup}>
+                    <Text style={styles.accountFieldLabel}>New Username</Text>
+                    <TextInput
+                      style={styles.accountInput}
+                      placeholder="e.g. max_new"
+                      placeholderTextColor="#94a3b8"
+                      value={newUsername}
+                      onChangeText={setNewUsername}
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                      editable={!isUpdatingUsername}
+                    />
+                  </View>
+
+                  <View style={styles.accountFormGroup}>
+                    <Text style={styles.accountFieldLabel}>Verify with Current Password</Text>
+                    <TextInput
+                      style={styles.accountInput}
+                      placeholder="Enter current password"
+                      placeholderTextColor="#94a3b8"
+                      secureTextEntry
+                      value={usernamePassword}
+                      onChangeText={setUsernamePassword}
+                      autoCapitalize="none"
+                      editable={!isUpdatingUsername}
+                    />
+                  </View>
+
+                  <TouchableOpacity
+                    style={[styles.accountActionButton, isUpdatingUsername && styles.disabledButton]}
+                    onPress={handleUsernameUpdate}
+                    disabled={isUpdatingUsername}
+                  >
+                    {isUpdatingUsername ? (
+                      <ActivityIndicator size="small" color="#ffffff" />
+                    ) : (
+                      <Text style={styles.accountActionButtonText}>Save New Username</Text>
+                    )}
+                  </TouchableOpacity>
+                </>
+              )}
+            </View>
+          </>
+        )}
       </View>
+
+      {/* Paste Backup Modal for Mobile */}
+      <Modal
+        visible={showImportPasteModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowImportPasteModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Paste JSON Backup</Text>
+            <Text style={styles.modalSubtitle}>
+              Paste the contents of your exported .json backup file below:
+            </Text>
+            <TextInput
+              style={styles.modalTextInput}
+              multiline
+              numberOfLines={8}
+              placeholder='{"app": "ExlExp", "expenses": [...] }'
+              placeholderTextColor="#94a3b8"
+              value={importJsonText}
+              onChangeText={setImportJsonText}
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+            <View style={styles.modalButtonsRow}>
+              <TouchableOpacity
+                style={styles.modalCancelBtn}
+                onPress={() => {
+                  setShowImportPasteModal(false);
+                  setImportJsonText('');
+                }}
+              >
+                <Text style={styles.modalCancelBtnText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.modalConfirmBtn}
+                onPress={() => processImportString(importJsonText)}
+                disabled={isImporting || !importJsonText.trim()}
+              >
+                {isImporting ? (
+                  <ActivityIndicator size="small" color="#ffffff" />
+                ) : (
+                  <Text style={styles.modalConfirmBtnText}>Restore Data</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 };
@@ -1091,5 +1375,162 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
     textAlign: 'center',
+  },
+  backupDesc: {
+    fontSize: 13,
+    color: '#64748b',
+    lineHeight: 18,
+    marginBottom: 16,
+  },
+  backupButtonsRow: {
+    flexDirection: 'column',
+    gap: 10,
+    width: '100%',
+  },
+  backupBtn: {
+    width: '100%',
+    backgroundColor: '#f8fafc',
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 6,
+  },
+  backupBtnText: {
+    fontSize: 13,
+    color: '#0f172a',
+    fontWeight: '600',
+  },
+  localModeContainer: {
+    paddingVertical: 8,
+  },
+  badgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 8,
+  },
+  statusDotGreen: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#16a34a',
+  },
+  badgeGreenText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#15803d',
+  },
+  localModeDesc: {
+    fontSize: 13,
+    color: '#64748b',
+    lineHeight: 18,
+    marginBottom: 16,
+  },
+  enableCloudBtn: {
+    backgroundColor: '#0f172a',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 6,
+    alignItems: 'center',
+  },
+  enableCloudBtnText: {
+    color: '#ffffff',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  statusDotBlue: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#2563eb',
+  },
+  syncNowButton: {
+    backgroundColor: '#f1f5f9',
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
+    borderRadius: 6,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  syncNowButtonText: {
+    fontSize: 12,
+    color: '#0f172a',
+    fontWeight: '600',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(15, 23, 42, 0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContent: {
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    padding: 20,
+    width: '100%',
+    maxWidth: 480,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  modalTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#0f172a',
+    marginBottom: 6,
+  },
+  modalSubtitle: {
+    fontSize: 12,
+    color: '#64748b',
+    marginBottom: 12,
+  },
+  modalTextInput: {
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
+    borderRadius: 6,
+    padding: 10,
+    fontSize: 12,
+    color: '#0f172a',
+    textAlignVertical: 'top',
+    height: 140,
+    marginBottom: 16,
+    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+  },
+  modalButtonsRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 10,
+  },
+  modalCancelBtn: {
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
+  },
+  modalCancelBtnText: {
+    color: '#475569',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  modalConfirmBtn: {
+    backgroundColor: '#0f172a',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 6,
+  },
+  modalConfirmBtnText: {
+    color: '#ffffff',
+    fontSize: 13,
+    fontWeight: '700',
   },
 });

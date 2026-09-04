@@ -16,9 +16,10 @@ import { supabase } from '../supabaseClient';
 
 interface LoginScreenProps {
   onLoginSuccess: (username: string) => void;
+  onCancel?: () => void;
 }
 
-export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
+export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, onCancel }) => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [isRegisterMode, setIsRegisterMode] = useState(false);
@@ -201,6 +202,18 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
                     : "Don't have an account? Sign Up"}
                 </Text>
               </TouchableOpacity>
+
+              {onCancel && (
+                <TouchableOpacity
+                  style={styles.guestButton}
+                  onPress={onCancel}
+                  disabled={loading}
+                >
+                  <Text style={styles.guestButtonText}>
+                    ← Continue as Guest (Offline Mode)
+                  </Text>
+                </TouchableOpacity>
+              )}
             </View>
           </View>
         </ScrollView>
@@ -301,6 +314,20 @@ const styles = StyleSheet.create({
   },
   errorText: {
     color: '#b91c1c',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  guestButton: {
+    marginTop: 14,
+    paddingVertical: 10,
+    alignItems: 'center',
+    borderRadius: 6,
+    backgroundColor: '#f1f5f9',
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
+  },
+  guestButtonText: {
+    color: '#334155',
     fontSize: 12,
     fontWeight: '600',
   },
