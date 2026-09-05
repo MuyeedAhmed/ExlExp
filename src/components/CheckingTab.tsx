@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect, useCallback } from 'react';
 import { StyleSheet, Text, View, ScrollView, TouchableOpacity, Alert, Platform, TextInput } from 'react-native';
 import { Expense, CreditCard } from '../types';
 
@@ -13,7 +13,93 @@ interface CheckingTabProps {
   onNavigateToSettings?: () => void;
 }
 
-export const CheckingTab: React.FC<CheckingTabProps> = ({
+interface CheckingRowItemProps {
+  item: Expense;
+  isWeb: boolean;
+  isSaving: boolean;
+  onEdit: (expense: Expense) => void;
+  confirmDelete: (id: string) => void;
+}
+
+const CheckingRowItem = React.memo<CheckingRowItemProps>(({
+  item,
+  isWeb,
+  isSaving,
+  onEdit,
+  confirmDelete,
+}) => {
+  const isDeposit = item.amount >= 0;
+  const formattedAmount = isDeposit
+    ? `+$${item.amount.toFixed(2)}`
+    : `-$${Math.abs(item.amount).toFixed(2)}`;
+
+  return (
+    <View style={[styles.tableRow, isWeb ? styles.tableRowWeb : (isSaving ? styles.tableRowMobileSaving : styles.tableRowMobileChecking)]}>
+      <Text style={[styles.cell, isWeb ? styles.colDateWeb : styles.colDateMobile, styles.monoText]}>
+        {item.date ? item.date.substring(5) : ''}
+      </Text>
+      <Text style={[styles.cell, isWeb ? (isSaving ? styles.colFromToSavingWeb : styles.colFromToWeb) : styles.colFromToMobile]} numberOfLines={1}>
+        {item.fromTo || ((item.details?.startsWith('Zelle ') || item.description?.startsWith('Zelle ')) ? 'Zelle' : item.description) || ''}
+      </Text>
+      {isSaving ? (
+        <>
+          <Text
+            style={[
+              styles.cell,
+              isWeb ? styles.colAmountWeb : styles.colAmountMobile,
+              styles.monoText,
+              item.isInterest ? { color: '#94a3b8' } : (isDeposit ? styles.depositText : styles.withdrawText),
+            ]}
+          >
+            {item.isInterest ? '-' : formattedAmount}
+          </Text>
+          <Text
+            style={[
+              styles.cell,
+              isWeb ? styles.colInterestWeb : styles.colInterestMobile,
+              styles.monoText,
+              item.isInterest ? styles.depositText : { color: '#94a3b8' },
+            ]}
+          >
+            {item.isInterest ? formattedAmount : '-'}
+          </Text>
+          <Text style={[styles.cell, isWeb ? styles.colDetailsSavingWeb : styles.colDetailsSavingMobile]} numberOfLines={1}>
+            {item.details || ''}
+          </Text>
+        </>
+      ) : (
+        <>
+          <Text
+            style={[
+              styles.cell,
+              isWeb ? styles.colAmountWeb : styles.colAmountMobile,
+              styles.monoText,
+              isDeposit ? styles.depositText : styles.withdrawText,
+            ]}
+          >
+            {formattedAmount}
+          </Text>
+          <Text style={[styles.cell, isWeb ? styles.colDetailsCheckingWeb : styles.colDetailsCheckingMobile]} numberOfLines={1}>
+            {item.details || ''}
+          </Text>
+        </>
+      )}
+      <Text style={[styles.cell, isWeb ? styles.colCategoryWeb : styles.colCategoryMobile]} numberOfLines={1}>
+        {item.category || 'Others'}
+      </Text>
+      <View style={[styles.cellActions, isWeb ? styles.colActionsWeb : styles.colActionsMobile]}>
+        <TouchableOpacity style={styles.actionBtn} onPress={() => onEdit(item)} accessibilityLabel="Edit">
+          <Text style={styles.actionIconText}>✏️</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.actionBtn} onPress={() => confirmDelete(item.id)} accessibilityLabel="Delete">
+          <Text style={styles.actionIconText}>🗑️</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+});
+
+export const CheckingTab: React.FC<CheckingTabProps> = React.memo(({
   expenses,
   cards,
   onDelete,
@@ -378,75 +464,16 @@ export const CheckingTab: React.FC<CheckingTabProps> = ({
                   <Text style={styles.emptyText}>No transactions recorded.</Text>
                 ) : (
                   <>
-                    {checkingExpenses.slice(0, visibleCount).map(item => {
-                      const isDeposit = item.amount >= 0;
-                      const formattedAmount = isDeposit
-                        ? `+$${item.amount.toFixed(2)}`
-                        : `-$${Math.abs(item.amount).toFixed(2)}`;
-
-                      return (
-                        <View key={item.id} style={[styles.tableRow, isWeb ? styles.tableRowWeb : (activeAccount?.isSaving ? styles.tableRowMobileSaving : styles.tableRowMobileChecking)]}>
-                          <Text style={[styles.cell, isWeb ? styles.colDateWeb : styles.colDateMobile, styles.monoText]}>{item.date ? item.date.substring(5) : ''}</Text>
-                          <Text style={[styles.cell, isWeb ? (activeAccount?.isSaving ? styles.colFromToSavingWeb : styles.colFromToWeb) : styles.colFromToMobile]} numberOfLines={1}>
-                            {item.fromTo || ((item.details?.startsWith('Zelle ') || item.description?.startsWith('Zelle ')) ? 'Zelle' : item.description) || ''}
-                          </Text>
-                          {activeAccount?.isSaving ? (
-                            <>
-                              <Text
-                                style={[
-                                  styles.cell,
-                                  isWeb ? styles.colAmountWeb : styles.colAmountMobile,
-                                  styles.monoText,
-                                  item.isInterest ? { color: '#94a3b8' } : (isDeposit ? styles.depositText : styles.withdrawText),
-                                ]}
-                              >
-                                {item.isInterest ? '-' : formattedAmount}
-                              </Text>
-                              <Text
-                                style={[
-                                  styles.cell,
-                                  isWeb ? styles.colInterestWeb : styles.colInterestMobile,
-                                  styles.monoText,
-                                  item.isInterest ? styles.depositText : { color: '#94a3b8' },
-                                ]}
-                              >
-                                {item.isInterest ? formattedAmount : '-'}
-                              </Text>
-                              <Text style={[styles.cell, isWeb ? styles.colDetailsSavingWeb : styles.colDetailsSavingMobile]} numberOfLines={1}>
-                                {item.details || ''}
-                              </Text>
-                            </>
-                          ) : (
-                            <>
-                              <Text
-                                style={[
-                                  styles.cell,
-                                  isWeb ? styles.colAmountWeb : styles.colAmountMobile,
-                                  styles.monoText,
-                                  isDeposit ? styles.depositText : styles.withdrawText,
-                                ]}
-                              >
-                                {formattedAmount}
-                              </Text>
-                              <Text style={[styles.cell, isWeb ? styles.colDetailsCheckingWeb : styles.colDetailsCheckingMobile]} numberOfLines={1}>
-                                {item.details || ''}
-                              </Text>
-                            </>
-                          )}
-                          <Text style={[styles.cell, isWeb ? styles.colCategoryWeb : styles.colCategoryMobile]} numberOfLines={1}>
-                            {item.category || 'Others'}
-                          </Text>
-                          <View style={[styles.cellActions, isWeb ? styles.colActionsWeb : styles.colActionsMobile]}>
-                            <TouchableOpacity style={styles.actionBtn} onPress={() => onEdit(item)} accessibilityLabel="Edit">
-                              <Text style={styles.actionIconText}>✏️</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity style={styles.actionBtn} onPress={() => confirmDelete(item.id)} accessibilityLabel="Delete">
-                              <Text style={styles.actionIconText}>🗑️</Text>
-                            </TouchableOpacity>
-                          </View>
-                        </View>
-                      );
-                    })}
+                    {checkingExpenses.slice(0, visibleCount).map(item => (
+                      <CheckingRowItem
+                        key={item.id}
+                        item={item}
+                        isWeb={isWeb}
+                        isSaving={!!activeAccount?.isSaving}
+                        onEdit={onEdit}
+                        confirmDelete={confirmDelete}
+                      />
+                    ))}
                     {checkingExpenses.length > visibleCount && (
                       <TouchableOpacity
                         style={[styles.loadMoreRow, isWeb ? styles.loadMoreRowWeb : (activeAccount?.isSaving ? styles.loadMoreRowMobileSaving : styles.loadMoreRowMobileChecking)]}
@@ -466,7 +493,7 @@ export const CheckingTab: React.FC<CheckingTabProps> = ({
       </ScrollView>
     </View>
   );
-};
+});
 
 const styles = StyleSheet.create({
   container: {
