@@ -25,11 +25,11 @@ const TransactionRow = React.memo<TransactionRowProps>(({ item, isWeb, onEdit, o
 
   return (
     <View style={styles.twoLineTxRow}>
-      {/* Line 1: Date, Card/Account, Amount + Actions */}
+      {/* Line 1: Date, Description, Amount + Actions */}
       <View style={styles.txLine1}>
-        <Text style={[styles.txDate, styles.monoText]}>{dateStr}</Text>
-        <Text style={styles.txAccount} numberOfLines={1} ellipsizeMode="tail">
-          {item.displayAccount}
+        <Text style={[styles.txDate, styles.monoText, isWeb && { width: 78 }]}>{dateStr}</Text>
+        <Text style={styles.txDesc} numberOfLines={1} ellipsizeMode="tail">
+          {item.description}
         </Text>
         <View style={styles.txRightCol}>
           <Text
@@ -67,11 +67,11 @@ const TransactionRow = React.memo<TransactionRowProps>(({ item, isWeb, onEdit, o
         </View>
       </View>
 
-      {/* Line 2: Empty under date, Desc */}
+      {/* Line 2: Empty under date, Account */}
       <View style={styles.txLine2}>
-        <View style={[styles.txDateSpacer, { width: isWeb ? 78 : 46 }]} />
-        <Text style={styles.txDesc} numberOfLines={1} ellipsizeMode="tail">
-          {item.description}
+        <View style={[styles.txDateSpacer, { width: isWeb ? 78 : 44 }]} />
+        <Text style={styles.txAccount} numberOfLines={1} ellipsizeMode="tail">
+          {item.displayAccount}
         </Text>
       </View>
     </View>
@@ -457,26 +457,25 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   txDate: {
-    fontSize: 12,
+    fontSize: 11,
     color: '#64748b',
-    fontWeight: '600',
-    width: 46,
+    width: 44,
   },
-  txAccount: {
+  txDesc: {
     flex: 1,
-    marginLeft: 8,
+    marginLeft: 6,
     marginRight: 8,
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#1e293b',
+    fontSize: 13,
+    color: '#000000',
   },
   txRightCol: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 8,
   },
   txAmount: {
-    fontSize: 14,
+    fontSize: 13,
+    fontWeight: '700',
     textAlign: 'right',
   },
   actionsRow: {
@@ -498,14 +497,15 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   txDateSpacer: {
-    width: 46,
+    width: 44,
   },
-  txDesc: {
+  txAccount: {
     flex: 1,
-    marginLeft: 8,
+    marginLeft: 6,
     marginRight: 8,
-    fontSize: 12,
-    color: '#64748b',
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#5d5d5d',
   },
   loadMoreButton: {
     backgroundColor: '#f8fafc',
