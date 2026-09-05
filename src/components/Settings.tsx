@@ -39,7 +39,7 @@ export interface SettingsProps {
 
 type Subpage = 'main' | 'accounts' | 'add_account' | 'user';
 
-export const Settings: React.FC<SettingsProps> = ({
+export const Settings: React.FC<SettingsProps> = React.memo(({
   cards,
   onAddCard,
   onDeleteCard,
@@ -385,7 +385,7 @@ export const Settings: React.FC<SettingsProps> = ({
       </Modal>
     </ScrollView>
   );
-};
+});
 
 const styles = StyleSheet.create({
   container: {

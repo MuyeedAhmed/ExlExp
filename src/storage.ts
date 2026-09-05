@@ -8,11 +8,16 @@ const FUTURE_EXPENSES_KEY = '@ExlExp:future_expenses';
 
 
 
+// In-memory cache of expenses per user to avoid re-reading and JSON.parsing 2MB blobs
+let inMemoryExpensesByUser: Record<string, Expense[]> = {};
+
 export const getExpenses = async (username: string): Promise<Expense[]> => {
   if (username === 'local') {
     try {
       const data = await AsyncStorage.getItem(`@ExlExp:local:expenses`);
-      return data ? JSON.parse(data) : [];
+      const parsed: Expense[] = data ? JSON.parse(data) : [];
+      inMemoryExpensesByUser['local'] = parsed;
+      return parsed;
     } catch (e) {
       console.error('Error fetching local expenses:', e);
       return [];
@@ -45,7 +50,7 @@ export const getExpenses = async (username: string): Promise<Expense[]> => {
       }
     }
 
-    return allExpenses.map(e => {
+    const mappedResult = allExpenses.map(e => {
       if (e.description && e.description.includes(' // ')) {
         const parts = e.description.split(' // ');
         return {
@@ -57,11 +62,16 @@ export const getExpenses = async (username: string): Promise<Expense[]> => {
       }
       return e;
     });
+
+    inMemoryExpensesByUser[username] = mappedResult;
+    return mappedResult;
   } catch (error) {
     console.log('Supabase offline or error, using local AsyncStorage for expenses:', error);
     try {
       const data = await AsyncStorage.getItem(`@ExlExp:${username}:expenses`);
-      return data ? JSON.parse(data) : [];
+      const parsed: Expense[] = data ? JSON.parse(data) : [];
+      inMemoryExpensesByUser[username] = parsed;
+      return parsed;
     } catch (e) {
       console.error('Error fetching expenses from AsyncStorage:', e);
       return [];
@@ -70,7 +80,11 @@ export const getExpenses = async (username: string): Promise<Expense[]> => {
 };
 
 export const saveExpenses = async (expenses: Expense[], username: string): Promise<void> => {
-  // Always save to local AsyncStorage
+  // Retrieve previous in-memory state before updating it
+  const oldExpenses = inMemoryExpensesByUser[username] || [];
+  inMemoryExpensesByUser[username] = expenses;
+
+  // Save to local AsyncStorage asynchronously
   try {
     await AsyncStorage.setItem(`@ExlExp:${username}:expenses`, JSON.stringify(expenses));
   } catch (e) {
@@ -82,16 +96,7 @@ export const saveExpenses = async (expenses: Expense[], username: string): Promi
     return;
   }
 
-  // 1. Fetch previous expenses from local AsyncStorage to compute delta
-  let oldExpenses: Expense[] = [];
-  try {
-    const data = await AsyncStorage.getItem(`@ExlExp:${username}:expenses`);
-    oldExpenses = data ? JSON.parse(data) : [];
-  } catch (e) {
-    console.error('Error fetching old expenses from AsyncStorage:', e);
-  }
-
-  // 2. Perform targeted CRUD delta sync to Supabase (avoid downloading the DB!)
+  // Perform targeted CRUD delta sync to Supabase (O(N) with Map lookup)
   try {
     // Map expenses to database format
     const mapExpense = (e: Expense) => {
@@ -111,15 +116,17 @@ export const saveExpenses = async (expenses: Expense[], username: string): Promi
     const newExpensesMapped = expenses.map(mapExpense);
     const oldExpensesMapped = oldExpenses.map(mapExpense);
 
+    const oldMap = new Map<string, typeof oldExpensesMapped[0]>();
+    oldExpensesMapped.forEach(o => oldMap.set(o.id, o));
+
     const newIds = new Set(expenses.map(e => e.id));
-    const oldIds = new Set(oldExpenses.map(e => e.id));
 
     // Deletes: Present in old but missing in new
     const toDeleteIds = oldExpenses.filter(e => !newIds.has(e.id)).map(e => e.id);
 
     // Upserts (Inserts/Updates): Present in new, but either absent from old or changed
     const toUpsert = newExpensesMapped.filter(e => {
-      const oldItem = oldExpensesMapped.find(o => o.id === e.id);
+      const oldItem = oldMap.get(e.id);
       if (!oldItem) return true; // New transaction (Insert)
       // Check if any fields changed (Update)
       return (

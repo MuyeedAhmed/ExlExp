@@ -113,7 +113,7 @@ interface DashboardProps {
   onDeleteExpense?: (id: string) => void;
 }
 
-export const Dashboard: React.FC<DashboardProps> = ({
+export const Dashboard: React.FC<DashboardProps> = React.memo(({
   expenses,
   cards,
   futureExpenses,
@@ -672,11 +672,11 @@ export const Dashboard: React.FC<DashboardProps> = ({
         </View>
       </View>
 
-      {/* Current Transactions Window (10 Most Recent) */}
+      {/* Recent Transactions */}
       <View style={[styles.sheetGrid, { marginTop: 12 }]}>
         <View style={styles.sheetHeaderRow}>
           <Text style={[styles.sheetHeaderCell, { flex: 1 }]}>
-            Current Transactions (10 Most Recent)
+            Recent Transactions
           </Text>
         </View>
 
@@ -693,8 +693,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 {/* Line 1: Date, Card/Account, Amount */}
                 <View style={styles.txLine1}>
                   <Text style={[styles.txDate, styles.monoText]}>{dateStr}</Text>
-                  <Text style={styles.txAccount} numberOfLines={1} ellipsizeMode="tail">
-                    {item.displayAccount}
+                  <Text style={styles.txDesc} numberOfLines={1} ellipsizeMode="tail">
+                    {item.description}
                   </Text>
                   <Text style={[styles.txAmount, styles.monoText, { color: item.amountColor }]}>
                     {item.formattedAmount}
@@ -704,8 +704,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 {/* Line 2: Empty under date, Desc */}
                 <View style={styles.txLine2}>
                   <View style={styles.txDateSpacer} />
-                  <Text style={styles.txDesc} numberOfLines={1} ellipsizeMode="tail">
-                    {item.description}
+                  <Text style={styles.txAccount} numberOfLines={1} ellipsizeMode="tail">
+                    {item.displayAccount}
                   </Text>
                 </View>
               </View>
@@ -861,7 +861,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
       
     </ScrollView>
   );
-};
+});
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#ffffff' },
@@ -967,9 +967,9 @@ const styles = StyleSheet.create({
     flex: 1,
     marginLeft: 6,
     marginRight: 8,
-    fontSize: 13,
+    fontSize: 10,
     fontWeight: '600',
-    color: '#1e293b',
+    color: '#5d5d5d',
   },
   txAmount: {
     fontSize: 13,
@@ -988,8 +988,8 @@ const styles = StyleSheet.create({
     flex: 1,
     marginLeft: 6,
     marginRight: 8,
-    fontSize: 12,
-    color: '#64748b',
+    fontSize: 13,
+    color: '#000000',
   },
   showAllFooterBtn: {
     backgroundColor: '#f8fafc',

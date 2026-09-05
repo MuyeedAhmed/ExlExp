@@ -1,17 +1,82 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import {
   StyleSheet,
   Text,
   View,
   TextInput,
   TouchableOpacity,
-  ScrollView,
+  FlatList,
   Platform,
   Alert,
   BackHandler,
 } from 'react-native';
 import { Expense, CreditCard } from '../types';
 import { consolidateTransactions, UnifiedTransaction } from '../transactionUtils';
+
+interface TransactionRowProps {
+  item: UnifiedTransaction;
+  isWeb: boolean;
+  onEdit?: (expense: Expense) => void;
+  onDelete?: (id: string) => void;
+}
+
+const TransactionRow = React.memo<TransactionRowProps>(({ item, isWeb, onEdit, onDelete }) => {
+  const dateStr = item.date ? (isWeb ? item.date : item.date.substring(5)) : '';
+
+  return (
+    <View style={styles.twoLineTxRow}>
+      {/* Line 1: Date, Description, Amount + Actions */}
+      <View style={styles.txLine1}>
+        <Text style={[styles.txDate, styles.monoText, isWeb && { width: 78 }]}>{dateStr}</Text>
+        <Text style={styles.txDesc} numberOfLines={1} ellipsizeMode="tail">
+          {item.description}
+        </Text>
+        <View style={styles.txRightCol}>
+          <Text
+            style={[
+              styles.txAmount,
+              styles.monoText,
+              styles.boldText,
+              { color: item.amountColor },
+            ]}
+          >
+            {item.formattedAmount}
+          </Text>
+          {(onEdit || onDelete) && (
+            <View style={styles.actionsRow}>
+              {onEdit && (
+                <TouchableOpacity
+                  style={styles.actionIconButton}
+                  onPress={() => onEdit(item.primaryExpense)}
+                  accessibilityLabel="Edit transaction"
+                >
+                  <Text style={styles.actionIconText}>✏️</Text>
+                </TouchableOpacity>
+              )}
+              {onDelete && (
+                <TouchableOpacity
+                  style={styles.actionIconButton}
+                  onPress={() => onDelete(item.primaryExpense.id)}
+                  accessibilityLabel="Delete transaction"
+                >
+                  <Text style={styles.actionIconText}>🗑️</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          )}
+        </View>
+      </View>
+
+      {/* Line 2: Empty under date, Account */}
+      <View style={styles.txLine2}>
+        <View style={[styles.txDateSpacer, { width: isWeb ? 78 : 44 }]} />
+        <Text style={styles.txAccount} numberOfLines={1} ellipsizeMode="tail">
+          {item.displayAccount}
+        </Text>
+      </View>
+    </View>
+  );
+});
 
 interface AllTransactionsPageProps {
   expenses: Expense[];
@@ -43,7 +108,16 @@ export const AllTransactionsPage: React.FC<AllTransactionsPageProps> = ({
 
   const [visibleCount, setVisibleCount] = useState<number>(50);
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const [debouncedQuery, setDebouncedQuery] = useState<string>('');
   const [filterType, setFilterType] = useState<'all' | 'deposits' | 'credit' | 'transfers'>('all');
+
+  // Debounce search query (150ms) to keep keystrokes and typing at 60 FPS
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedQuery(searchQuery);
+    }, 150);
+    return () => clearTimeout(handler);
+  }, [searchQuery]);
 
   // Map of cards by id for fast lookup
   const cardMap = useMemo(() => {
@@ -59,6 +133,7 @@ export const AllTransactionsPage: React.FC<AllTransactionsPageProps> = ({
 
   // Filter transactions
   const filteredTransactions = useMemo(() => {
+    const query = debouncedQuery.trim().toLowerCase();
     return unifiedTransactions.filter(item => {
       const card = cardMap.get(item.primaryExpense.creditCardId);
       const isDeposit = Boolean(card?.isChecking || card?.isSaving || card?.isBrokerage);
@@ -73,8 +148,7 @@ export const AllTransactionsPage: React.FC<AllTransactionsPageProps> = ({
       }
 
       // Filter by search query
-      if (searchQuery.trim()) {
-        const query = searchQuery.trim().toLowerCase();
+      if (query) {
         const descMatch = (item.description || '').toLowerCase().includes(query);
         const accountMatch = item.displayAccount.toLowerCase().includes(query);
         const amountMatch =
@@ -88,17 +162,17 @@ export const AllTransactionsPage: React.FC<AllTransactionsPageProps> = ({
 
       return true;
     });
-  }, [unifiedTransactions, cardMap, filterType, searchQuery]);
+  }, [unifiedTransactions, cardMap, filterType, debouncedQuery]);
 
   const displayedTransactions = useMemo(() => {
     return filteredTransactions.slice(0, visibleCount);
   }, [filteredTransactions, visibleCount]);
 
-  const handleLoadMore = () => {
+  const handleLoadMore = React.useCallback(() => {
     setVisibleCount(prev => prev + 50);
-  };
+  }, []);
 
-  const confirmDelete = (id: string) => {
+  const confirmDelete = React.useCallback((id: string) => {
     if (!onDeleteExpense) return;
     if (Platform.OS === 'web') {
       if (confirm('Are you sure you want to delete this transaction?')) {
@@ -114,7 +188,7 @@ export const AllTransactionsPage: React.FC<AllTransactionsPageProps> = ({
         ]
       );
     }
-  };
+  }, [onDeleteExpense]);
 
   return (
     <View style={styles.container}>
@@ -204,91 +278,53 @@ export const AllTransactionsPage: React.FC<AllTransactionsPageProps> = ({
       </View>
 
       {/* Transactions List */}
-      <ScrollView
+      <FlatList
+        data={displayedTransactions}
+        keyExtractor={useCallback((item: UnifiedTransaction) => item.id, [])}
+        renderItem={useCallback(
+          ({ item }: { item: UnifiedTransaction }) => (
+            <TransactionRow
+              item={item}
+              isWeb={isWeb}
+              onEdit={onEditExpense}
+              onDelete={confirmDelete}
+            />
+          ),
+          [isWeb, onEditExpense, confirmDelete]
+        )}
+        initialNumToRender={20}
+        maxToRenderPerBatch={15}
+        windowSize={7}
+        removeClippedSubviews={Platform.OS === 'android'}
         style={styles.verticalRowsScroll}
         contentContainerStyle={[styles.rowsContentContainer, !isWeb && styles.rowsContentContainerMobile]}
-      >
-        {displayedTransactions.length === 0 ? (
+        onEndReached={() => {
+          if (filteredTransactions.length > visibleCount) {
+            setVisibleCount(prev => prev + 50);
+          }
+        }}
+        onEndReachedThreshold={0.4}
+        ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <Text style={styles.emptyText}>No matching transactions found.</Text>
           </View>
-        ) : (
-          displayedTransactions.map(item => {
-            const dateStr = item.date ? (isWeb ? item.date : item.date.substring(5)) : '';
-
-            return (
-              <View key={item.id} style={styles.twoLineTxRow}>
-                {/* Line 1: Date, Card/Account, Amount + Actions */}
-                <View style={styles.txLine1}>
-                  <Text style={[styles.txDate, styles.monoText]}>{dateStr}</Text>
-                  <Text style={styles.txAccount} numberOfLines={1} ellipsizeMode="tail">
-                    {item.displayAccount}
-                  </Text>
-                  <View style={styles.txRightCol}>
-                    <Text
-                      style={[
-                        styles.txAmount,
-                        styles.monoText,
-                        styles.boldText,
-                        { color: item.amountColor },
-                      ]}
-                    >
-                      {item.formattedAmount}
-                    </Text>
-                    {(onEditExpense || onDeleteExpense) && (
-                      <View style={styles.actionsRow}>
-                        {onEditExpense && (
-                          <TouchableOpacity
-                            style={styles.actionIconButton}
-                            onPress={() => onEditExpense(item.primaryExpense)}
-                            accessibilityLabel="Edit transaction"
-                          >
-                            <Text style={styles.actionIconText}>✏️</Text>
-                          </TouchableOpacity>
-                        )}
-                        {onDeleteExpense && (
-                          <TouchableOpacity
-                            style={styles.actionIconButton}
-                            onPress={() => confirmDelete(item.primaryExpense.id)}
-                            accessibilityLabel="Delete transaction"
-                          >
-                            <Text style={styles.actionIconText}>🗑️</Text>
-                          </TouchableOpacity>
-                        )}
-                      </View>
-                    )}
-                  </View>
-                </View>
-
-                {/* Line 2: Empty under date, Desc */}
-                <View style={styles.txLine2}>
-                  <View style={[styles.txDateSpacer, { width: isWeb ? 78 : 46 }]} />
-                  <Text style={styles.txDesc} numberOfLines={1} ellipsizeMode="tail">
-                    {item.description}
-                  </Text>
-                </View>
-              </View>
-            );
-          })
-        )}
-
-        {/* Load More Button (Fetch 50 at a time) */}
-        {filteredTransactions.length > visibleCount && (
-          <TouchableOpacity style={styles.loadMoreButton} onPress={handleLoadMore}>
-            <Text style={styles.loadMoreButtonText}>
-              Load 50 More (Showing {displayedTransactions.length} of {filteredTransactions.length})
-            </Text>
-          </TouchableOpacity>
-        )}
-
-        {filteredTransactions.length <= visibleCount && filteredTransactions.length > 0 && (
-          <View style={styles.allLoadedBox}>
-            <Text style={styles.allLoadedText}>
-              All {filteredTransactions.length} transactions loaded
-            </Text>
-          </View>
-        )}
-      </ScrollView>
+        }
+        ListFooterComponent={
+          filteredTransactions.length > visibleCount ? (
+            <TouchableOpacity style={styles.loadMoreButton} onPress={handleLoadMore}>
+              <Text style={styles.loadMoreButtonText}>
+                Load 50 More (Showing {displayedTransactions.length} of {filteredTransactions.length})
+              </Text>
+            </TouchableOpacity>
+          ) : filteredTransactions.length > 0 ? (
+            <View style={styles.allLoadedBox}>
+              <Text style={styles.allLoadedText}>
+                All {filteredTransactions.length} transactions loaded
+              </Text>
+            </View>
+          ) : null
+        }
+      />
     </View>
   );
 };
@@ -421,26 +457,25 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   txDate: {
-    fontSize: 12,
+    fontSize: 11,
     color: '#64748b',
-    fontWeight: '600',
-    width: 46,
+    width: 44,
   },
-  txAccount: {
+  txDesc: {
     flex: 1,
-    marginLeft: 8,
+    marginLeft: 6,
     marginRight: 8,
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#1e293b',
+    fontSize: 13,
+    color: '#000000',
   },
   txRightCol: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 8,
   },
   txAmount: {
-    fontSize: 14,
+    fontSize: 13,
+    fontWeight: '700',
     textAlign: 'right',
   },
   actionsRow: {
@@ -462,14 +497,15 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   txDateSpacer: {
-    width: 46,
+    width: 44,
   },
-  txDesc: {
+  txAccount: {
     flex: 1,
-    marginLeft: 8,
+    marginLeft: 6,
     marginRight: 8,
-    fontSize: 12,
-    color: '#64748b',
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#5d5d5d',
   },
   loadMoreButton: {
     backgroundColor: '#f8fafc',

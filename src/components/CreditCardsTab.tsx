@@ -65,7 +65,72 @@ interface CreditCardsTabProps {
   onNavigateToSettings?: () => void;
 }
 
-export const CreditCardsTab: React.FC<CreditCardsTabProps> = ({
+interface CreditCardRowItemProps {
+  item: Expense;
+  isWeb: boolean;
+  onEdit: (expense: Expense) => void;
+  confirmDelete: (id: string) => void;
+}
+
+const CreditCardRowItem = React.memo<CreditCardRowItemProps>(({
+  item,
+  isWeb,
+  onEdit,
+  confirmDelete,
+}) => {
+  const amt = Number(item.amount) || 0;
+
+  let spendVal = '-';
+  let paidVal = '-';
+  let rewardsVal = '-';
+
+  if (item.isReward) {
+    if (amt < 0) {
+      paidVal = `$${formatCurrency(Math.abs(amt))}`;
+    }
+    rewardsVal = `$${formatCurrency(item.rewardValue || 0)}`;
+  } else if (amt > 0) {
+    spendVal = `$${formatCurrency(amt)}`;
+  } else if (amt < 0) {
+    paidVal = `$${formatCurrency(Math.abs(amt))}`;
+  }
+
+  return (
+    <View key={item.id} style={[styles.tableRow, isWeb ? styles.tableRowWeb : styles.tableRowMobile]}>
+      <Text style={[styles.cell, isWeb ? styles.colDateWeb : styles.colDateMobile, styles.monoText]}>
+        {item.date ? item.date.substring(5) : ''}
+      </Text>
+      <Text style={[styles.cell, isWeb ? styles.colDescWeb : styles.colDescMobile]} numberOfLines={1}>
+        {item.description}
+      </Text>
+      
+      <Text style={[styles.cell, isWeb ? styles.colSpendWeb : styles.colSpendMobile, styles.monoText]}>
+        {spendVal}
+      </Text>
+      <Text style={[styles.cell, isWeb ? styles.colPaidWeb : styles.colPaidMobile, styles.monoText, paidVal !== '-' && { color: '#16a34a' }]}>
+        {paidVal}
+      </Text>
+      <Text style={[styles.cell, isWeb ? styles.colRewardsWeb : styles.colRewardsMobile, styles.monoText, rewardsVal !== '-' && { color: '#16a34a' }]}>
+        {rewardsVal}
+      </Text>
+      
+      <Text style={[styles.cell, isWeb ? styles.colCategoryWeb : styles.colCategoryMobile]} numberOfLines={1}>
+        {item.category || 'Others'}
+      </Text>
+      
+      <View style={[styles.cellActions, isWeb ? styles.colActionsWeb : styles.colActionsMobile]}>
+        <TouchableOpacity style={styles.actionBtn} onPress={() => onEdit(item)} accessibilityLabel="Edit">
+          <Text style={styles.actionIconText}>✏️</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.actionBtn} onPress={() => confirmDelete(item.id)} accessibilityLabel="Delete">
+          <Text style={styles.actionIconText}>🗑️</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+});
+
+export const CreditCardsTab: React.FC<CreditCardsTabProps> = React.memo(({
   expenses,
   cards,
   onDelete,
@@ -632,58 +697,15 @@ export const CreditCardsTab: React.FC<CreditCardsTabProps> = ({
                   <Text style={styles.emptyText}>No transactions recorded for this card.</Text>
                 ) : (
                   <>
-                    {cardExpenses.slice(0, visibleCount).map(item => {
-                      const amt = Number(item.amount) || 0;
-
-                      let spendVal = '-';
-                      let paidVal = '-';
-                      let rewardsVal = '-';
-
-                      if (item.isReward) {
-                        if (amt < 0) {
-                          paidVal = `$${formatCurrency(Math.abs(amt))}`;
-                        }
-                        rewardsVal = `$${formatCurrency(item.rewardValue || 0)}`;
-                      } else if (amt > 0) {
-                        spendVal = `$${formatCurrency(amt)}`;
-                      } else if (amt < 0) {
-                        paidVal = `$${formatCurrency(Math.abs(amt))}`;
-                      }
-
-                      return (
-                        <View key={item.id} style={[styles.tableRow, isWeb ? styles.tableRowWeb : styles.tableRowMobile]}>
-                          <Text style={[styles.cell, isWeb ? styles.colDateWeb : styles.colDateMobile, styles.monoText]}>
-                            {item.date ? item.date.substring(5) : ''}
-                          </Text>
-                          <Text style={[styles.cell, isWeb ? styles.colDescWeb : styles.colDescMobile]} numberOfLines={1}>
-                            {item.description}
-                          </Text>
-                          
-                          <Text style={[styles.cell, isWeb ? styles.colSpendWeb : styles.colSpendMobile, styles.monoText]}>
-                            {spendVal}
-                          </Text>
-                          <Text style={[styles.cell, isWeb ? styles.colPaidWeb : styles.colPaidMobile, styles.monoText, paidVal !== '-' && { color: '#16a34a' }]}>
-                            {paidVal}
-                          </Text>
-                          <Text style={[styles.cell, isWeb ? styles.colRewardsWeb : styles.colRewardsMobile, styles.monoText, rewardsVal !== '-' && { color: '#16a34a' }]}>
-                            {rewardsVal}
-                          </Text>
-                          
-                          <Text style={[styles.cell, isWeb ? styles.colCategoryWeb : styles.colCategoryMobile]} numberOfLines={1}>
-                            {item.category || 'Others'}
-                          </Text>
-                          
-                          <View style={[styles.cellActions, isWeb ? styles.colActionsWeb : styles.colActionsMobile]}>
-                            <TouchableOpacity style={styles.actionBtn} onPress={() => onEdit(item)} accessibilityLabel="Edit">
-                              <Text style={styles.actionIconText}>✏️</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity style={styles.actionBtn} onPress={() => confirmDelete(item.id)} accessibilityLabel="Delete">
-                              <Text style={styles.actionIconText}>🗑️</Text>
-                            </TouchableOpacity>
-                          </View>
-                        </View>
-                      );
-                    })}
+                    {cardExpenses.slice(0, visibleCount).map(item => (
+                      <CreditCardRowItem
+                        key={item.id}
+                        item={item}
+                        isWeb={isWeb}
+                        onEdit={onEdit}
+                        confirmDelete={confirmDelete}
+                      />
+                    ))}
                     {cardExpenses.length > visibleCount && (
                       <TouchableOpacity
                         style={[styles.loadMoreRow, isWeb ? styles.loadMoreRowWeb : styles.loadMoreRowMobile]}
@@ -794,7 +816,7 @@ export const CreditCardsTab: React.FC<CreditCardsTabProps> = ({
       </Modal>
     </View>
   );
-};
+});
 
 const styles = StyleSheet.create({
   container: {

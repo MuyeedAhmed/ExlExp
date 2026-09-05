@@ -215,7 +215,7 @@ const CATEGORIES = [
   'Transfer'
 ];
 
-export const ExpenseForm: React.FC<ExpenseFormProps> = ({
+export const ExpenseForm: React.FC<ExpenseFormProps> = React.memo(({
   cards,
   expenses,
   onSubmit,
@@ -1773,7 +1773,7 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
       </ScrollView>
     </KeyboardAvoidingView>
   );
-};
+});
 
 const styles = StyleSheet.create({
   keyboardAvoidingView: {

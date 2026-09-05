@@ -104,8 +104,17 @@ function MainApp() {
   const [showAuthScreen, setShowAuthScreen] = useState(false);
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
 
+  const [visitedTabs, setVisitedTabs] = useState<Record<TabType, boolean>>({
+    dashboard: true,
+    checking: false,
+    credit_cards: false,
+    add: false,
+    settings: false,
+  });
+
   const navigateToTab = (nextTab: TabType) => {
     setActiveTab(nextTab);
+    setVisitedTabs(prev => (prev[nextTab] ? prev : { ...prev, [nextTab]: true }));
     setTabHistory(prev => {
       if (prev.length > 0 && prev[prev.length - 1] === nextTab) {
         return prev;
@@ -390,11 +399,14 @@ function MainApp() {
     setTabHistory(prev => {
       if (prev.length > 1) {
         const next = prev.slice(0, prev.length - 1);
-        setActiveTab(next[next.length - 1]);
+        const targetTab = next[next.length - 1];
+        setActiveTab(targetTab);
+        setVisitedTabs(v => (v[targetTab] ? v : { ...v, [targetTab]: true }));
         return next;
       } else {
         const fallback = isChecking ? 'checking' : 'credit_cards';
         setActiveTab(fallback);
+        setVisitedTabs(v => (v[fallback] ? v : { ...v, [fallback]: true }));
         return [fallback];
       }
     });
@@ -592,6 +604,7 @@ function MainApp() {
         const prevTab = newHistory[newHistory.length - 1];
         setTabHistory(newHistory);
         setActiveTab(prevTab);
+        setVisitedTabs(v => (v[prevTab] ? v : { ...v, [prevTab]: true }));
         return true;
       }
 
@@ -751,72 +764,82 @@ function MainApp() {
           </View>
         )}
 
-        {activeTab === 'dashboard' && (
-          <Dashboard
-            expenses={expenses}
-            cards={cards}
-            futureExpenses={futureExpenses}
-            onAddFutureExpense={handleFutureExpenseAdd}
-            onDeleteFutureExpense={handleFutureExpenseDelete}
-            onNavigateToSettings={() => navigateToTab('settings')}
-            onEditExpense={handleExpenseEditRequest}
-            onDeleteExpense={handleExpenseDelete}
-          />
+        {visitedTabs['dashboard'] && (
+          <View style={[styles.tabContentContainer, { display: activeTab === 'dashboard' ? 'flex' : 'none' }]}>
+            <Dashboard
+              expenses={expenses}
+              cards={cards}
+              futureExpenses={futureExpenses}
+              onAddFutureExpense={handleFutureExpenseAdd}
+              onDeleteFutureExpense={handleFutureExpenseDelete}
+              onNavigateToSettings={() => navigateToTab('settings')}
+              onEditExpense={handleExpenseEditRequest}
+              onDeleteExpense={handleExpenseDelete}
+            />
+          </View>
         )}
 
-        {activeTab === 'checking' && (
-          <CheckingTab
-            expenses={expenses}
-            cards={cards}
-            onDelete={handleExpenseDelete}
-            onEdit={handleExpenseEditRequest}
-            onBrokerageBalanceUpdate={handleBrokerageBalanceUpdate}
-            selectedAccountId={selectedCheckingAccountId}
-            onSelectAccount={setSelectedCheckingAccountId}
-            onNavigateToSettings={() => navigateToTab('settings')}
-          />
+        {visitedTabs['checking'] && (
+          <View style={[styles.tabContentContainer, { display: activeTab === 'checking' ? 'flex' : 'none' }]}>
+            <CheckingTab
+              expenses={expenses}
+              cards={cards}
+              onDelete={handleExpenseDelete}
+              onEdit={handleExpenseEditRequest}
+              onBrokerageBalanceUpdate={handleBrokerageBalanceUpdate}
+              selectedAccountId={selectedCheckingAccountId}
+              onSelectAccount={setSelectedCheckingAccountId}
+              onNavigateToSettings={() => navigateToTab('settings')}
+            />
+          </View>
         )}
 
-        {activeTab === 'credit_cards' && (
-          <CreditCardsTab
-            expenses={expenses}
-            cards={cards}
-            onDelete={handleExpenseDelete}
-            onEdit={handleExpenseEditRequest}
-            selectedCardId={selectedCreditCardId}
-            onSelectCard={setSelectedCreditCardId}
-            onUpdateCard={handleCardUpdate}
-            onNavigateToSettings={() => navigateToTab('settings')}
-          />
+        {visitedTabs['credit_cards'] && (
+          <View style={[styles.tabContentContainer, { display: activeTab === 'credit_cards' ? 'flex' : 'none' }]}>
+            <CreditCardsTab
+              expenses={expenses}
+              cards={cards}
+              onDelete={handleExpenseDelete}
+              onEdit={handleExpenseEditRequest}
+              selectedCardId={selectedCreditCardId}
+              onSelectCard={setSelectedCreditCardId}
+              onUpdateCard={handleCardUpdate}
+              onNavigateToSettings={() => navigateToTab('settings')}
+            />
+          </View>
         )}
 
-        {activeTab === 'settings' && (
-          <Settings
-            cards={cards}
-            onAddCard={handleCardAdd}
-            onDeleteCard={handleCardDelete}
-            onRenameCard={handleCardRename}
-            onMoveCard={handleMoveCard}
-            onToggleCardVisibility={handleToggleCardVisibility}
-            onUpdateCard={handleCardUpdate}
-            username={currentUser || 'local'}
-            onLogout={handleLogout}
-            onUsernameChange={setCurrentUser}
-            onOpenAuth={() => setShowAuthScreen(true)}
-            onSyncNow={handleManualSync}
-            onDataReload={() => reloadUserData(currentUser || 'local')}
-          />
+        {visitedTabs['settings'] && (
+          <View style={[styles.tabContentContainer, { display: activeTab === 'settings' ? 'flex' : 'none' }]}>
+            <Settings
+              cards={cards}
+              onAddCard={handleCardAdd}
+              onDeleteCard={handleCardDelete}
+              onRenameCard={handleCardRename}
+              onMoveCard={handleMoveCard}
+              onToggleCardVisibility={handleToggleCardVisibility}
+              onUpdateCard={handleCardUpdate}
+              username={currentUser || 'local'}
+              onLogout={handleLogout}
+              onUsernameChange={setCurrentUser}
+              onOpenAuth={() => setShowAuthScreen(true)}
+              onSyncNow={handleManualSync}
+              onDataReload={() => reloadUserData(currentUser || 'local')}
+            />
+          </View>
         )}
 
         {activeTab === 'add' && (
-          <ExpenseForm
-            cards={cards}
-            expenses={expenses}
-            onSubmit={handleExpenseSubmit}
-            editingExpense={editingExpense}
-            onCancelEditing={handleCancelEditing}
-            onNavigateToSettings={() => navigateToTab('settings')}
-          />
+          <View style={styles.tabContentContainer}>
+            <ExpenseForm
+              cards={cards}
+              expenses={expenses}
+              onSubmit={handleExpenseSubmit}
+              editingExpense={editingExpense}
+              onCancelEditing={handleCancelEditing}
+              onNavigateToSettings={() => navigateToTab('settings')}
+            />
+          </View>
         )}
       </View>
 
@@ -939,6 +962,11 @@ const styles = StyleSheet.create({
   },
   contentWeb: {
     flex: 1,
+    height: '100%',
+  },
+  tabContentContainer: {
+    flex: 1,
+    width: '100%',
     height: '100%',
   },
   webSidebar: {
