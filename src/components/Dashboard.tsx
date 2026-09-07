@@ -13,7 +13,7 @@ import {
 import Svg, { Circle } from 'react-native-svg';
 import { Expense, CreditCard, FutureExpense } from '../types';
 import { AllTransactionsPage } from './AllTransactionsPage';
-import { consolidateTransactions } from '../transactionUtils';
+import { consolidateTransactions, formatCurrencyInput } from '../transactionUtils';
 
 const formatCurrency = (val: number): string => {
   if (Math.abs(val) < 0.005) return '0.00';
@@ -817,8 +817,8 @@ export const Dashboard: React.FC<DashboardProps> = React.memo(({
           <TextInput
             style={[styles.formInput, { flex: 1 }]}
             value={futureAmount}
-            onChangeText={setFutureAmount}
-            placeholder="Amount"
+            onChangeText={(val) => setFutureAmount(formatCurrencyInput(val))}
+            placeholder="0.00"
             placeholderTextColor="#94a3b8"
             keyboardType="decimal-pad"
           />

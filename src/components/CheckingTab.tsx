@@ -1,6 +1,7 @@
 import React, { useMemo, useState, useEffect, useCallback } from 'react';
 import { StyleSheet, Text, View, ScrollView, TouchableOpacity, Alert, Platform, TextInput } from 'react-native';
 import { Expense, CreditCard } from '../types';
+import { formatCurrencyInput } from '../transactionUtils';
 
 interface CheckingTabProps {
   expenses: Expense[];
@@ -178,7 +179,7 @@ export const CheckingTab: React.FC<CheckingTabProps> = React.memo(({
 
   const handleStartEditBrokerage = (accountId: string, currentVal: number) => {
     setEditingBrokerageId(accountId);
-    setEditingBrokerageValue(currentVal.toString());
+    setEditingBrokerageValue(currentVal.toFixed(2));
   };
 
   const handleSaveBrokerage = (accountId: string) => {
@@ -380,7 +381,9 @@ export const CheckingTab: React.FC<CheckingTabProps> = React.memo(({
                           }
                         ]}
                         value={editingBrokerageValue}
-                        onChangeText={setEditingBrokerageValue}
+                        onChangeText={(val) => setEditingBrokerageValue(formatCurrencyInput(val))}
+                        placeholder="0.00"
+                        placeholderTextColor="#94a3b8"
                         keyboardType="decimal-pad"
                         autoFocus
                       />

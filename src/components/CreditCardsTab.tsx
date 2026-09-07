@@ -26,12 +26,12 @@ export const isAnnualFeeExpense = (e: Expense): boolean => !!e.isFee;
 
 export const calculateCreditAge = (openDateStr?: string): { years: number; months: number; totalMonths: number; formatted: string } => {
   if (!openDateStr || !/^\d{4}-\d{2}-\d{2}$/.test(openDateStr)) {
-    return { years: 0, months: 0, totalMonths: 0, formatted: '0 mos' };
+    return { years: 0, months: 0, totalMonths: 0, formatted: '0m' };
   }
   const [y, m, d] = openDateStr.split('-').map(Number);
   const open = new Date(y, m - 1, d);
   const now = new Date();
-  if (isNaN(open.getTime())) return { years: 0, months: 0, totalMonths: 0, formatted: '0 mos' };
+  if (isNaN(open.getTime())) return { years: 0, months: 0, totalMonths: 0, formatted: '0m' };
 
   let totalMonths = (now.getFullYear() - open.getFullYear()) * 12 + (now.getMonth() - open.getMonth());
   if (now.getDate() < open.getDate()) {
@@ -44,11 +44,11 @@ export const calculateCreditAge = (openDateStr?: string): { years: number; month
 
   let formatted = '';
   if (years > 0 && months > 0) {
-    formatted = `${years} yr${years > 1 ? 's' : ''} ${months} mo${months > 1 ? 's' : ''}`;
+    formatted = `${years}y ${months}m`;
   } else if (years > 0) {
-    formatted = `${years} yr${years > 1 ? 's' : ''}`;
+    formatted = `${years}y`;
   } else {
-    formatted = `${months} mo${months > 1 ? 's' : ''}`;
+    formatted = `${months}m`;
   }
 
   return { years, months, totalMonths, formatted };
@@ -303,15 +303,15 @@ export const CreditCardsTab: React.FC<CreditCardsTabProps> = React.memo(({
     const avgYears = Math.floor(avgMonths / 12);
     const avgRemMonths = Math.round(avgMonths % 12);
 
-    let avgAgeFormatted = '0 mos';
+    let avgAgeFormatted = '0m';
     if (openCards.length === 0) {
       avgAgeFormatted = 'N/A';
     } else if (avgYears > 0 && avgRemMonths > 0) {
-      avgAgeFormatted = `${avgYears} yr${avgYears > 1 ? 's' : ''} ${avgRemMonths} mo${avgRemMonths > 1 ? 's' : ''}`;
+      avgAgeFormatted = `${avgYears}y ${avgRemMonths}m`;
     } else if (avgYears > 0) {
-      avgAgeFormatted = `${avgYears} yr${avgYears > 1 ? 's' : ''}`;
+      avgAgeFormatted = `${avgYears}y`;
     } else {
-      avgAgeFormatted = `${avgRemMonths} mo${avgRemMonths > 1 ? 's' : ''}`;
+      avgAgeFormatted = `${avgRemMonths}m`;
     }
 
     return {
@@ -521,9 +521,6 @@ export const CreditCardsTab: React.FC<CreditCardsTabProps> = React.memo(({
           <View style={styles.tableSection}>
             <View style={styles.tableSectionHeader}>
               <Text style={styles.tableSectionTitle}>All Credit Cards Summary</Text>
-              <Text style={styles.tableSectionSub}>
-                Tap any card or opening date to edit. Tap "View Sheet" to see transactions.
-              </Text>
             </View>
 
             {creditCardsOnly.length === 0 ? (
@@ -549,19 +546,18 @@ export const CreditCardsTab: React.FC<CreditCardsTabProps> = React.memo(({
                   {/* Table Header */}
                   <View style={[styles.overviewTableHeaderRow, isWeb ? styles.overviewRowWeb : styles.overviewRowMobile]}>
                     <Text style={[styles.ovHeaderCell, isWeb ? styles.ovColNameWeb : styles.ovColNameMobile]}>Credit Card</Text>
-                    <Text style={[styles.ovHeaderCell, isWeb ? styles.ovColDateWeb : styles.ovColDateMobile, { textAlign: 'center' }]}>Opened Date</Text>
-                    <Text style={[styles.ovHeaderCell, isWeb ? styles.ovColAgeWeb : styles.ovColAgeMobile]}>Credit Age</Text>
-                    <Text style={[styles.ovHeaderCell, isWeb ? styles.ovColSpentWeb : styles.ovColSpentMobile]}>Total Spent</Text>
-                    <Text style={[styles.ovHeaderCell, isWeb ? styles.ovColPaidWeb : styles.ovColPaidMobile]}>Total Paid</Text>
-                    <Text style={[styles.ovHeaderCell, isWeb ? styles.ovColRewardsWeb : styles.ovColRewardsMobile]}>Rewards</Text>
-                    <Text style={[styles.ovHeaderCell, isWeb ? styles.ovColFeesWeb : styles.ovColFeesMobile]}>Annual Fees</Text>
-                    <Text style={[styles.ovHeaderCell, isWeb ? styles.ovColDueWeb : styles.ovColDueMobile]}>Balance Due</Text>
-                    <Text style={[styles.ovHeaderCell, isWeb ? styles.ovColActionWeb : styles.ovColActionMobile, { textAlign: 'center', borderRightWidth: 0 }]}>Actions</Text>
+                    <Text style={[styles.ovHeaderCell, isWeb ? styles.ovColDueWeb : styles.ovColDueMobile, styles.alignRight]}>Balance</Text>
+                    <Text style={[styles.ovHeaderCell, isWeb ? styles.ovColAgeWeb : styles.ovColAgeMobile, { textAlign: 'center' }]}>Credit Age</Text>
+                    <Text style={[styles.ovHeaderCell, isWeb ? styles.ovColRewardsWeb : styles.ovColRewardsMobile, styles.alignRight]}>Rewards</Text>
+                    <Text style={[styles.ovHeaderCell, isWeb ? styles.ovColFeesWeb : styles.ovColFeesMobile, styles.alignRight]}>Annual Fees</Text>
+                    <Text style={[styles.ovHeaderCell, isWeb ? styles.ovColSpentWeb : styles.ovColSpentMobile, styles.alignRight]}>Total Spent</Text>
+                    <Text style={[styles.ovHeaderCell, isWeb ? styles.ovColPaidWeb : styles.ovColPaidMobile, styles.alignRight]}>Total Paid</Text>
+                    <Text style={[styles.ovHeaderCell, isWeb ? styles.ovColDateWeb : styles.ovColDateMobile, { textAlign: 'center', borderRightWidth: 0 }]}>Opened Date</Text>
                   </View>
 
                   {/* Table Rows */}
                   {creditCardsOnly.map(card => {
-                    const stats = cardStatsMap[card.id] || { spent: 0, paid: 0, rewards: 0, fees: 0, due: 0 };
+                    const stats = cardStatsMap[card.id] || { due: 0, rewards: 0, fees: 0, spent: 0, paid: 0 };
                     const closed = isClosedCard(card);
                     const age = calculateCreditAge(card.openDate);
 
@@ -579,28 +575,75 @@ export const CreditCardsTab: React.FC<CreditCardsTabProps> = React.memo(({
                           style={[styles.ovCell, isWeb ? styles.ovColNameWeb : styles.ovColNameMobile, styles.ovNameCell]}
                           onPress={() => setSelectedCardId(card.id)}
                         >
-                          <Text style={[styles.ovCardNameText, closed && styles.closedText]}>
+                          <Text style={[styles.ovCardNameText, closed && styles.closedText]} numberOfLines={1}>
                             {card.name}
                           </Text>
                           {closed && <Text style={styles.closedBadge}>CLOSED</Text>}
                         </TouchableOpacity>
 
+                        {/* Balance Due */}
+                        <View style={[styles.ovCell, isWeb ? styles.ovColDueWeb : styles.ovColDueMobile]}>
+                          <Text style={[
+                            styles.ovMonoText,
+                            styles.alignRight,
+                            styles.boldText,
+                            stats.due > 0.005 ? { color: '#dc2626' } : { color: '#16a34a' }
+                          ]}>
+                            ${formatCurrency(stats.due)}
+                          </Text>
+                        </View>
+
+                        {/* Credit Age */}
+                        <View style={[styles.ovCell, isWeb ? styles.ovColAgeWeb : styles.ovColAgeMobile, { alignItems: 'center' }]}>
+                          <Text style={[styles.ovMonoText, closed && styles.closedText]}>
+                            {age.formatted}
+                          </Text>
+                        </View>
+
+                        {/* Rewards */}
+                        <View style={[styles.ovCell, isWeb ? styles.ovColRewardsWeb : styles.ovColRewardsMobile]}>
+                          <Text style={[styles.ovMonoText, styles.alignRight, { color: '#16a34a' }]}>
+                            ${formatCurrency(stats.rewards)}
+                          </Text>
+                        </View>
+
+                        {/* Annual Fees */}
+                        <View style={[styles.ovCell, isWeb ? styles.ovColFeesWeb : styles.ovColFeesMobile]}>
+                          <Text style={[styles.ovMonoText, styles.alignRight, stats.fees > 0 && { color: '#d97706' }]}>
+                            ${formatCurrency(stats.fees)}
+                          </Text>
+                        </View>
+                        
+                        {/* Total Spent */}
+                        <View style={[styles.ovCell, isWeb ? styles.ovColSpentWeb : styles.ovColSpentMobile]}>
+                          <Text style={[styles.ovMonoText, styles.alignRight]}>
+                            ${formatCurrency(stats.spent)}
+                          </Text>
+                        </View>
+
+                        {/* Total Paid */}
+                        <View style={[styles.ovCell, isWeb ? styles.ovColPaidWeb : styles.ovColPaidMobile]}>
+                          <Text style={[styles.ovMonoText, styles.alignRight, { color: '#16a34a' }]}>
+                            ${formatCurrency(stats.paid)}
+                          </Text>
+                        </View>
+                        
                         {/* Date Opened (Editable) */}
-                        <View style={[styles.ovCell, isWeb ? styles.ovColDateWeb : styles.ovColDateMobile, { alignItems: 'center', justifyContent: 'center' }]}>
+                        <View style={[styles.ovCell, isWeb ? styles.ovColDateWeb : styles.ovColDateMobile, { alignItems: 'center', justifyContent: 'center', borderRightWidth: 0 }]}>
                           {isWeb ? (
                             <input
                               type="date"
                               style={{
                                 border: '1px solid #cbd5e1',
                                 borderRadius: 4,
-                                padding: '3px 6px',
-                                fontSize: '12px',
+                                padding: '1px 3px',
+                                fontSize: '11px',
                                 fontFamily: 'monospace',
                                 color: '#0f172a',
                                 backgroundColor: '#ffffff',
                                 width: '100%',
-                                maxWidth: 135,
-                                height: 28,
+                                maxWidth: 100,
+                                height: 22,
                                 boxSizing: 'border-box',
                                 outline: 'none',
                                 textAlign: 'center',
@@ -622,64 +665,6 @@ export const CreditCardsTab: React.FC<CreditCardsTabProps> = React.memo(({
                               </Text>
                             </TouchableOpacity>
                           )}
-                        </View>
-
-                        {/* Credit Age */}
-                        <View style={[styles.ovCell, isWeb ? styles.ovColAgeWeb : styles.ovColAgeMobile]}>
-                          <Text style={[styles.ovMonoText, closed && styles.closedText]}>
-                            {age.formatted}
-                          </Text>
-                          {closed && <Text style={styles.excludedTag}>excluded</Text>}
-                        </View>
-
-                        {/* Total Spent */}
-                        <View style={[styles.ovCell, isWeb ? styles.ovColSpentWeb : styles.ovColSpentMobile]}>
-                          <Text style={[styles.ovMonoText, styles.alignRight]}>
-                            ${formatCurrency(stats.spent)}
-                          </Text>
-                        </View>
-
-                        {/* Total Paid */}
-                        <View style={[styles.ovCell, isWeb ? styles.ovColPaidWeb : styles.ovColPaidMobile]}>
-                          <Text style={[styles.ovMonoText, styles.alignRight, { color: '#16a34a' }]}>
-                            ${formatCurrency(stats.paid)}
-                          </Text>
-                        </View>
-
-                        {/* Rewards */}
-                        <View style={[styles.ovCell, isWeb ? styles.ovColRewardsWeb : styles.ovColRewardsMobile]}>
-                          <Text style={[styles.ovMonoText, styles.alignRight, { color: '#16a34a' }]}>
-                            ${formatCurrency(stats.rewards)}
-                          </Text>
-                        </View>
-
-                        {/* Annual Fees */}
-                        <View style={[styles.ovCell, isWeb ? styles.ovColFeesWeb : styles.ovColFeesMobile]}>
-                          <Text style={[styles.ovMonoText, styles.alignRight, stats.fees > 0 && { color: '#d97706' }]}>
-                            ${formatCurrency(stats.fees)}
-                          </Text>
-                        </View>
-
-                        {/* Balance Due */}
-                        <View style={[styles.ovCell, isWeb ? styles.ovColDueWeb : styles.ovColDueMobile]}>
-                          <Text style={[
-                            styles.ovMonoText,
-                            styles.alignRight,
-                            styles.boldText,
-                            stats.due > 0.005 ? { color: '#dc2626' } : { color: '#16a34a' }
-                          ]}>
-                            ${formatCurrency(stats.due)}
-                          </Text>
-                        </View>
-
-                        {/* Action Button */}
-                        <View style={[styles.ovCell, isWeb ? styles.ovColActionWeb : styles.ovColActionMobile, { justifyContent: 'center', alignItems: 'center', borderRightWidth: 0 }]}>
-                          <TouchableOpacity
-                            style={styles.viewSheetBtn}
-                            onPress={() => setSelectedCardId(card.id)}
-                          >
-                            <Text style={styles.viewSheetBtnText}>View Sheet →</Text>
-                          </TouchableOpacity>
                         </View>
                       </View>
                     );
@@ -1000,7 +985,7 @@ const styles = StyleSheet.create({
     flexDirection: 'column',
   },
   overviewTableMobile: {
-    width: 1030,
+    width: 674,
     flexDirection: 'column',
   },
   overviewTableHeaderRow: {
@@ -1008,105 +993,102 @@ const styles = StyleSheet.create({
     backgroundColor: '#f1f5f9',
     borderBottomWidth: 2,
     borderBottomColor: '#cbd5e1',
+    minHeight: 32,
+    alignItems: 'stretch',
   },
   overviewTableRow: {
     flexDirection: 'row',
     borderBottomWidth: 1,
     borderBottomColor: '#e2e8f0',
-    alignItems: 'center',
+    minHeight: 32,
+    alignItems: 'stretch',
     backgroundColor: '#ffffff',
   },
   overviewRowWeb: {
     width: '100%',
   },
   overviewRowMobile: {
-    width: 1030,
+    width: 674,
   },
   closedTableRow: {
     backgroundColor: '#f8fafc',
   },
   ovHeaderCell: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '700',
     color: '#475569',
-    paddingVertical: 10,
-    paddingHorizontal: 8,
+    paddingVertical: 7,
+    paddingHorizontal: 4,
     borderRightWidth: 1,
     borderRightColor: '#cbd5e1',
     textTransform: 'uppercase',
-    letterSpacing: 0.3,
+    letterSpacing: 0.2,
+    justifyContent: 'center',
   },
   ovCell: {
-    paddingVertical: 8,
-    paddingHorizontal: 8,
+    paddingVertical: 4,
+    paddingHorizontal: 4,
     borderRightWidth: 1,
     borderRightColor: '#e2e8f0',
     justifyContent: 'center',
   },
-  // Overview Web columns (flex-based to fill 100% width)
+  // Overview Web columns (flex-based to fill width or compact minWidth)
   ovColNameWeb: {
-    flex: 2.2,
-    minWidth: 160,
-  },
-  ovColDateWeb: {
-    flex: 1.8,
-    minWidth: 155,
-  },
-  ovColAgeWeb: {
-    flex: 1.3,
-    minWidth: 110,
-  },
-  ovColSpentWeb: {
-    flex: 1.1,
-    minWidth: 95,
-  },
-  ovColPaidWeb: {
-    flex: 1.1,
-    minWidth: 95,
-  },
-  ovColRewardsWeb: {
-    flex: 1.1,
-    minWidth: 95,
-  },
-  ovColFeesWeb: {
-    flex: 1.1,
-    minWidth: 95,
+    flex: 1.6,
+    minWidth: 120,
   },
   ovColDueWeb: {
-    flex: 1.2,
+    flex: 1.0,
+    minWidth: 78,
+  },
+  ovColAgeWeb: {
+    flex: 0.9,
+    minWidth: 72,
+  },
+  ovColRewardsWeb: {
+    flex: 0.85,
+    minWidth: 68,
+  },
+  ovColFeesWeb: {
+    flex: 1.0,
+    minWidth: 78,
+  },
+  ovColSpentWeb: {
+    flex: 1.0,
+    minWidth: 78,
+  },
+  ovColPaidWeb: {
+    flex: 0.95,
+    minWidth: 75,
+  },
+  ovColDateWeb: {
+    flex: 1.3,
     minWidth: 105,
   },
-  ovColActionWeb: {
-    flex: 1.2,
-    minWidth: 110,
-  },
-  // Overview Mobile columns (fixed width)
+  // Overview Mobile columns (fixed width - tight and minimal)
   ovColNameMobile: {
-    width: 160,
-  },
-  ovColDateMobile: {
-    width: 140,
-  },
-  ovColAgeMobile: {
-    width: 110,
-  },
-  ovColSpentMobile: {
-    width: 95,
-  },
-  ovColPaidMobile: {
-    width: 95,
-  },
-  ovColRewardsMobile: {
-    width: 95,
-  },
-  ovColFeesMobile: {
-    width: 95,
+    width: 120,
   },
   ovColDueMobile: {
-    width: 110,
+    width: 78,
   },
-  ovColActionMobile: {
-    width: 130,
+  ovColAgeMobile: {
+    width: 72,
+  },
+  ovColRewardsMobile: {
+    width: 68,
+  },
+  ovColFeesMobile: {
+    width: 78,
+  },
+  ovColSpentMobile: {
+    width: 78,
+  },
+  ovColPaidMobile: {
+    width: 75,
+  },
+  ovColDateMobile: {
+    width: 105,
   },
   ovNameCell: {
     flexDirection: 'row',
@@ -1114,7 +1096,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   ovCardNameText: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '700',
     color: '#0f172a',
     flex: 1,
@@ -1132,14 +1114,8 @@ const styles = StyleSheet.create({
   closedText: {
     color: '#94a3b8',
   },
-  excludedTag: {
-    fontSize: 9,
-    color: '#94a3b8',
-    fontStyle: 'italic',
-    marginTop: 2,
-  },
   ovMonoText: {
-    fontSize: 13,
+    fontSize: 12,
     fontFamily: Platform.OS === 'ios' ? 'Courier New' : 'monospace',
     color: '#0f172a',
   },
@@ -1154,28 +1130,18 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#cbd5e1',
     borderRadius: 4,
-    paddingVertical: 4,
-    paddingHorizontal: 8,
+    paddingVertical: 2,
+    paddingHorizontal: 4,
     alignItems: 'center',
+    justifyContent: 'center',
+    height: 22,
   },
   dateEditText: {
-    fontSize: 12,
+    fontSize: 11,
     fontFamily: Platform.OS === 'ios' ? 'Courier New' : 'monospace',
     color: '#0f172a',
     fontWeight: '600',
-  },
-  viewSheetBtn: {
-    backgroundColor: '#0f172a',
-    paddingVertical: 5,
-    paddingHorizontal: 10,
-    borderRadius: 4,
-    alignItems: 'center',
-  },
-  viewSheetBtnText: {
-    color: '#ffffff',
-    fontSize: 11,
-    fontWeight: '700',
-    textTransform: 'uppercase',
+    lineHeight: 14,
   },
   // Individual Card View Styles
   individualCardContainer: {

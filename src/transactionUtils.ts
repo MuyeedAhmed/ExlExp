@@ -166,3 +166,16 @@ export function getDisplayableTransactions(
 // Alias for backwards compatibility
 export const consolidateTransactions = getDisplayableTransactions;
 export type UnifiedTransaction = DisplayTransaction;
+
+/**
+ * Formats raw numeric input into an ATM-style decimal currency string (cents first).
+ * E.g. '2' -> '0.02', '0.023' -> '0.23', '0.234' -> '2.34'.
+ * Backspacing shifts right-to-left. Returns empty string when zero or empty so placeholder displays cleanly.
+ */
+export function formatCurrencyInput(rawText: string): string {
+  const cleanDigits = rawText.replace(/\D/g, '').replace(/^0+/, '').slice(0, 10);
+  if (!cleanDigits) return '';
+  const num = parseInt(cleanDigits, 10);
+  if (isNaN(num) || num === 0) return '';
+  return (num / 100).toFixed(2);
+}
