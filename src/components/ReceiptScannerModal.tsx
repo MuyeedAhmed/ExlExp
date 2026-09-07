@@ -789,10 +789,7 @@ export const ReceiptScannerModal: React.FC<ReceiptScannerModalProps> = ({
                   {Object.keys(splitSummary).length > 0 && (
                     <View style={styles.splitCard}>
                       <View style={styles.splitCardHeader}>
-                        <Text style={styles.splitCardTitle}>👥 Splitwise Summary</Text>
-                        <Text style={styles.splitCardSub}>
-                          Item totals with proportional tax allocated per person
-                        </Text>
+                        <Text style={styles.splitCardTitle}>👥 Split Summary</Text>
                       </View>
                       <View style={styles.splitList}>
                         {Object.entries(splitSummary).map(([person, data]) => (
