@@ -6,6 +6,7 @@
  * and matches detected card against user's registered cards.
  */
 
+import { Platform } from 'react-native';
 import { CreditCard } from '../types';
 
 export interface ReceiptItem {
@@ -95,8 +96,7 @@ export function matchCardToAccount(
   return creditCardsOnly[0] || activeCards[0];
 }
 
-export const DEFAULT_AWS_RECEIPT_URL =
-  'https://eb2kjhtss6.execute-api.us-east-1.amazonaws.com/prod/recognize-receipt';
+export const DEFAULT_AWS_RECEIPT_URL = '';
 
 /**
  * Browser-based OCR via lightweight Tesseract.js from CDN
@@ -112,10 +112,12 @@ export async function extractTextFromImage(imageUriOrBase64: string): Promise<st
       ? imageUriOrBase64
       : `data:image/jpeg;base64,${imageUriOrBase64}`;
 
-    console.info('[ReceiptOCR] Running OCR on uploaded image...');
-    const result = await tesseract.recognize(dataUrl, 'eng');
+    console.info('[ReceiptOCR] Running browser OCR engine...');
+    const result = await tesseract.recognize(dataUrl, 'eng', {
+      langPath: 'https://cdn.jsdelivr.net/gh/naptha/tessdata@gh-pages/4.0.0',
+    });
     const text = result?.data?.text || '';
-    console.info('[ReceiptOCR] OCR completed, extracted characters:', text.length);
+    console.info('[ReceiptOCR] Browser OCR completed, extracted characters:', text.length);
     return text;
   } catch (err) {
     console.warn('[ReceiptOCR] Browser OCR skipped or failed:', err);
@@ -148,6 +150,84 @@ function loadTesseractFromCDN(): Promise<any> {
   });
 
   return tesseractPromise;
+}
+
+/**
+ * Cloud OCR for Mobile (Android/iOS) using free OCR.space API
+ */
+export async function extractTextFromImageMobile(base64Image: string, rawUri?: string): Promise<string> {
+  const cleanBase64 = base64Image.includes(',') ? base64Image.split(',')[1] : base64Image;
+  const dataUrl = `data:image/jpeg;base64,${cleanBase64}`;
+
+  // Attempt 1: Engine 2 (optimized for numbers & tables)
+  try {
+    console.info('[ReceiptOCR] Running mobile OCR engine (Engine 2)...');
+    const formData = new FormData();
+    formData.append('apikey', 'K87899142388957');
+    formData.append('language', 'eng');
+    formData.append('filetype', 'JPG');
+    formData.append('scale', 'true');
+    formData.append('isTable', 'true');
+    formData.append('OCREngine', '2');
+    formData.append('base64Image', dataUrl);
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15000);
+
+    const response = await fetch('https://api.ocr.space/parse/image', {
+      method: 'POST',
+      body: formData,
+      signal: controller.signal,
+    });
+    clearTimeout(timeout);
+
+    if (response.ok) {
+      const data = await response.json();
+      const text = data?.ParsedResults?.[0]?.ParsedText || '';
+      if (!data?.IsErroredOnProcessing && text.trim().length > 0) {
+        console.info('[ReceiptOCR] Engine 2 succeeded, characters:', text.length);
+        return text;
+      }
+      console.warn('[ReceiptOCR] Engine 2 returned empty or error:', data?.ErrorMessage || data?.error);
+    }
+  } catch (err: any) {
+    console.warn('[ReceiptOCR] Engine 2 failed:', err?.message || err);
+  }
+
+  // Attempt 2: Fallback to Engine 1
+  try {
+    console.info('[ReceiptOCR] Running mobile OCR fallback (Engine 1)...');
+    const formData = new FormData();
+    formData.append('apikey', 'K87899142388957');
+    formData.append('language', 'eng');
+    formData.append('filetype', 'JPG');
+    formData.append('scale', 'true');
+    formData.append('OCREngine', '1');
+    formData.append('base64Image', dataUrl);
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15000);
+
+    const response = await fetch('https://api.ocr.space/parse/image', {
+      method: 'POST',
+      body: formData,
+      signal: controller.signal,
+    });
+    clearTimeout(timeout);
+
+    if (response.ok) {
+      const data = await response.json();
+      const text = data?.ParsedResults?.[0]?.ParsedText || '';
+      if (text.trim().length > 0) {
+        console.info('[ReceiptOCR] Engine 1 fallback succeeded, characters:', text.length);
+        return text;
+      }
+    }
+  } catch (err: any) {
+    console.warn('[ReceiptOCR] Engine 1 fallback failed:', err?.message || err);
+  }
+
+  return '';
 }
 
 /**
@@ -198,7 +278,7 @@ export function parseReceiptText(ocrText: string): ReceiptRecognitionResult {
   let tip: number | undefined = undefined;
   const items: ReceiptItem[] = [];
 
-  const priceRegex = /\$?\s*([0-9]{1,4}\.[0-9]{2})/;
+  const priceRegex = /\$?\s*([0-9]{1,4}[.,][0-9]{2})\b/;
   const totalRegex = /\b(total|grand\s*total|balance\s*due|amount\s*due|final\s*total)\b/i;
   const subtotalRegex = /\b(sub\s*total|subtotal|net\s*amount)\b/i;
   const taxRegex = /\b(tax|sales\s*tax|hst|gst|vat)\b/i;
@@ -207,37 +287,48 @@ export function parseReceiptText(ocrText: string): ReceiptRecognitionResult {
   const ignoreKeywords = [
     'change', 'cash', 'cash tendered', 'approved', 'account',
     'visa', 'mastercard', 'amex', 'discover', 'auth', 'balance',
-    'subtotal', 'tax', 'total', 'tip', 'thank you'
+    'subtotal', 'tax', 'total', 'tip', 'thank you', 'visit again', 'welcome'
   ];
 
-  for (const line of ocrLines) {
-    const pMatch = line.match(priceRegex);
-    if (!pMatch) continue;
-
-    const amountVal = parseFloat(pMatch[1]);
-    if (isNaN(amountVal)) continue;
-
+  for (let i = 0; i < ocrLines.length; i++) {
+    const line = ocrLines[i];
     const lineLower = line.toLowerCase();
 
+    // Check Total
     if (totalRegex.test(lineLower) && !subtotalRegex.test(lineLower)) {
-      if (totalAmount === undefined || lineLower.includes('grand')) {
-        totalAmount = amountVal;
+      const pMatch = line.match(priceRegex);
+      if (pMatch) {
+        totalAmount = parseFloat(pMatch[1].replace(',', '.'));
+      } else if (i + 1 < ocrLines.length && ocrLines[i + 1].match(priceRegex)) {
+        totalAmount = parseFloat(ocrLines[i + 1].match(priceRegex)![1].replace(',', '.'));
       }
       continue;
     }
 
+    // Check Subtotal
     if (subtotalRegex.test(lineLower)) {
-      subtotal = amountVal;
+      const pMatch = line.match(priceRegex);
+      if (pMatch) subtotal = parseFloat(pMatch[1].replace(',', '.'));
+      else if (i + 1 < ocrLines.length && ocrLines[i + 1].match(priceRegex)) {
+        subtotal = parseFloat(ocrLines[i + 1].match(priceRegex)![1].replace(',', '.'));
+      }
       continue;
     }
 
+    // Check Tax
     if (taxRegex.test(lineLower)) {
-      tax = amountVal;
+      const pMatch = line.match(priceRegex);
+      if (pMatch) tax = parseFloat(pMatch[1].replace(',', '.'));
+      else if (i + 1 < ocrLines.length && ocrLines[i + 1].match(priceRegex)) {
+        tax = parseFloat(ocrLines[i + 1].match(priceRegex)![1].replace(',', '.'));
+      }
       continue;
     }
 
+    // Check Tip
     if (tipRegex.test(lineLower)) {
-      tip = amountVal;
+      const pMatch = line.match(priceRegex);
+      if (pMatch) tip = parseFloat(pMatch[1].replace(',', '.'));
       continue;
     }
 
@@ -245,23 +336,89 @@ export function parseReceiptText(ocrText: string): ReceiptRecognitionResult {
       continue;
     }
 
-    let desc = line.replace(priceRegex, '').replace(/^[\d*#\-.]+\s+/, '').trim();
-    if (desc.length >= 2 && /[a-zA-Z]/.test(desc)) {
-      let qty = 1;
-      const qtyMatch = desc.match(/^(\d+)\s*[xX@]\s*(.+)$/);
-      if (qtyMatch) {
-        qty = parseInt(qtyMatch[1], 10);
-        desc = qtyMatch[2].trim();
+    // Case 1: Line contains the price
+    const match = line.match(priceRegex);
+    if (match) {
+      const amountVal = parseFloat(match[1].replace(',', '.'));
+      if (isNaN(amountVal) || amountVal <= 0) continue;
+
+      let desc = line.replace(priceRegex, '').replace(/^[\d*#\-.]+\s+/, '').replace(/[\s*#\-.]+$/, '').trim();
+      const isTaxedFlag = /\s+[tT]$/.test(desc) || /\b[tT]\b/.test(line);
+      desc = desc.replace(/\s+[tfbaTFBA]$/, '').trim();
+
+      if (desc.length >= 2 && /[a-zA-Z]/.test(desc)) {
+        let qty = 1;
+        const qtyMatch = desc.match(/^(\d+)\s*[xX@]\s*(.+)$/);
+        if (qtyMatch) {
+          qty = parseInt(qtyMatch[1], 10);
+          desc = qtyMatch[2].trim();
+        }
+
+        items.push({
+          id: `item-${items.length + 1}`,
+          description: desc,
+          amount: amountVal,
+          rawAmount: amountVal,
+          quantity: qty,
+          unitPrice: qty > 1 ? Math.round((amountVal / qty) * 100) / 100 : amountVal,
+          category: 'Grocery',
+          isTaxed: isTaxedFlag,
+        });
+        continue;
       }
 
-      items.push({
-        id: `item-${items.length + 1}`,
-        description: desc,
-        amount: amountVal,
-        quantity: qty,
-        unitPrice: qty > 1 ? Math.round((amountVal / qty) * 100) / 100 : amountVal,
-        category: 'Grocery',
-      });
+      // Case 2: Price is on this line, but description was on PREVIOUS line
+      if (desc.length < 2 && i > 0) {
+        const prevLine = ocrLines[i - 1];
+        const prevLower = prevLine.toLowerCase();
+        if (
+          !prevLine.match(priceRegex) &&
+          !totalRegex.test(prevLower) &&
+          !subtotalRegex.test(prevLower) &&
+          !taxRegex.test(prevLower) &&
+          !ignoreKeywords.some(kw => prevLower.includes(kw)) &&
+          /[a-zA-Z]/.test(prevLine)
+        ) {
+          const cleanPrev = prevLine.replace(/^[\d*#\-.]+\s+/, '').trim();
+          items.push({
+            id: `item-${items.length + 1}`,
+            description: cleanPrev,
+            amount: amountVal,
+            rawAmount: amountVal,
+            quantity: 1,
+            unitPrice: amountVal,
+            category: 'Grocery',
+            isTaxed: isTaxedFlag,
+          });
+          continue;
+        }
+      }
+    } else {
+      // Case 3: This line is description, next line is price
+      if (i + 1 < ocrLines.length) {
+        const nextLine = ocrLines[i + 1];
+        const nextMatch = nextLine.match(priceRegex);
+        if (nextMatch) {
+          const nextAmount = parseFloat(nextMatch[1].replace(',', '.'));
+          const nextRemainder = nextLine.replace(priceRegex, '').trim();
+          const isTaxedFlag = /\s+[tT]$/.test(nextRemainder) || /\b[tT]\b/.test(nextLine);
+          if (nextRemainder.length < 2 && /[a-zA-Z]/.test(line)) {
+            const cleanDesc = line.replace(/^[\d*#\-.]+\s+/, '').trim();
+            items.push({
+              id: `item-${items.length + 1}`,
+              description: cleanDesc,
+              amount: nextAmount,
+              rawAmount: nextAmount,
+              quantity: 1,
+              unitPrice: nextAmount,
+              category: 'Grocery',
+              isTaxed: isTaxedFlag,
+            });
+            i++; // skip next line
+            continue;
+          }
+        }
+      }
     }
   }
 
@@ -269,7 +426,7 @@ export function parseReceiptText(ocrText: string): ReceiptRecognitionResult {
     if (subtotal !== undefined && tax !== undefined) {
       totalAmount = Math.round((subtotal + tax + (tip || 0)) * 100) / 100;
     } else if (items.length > 0) {
-      totalAmount = Math.round(items.reduce((s, it) => s + it.amount, 0) * 100) / 100;
+      totalAmount = Math.round(items.reduce((s, it) => s + (it.rawAmount ?? it.amount), 0) * 100) / 100;
     } else {
       totalAmount = 0.0;
     }
@@ -307,7 +464,7 @@ export function parseReceiptText(ocrText: string): ReceiptRecognitionResult {
       if (
         cleaned.length >= 3 &&
         /[a-zA-Z]/.test(cleaned) &&
-        !/(receipt|welcome|store|tax invoice|cashier|terminal|order)/i.test(cleaned) &&
+        !/(receipt|welcome|store|tax invoice|cashier|terminal|order|item|description|amount)/i.test(cleaned) &&
         !/^\d/.test(cleaned)
       ) {
         merchant = cleaned;
@@ -316,7 +473,7 @@ export function parseReceiptText(ocrText: string): ReceiptRecognitionResult {
   }
 
   return {
-    success: true,
+    success: items.length > 0 || (totalAmount !== undefined && totalAmount > 0),
     merchant: merchant || 'Store Purchase',
     date: dateStr || new Date().toISOString().split('T')[0],
     totalAmount,
@@ -332,7 +489,7 @@ export function parseReceiptText(ocrText: string): ReceiptRecognitionResult {
     tax: tax ?? 0,
     tip: tip ?? 0,
     confidence: 0.96,
-    source: 'AWS-SageMaker-ClientOCR',
+    source: 'Receipt-OCR',
   };
 }
 
@@ -349,21 +506,34 @@ export async function recognizeReceipt(
     (typeof process !== 'undefined' && process.env?.EXPO_PUBLIC_RECEIPT_API_URL) ||
     DEFAULT_AWS_RECEIPT_URL;
 
-  console.info('[ReceiptRecognition] Target API URL:', customUrl);
-
-  // 1. Run browser OCR if on web
+  // 1. Run OCR (Web uses browser Tesseract.js; Mobile uses mobile OCR)
   let clientOcrText = '';
   try {
-    const uriToScan = options?.rawUri || (base64Image.startsWith('data:') ? base64Image : `data:image/jpeg;base64,${base64Image}`);
-    clientOcrText = await extractTextFromImage(uriToScan);
+    if (Platform.OS === 'web') {
+      const uriToScan = options?.rawUri || (base64Image.startsWith('data:') ? base64Image : `data:image/jpeg;base64,${base64Image}`);
+      clientOcrText = await extractTextFromImage(uriToScan);
+    } else {
+      clientOcrText = await extractTextFromImageMobile(base64Image, options?.rawUri);
+    }
   } catch (ocrErr) {
-    console.warn('[ReceiptRecognition] Client OCR error:', ocrErr);
+    console.warn('[ReceiptRecognition] OCR error:', ocrErr);
   }
 
-  // 2. If an explicit AWS Lambda endpoint is configured, invoke it directly
-  if (customUrl) {
+  // 2. If client OCR succeeded, parse it immediately with Document AI parser
+  if (clientOcrText && clientOcrText.trim().length > 0) {
+    const parsed = parseReceiptText(clientOcrText);
+    if (parsed.totalAmount > 0 || (parsed.items && parsed.items.length > 0)) {
+      return parsed;
+    }
+  }
+
+  // 3. If an explicit AWS Lambda endpoint is configured, invoke it with a short timeout
+  if (customUrl && customUrl.trim().length > 0) {
     try {
-      console.info('[ReceiptRecognition] Invoking live AWS Lambda endpoint...');
+      console.info('[ReceiptRecognition] Invoking custom endpoint:', customUrl);
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 12000);
+
       const response = await fetch(customUrl, {
         method: 'POST',
         headers: {
@@ -373,50 +543,29 @@ export async function recognizeReceipt(
           image: base64Image,
           text: clientOcrText || undefined,
         }),
+        signal: controller.signal,
       });
+      clearTimeout(timeout);
 
-      if (!response.ok) {
-        throw new Error(`HTTP error ${response.status}: ${response.statusText}`);
+      if (response.ok) {
+        const data = await response.json();
+        if (data && data.success && data.totalAmount > 0) {
+          return normalizeRecognitionResult(data);
+        }
       }
-
-      const data = await response.json();
-      if (data && data.success && data.totalAmount > 0) {
-        return normalizeRecognitionResult(data);
-      }
-
-      if (clientOcrText.trim().length > 0) {
-        return parseReceiptText(clientOcrText);
-      }
-
-      return normalizeRecognitionResult(data);
     } catch (err) {
-      console.warn('Direct AWS Lambda recognition call failed, trying local proxy:', err);
+      console.warn('Direct AWS Lambda call skipped or failed:', err);
     }
   }
 
-  try {
-    const proxyUrl = typeof window !== 'undefined' ? '/api/scan-receipt' : 'http://localhost:3000/api/scan-receipt';
-    const response = await fetch(proxyUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ image: base64Image, text: clientOcrText || undefined }),
-    });
-
-    if (response.ok) {
-      const data = await response.json();
-      return normalizeRecognitionResult(data);
-    }
-  } catch (err) {
-    // API server not running
-  }
-
-  if (clientOcrText.trim().length > 0) {
+  // 4. Return parsed OCR result if any lines were found
+  if (clientOcrText && clientOcrText.trim().length > 0) {
     return parseReceiptText(clientOcrText);
   }
 
   return {
     success: false,
-    merchant: 'No text detected',
+    merchant: 'Store Receipt',
     date: new Date().toISOString().split('T')[0],
     totalAmount: 0,
     cardUsage: { paymentMethod: 'Credit Card', detectedCardText: 'None detected' },

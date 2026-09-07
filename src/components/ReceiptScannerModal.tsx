@@ -146,6 +146,17 @@ export const ReceiptScannerModal: React.FC<ReceiptScannerModalProps> = ({
     try {
       const result = await recognizeReceipt(image.base64, { rawUri: image.uri });
       populateFromRecognition(result);
+
+      if (!result.success || (result.items.length === 0 && (!result.totalAmount || result.totalAmount <= 0))) {
+        if (Platform.OS === 'web') {
+          alert('Could not clearly detect line items or total from this photo. You can manually enter items or upload a clearer, well-lit image.');
+        } else {
+          Alert.alert(
+            'Scan Incomplete',
+            'Could not clearly detect line items or total from this photo. You can manually enter items or upload a clearer, well-lit image.'
+          );
+        }
+      }
     } catch (err: any) {
       console.error('Recognition error:', err);
       if (Platform.OS === 'web') {
@@ -210,16 +221,34 @@ export const ReceiptScannerModal: React.FC<ReceiptScannerModalProps> = ({
   };
 
   const handleCameraCapture = async () => {
-    const img = await captureImageWithCamera();
-    if (img) {
-      handleImageSelected(img);
+    try {
+      const img = await captureImageWithCamera();
+      if (img) {
+        handleImageSelected(img);
+      }
+    } catch (err: any) {
+      console.error('Camera capture error:', err);
+      if (Platform.OS === 'web') {
+        alert('Camera error: ' + (err?.message || 'Failed to capture image'));
+      } else {
+        Alert.alert('Camera Error', err?.message || 'Failed to capture image');
+      }
     }
   };
 
   const handleGalleryPick = async () => {
-    const img = await pickImageFromGallery();
-    if (img) {
-      handleImageSelected(img);
+    try {
+      const img = await pickImageFromGallery();
+      if (img) {
+        handleImageSelected(img);
+      }
+    } catch (err: any) {
+      console.error('Gallery pick error:', err);
+      if (Platform.OS === 'web') {
+        alert('Gallery error: ' + (err?.message || 'Failed to select image'));
+      } else {
+        Alert.alert('Gallery Error', err?.message || 'Failed to select image');
+      }
     }
   };
 
@@ -574,9 +603,6 @@ export const ReceiptScannerModal: React.FC<ReceiptScannerModalProps> = ({
                   <View style={styles.totalRow}>
                     <View>
                       <Text style={styles.totalLabel}>Total Amount Due</Text>
-                      <Text style={styles.totalSub}>
-                        {`ST (Items): $${baseSubtotal.toFixed(2)}  •  Tax (T-ST): $${calculatedTotalTax.toFixed(2)}  •  ${taxedCount} taxed`}
-                      </Text>
                     </View>
                     <View style={styles.totalInputWrapper}>
                       <Text style={styles.currencyPrefix}>$</Text>
@@ -630,10 +656,9 @@ export const ReceiptScannerModal: React.FC<ReceiptScannerModalProps> = ({
                   {!isCompactScreen && items.length > 0 && (
                     <View style={styles.itemsTableHeader}>
                       <Text style={[styles.columnHeader, { flex: 1 }]}>Item Description</Text>
-                      <Text style={[styles.columnHeader, { width: 85, textAlign: 'right' }]}>Price</Text>
-                      <Text style={[styles.columnHeader, { width: 74, textAlign: 'center' }]}>Tax</Text>
-                      <Text style={[styles.columnHeader, { width: 68, textAlign: 'right' }]}>Total</Text>
-                      <Text style={[styles.columnHeader, { width: 95, textAlign: 'left', paddingLeft: 4 }]}>Assigned To</Text>
+                      <Text style={[styles.columnHeader, { width: 90, textAlign: 'right' }]}>Amount</Text>
+                      <Text style={[styles.columnHeader, { width: 65, textAlign: 'center' }]}>Tax</Text>
+                      <Text style={[styles.columnHeader, { width: 90, textAlign: 'left', paddingLeft: 4 }]}>Assigned To</Text>
                       <View style={{ width: 32 }} />
                     </View>
                   )}
@@ -655,11 +680,9 @@ export const ReceiptScannerModal: React.FC<ReceiptScannerModalProps> = ({
                               value={
                                 item.amountStr !== undefined
                                   ? item.amountStr
-                                  : typeof item.rawAmount === 'number'
-                                  ? item.rawAmount.toFixed(2)
                                   : typeof item.amount === 'number'
                                   ? item.amount.toFixed(2)
-                                  : ''
+                                  : String(item.amount ?? '')
                               }
                               onChangeText={val => handleItemChange(idx, 'amount', val)}
                               onBlur={() => handleItemBlur(idx)}
@@ -683,19 +706,10 @@ export const ReceiptScannerModal: React.FC<ReceiptScannerModalProps> = ({
                             activeOpacity={0.7}
                           >
                             <Text style={[styles.taxCheckmark, item.isTaxed ? styles.taxTextActive : styles.taxTextInactive]}>
-                              {item.isTaxed
-                                ? item.taxAmount && item.taxAmount > 0
-                                  ? `☑ +$${item.taxAmount.toFixed(2)}`
-                                  : '☑ Taxed'
-                                : '☐ Tax'}
+                              {item.isTaxed ? '☑ Taxed' : '☐ Tax'}
                             </Text>
                           </TouchableOpacity>
-                          <View style={styles.compactTotalBadge}>
-                            <Text style={styles.compactTotalText}>
-                              ${(item.amount ?? item.rawAmount ?? 0).toFixed(2)}
-                            </Text>
-                          </View>
-                          <View style={[styles.assigneeWrapper, { flex: 1 }]}>
+                          <View style={[styles.assigneeWrapper, { flex: 1, width: undefined }]}>
                             <Text style={styles.assigneeIcon}>👤</Text>
                             <TextInput
                               style={styles.assigneeInput}
@@ -717,7 +731,7 @@ export const ReceiptScannerModal: React.FC<ReceiptScannerModalProps> = ({
                           placeholder="Item description"
                         />
 
-                        {/* 2. Base Price */}
+                        {/* 2. Amount */}
                         <View style={styles.itemAmountWrapper}>
                           <Text style={styles.smallCurrency}>$</Text>
                           <TextInput
@@ -725,11 +739,9 @@ export const ReceiptScannerModal: React.FC<ReceiptScannerModalProps> = ({
                             value={
                               item.amountStr !== undefined
                                 ? item.amountStr
-                                : typeof item.rawAmount === 'number'
-                                ? item.rawAmount.toFixed(2)
                                 : typeof item.amount === 'number'
                                 ? item.amount.toFixed(2)
-                                : ''
+                                : String(item.amount ?? '')
                             }
                             onChangeText={val => handleItemChange(idx, 'amount', val)}
                             onBlur={() => handleItemBlur(idx)}
@@ -747,22 +759,11 @@ export const ReceiptScannerModal: React.FC<ReceiptScannerModalProps> = ({
                           activeOpacity={0.7}
                         >
                           <Text style={[styles.taxCheckmark, item.isTaxed ? styles.taxTextActive : styles.taxTextInactive]}>
-                            {item.isTaxed
-                              ? item.taxAmount && item.taxAmount > 0
-                                ? `☑ +$${item.taxAmount.toFixed(2)}`
-                                : '☑ Tax'
-                              : '☐ Tax'}
+                            {item.isTaxed ? '☑ Tax' : '☐ Tax'}
                           </Text>
                         </TouchableOpacity>
 
-                        {/* 4. Total Amount Badge */}
-                        <View style={styles.itemTotalBadge}>
-                          <Text style={styles.itemTotalText}>
-                            ${(item.amount ?? item.rawAmount ?? 0).toFixed(2)}
-                          </Text>
-                        </View>
-
-                        {/* 5. Assigned To (Splitwise type) */}
+                        {/* 4. Assigned To (Splitwise type) */}
                         <View style={styles.assigneeWrapper}>
                           <Text style={styles.assigneeIcon}>👤</Text>
                           <TextInput
@@ -774,7 +775,7 @@ export const ReceiptScannerModal: React.FC<ReceiptScannerModalProps> = ({
                           />
                         </View>
 
-                        {/* 6. Delete Button */}
+                        {/* 5. Delete Button */}
                         <TouchableOpacity
                           style={styles.deleteItemBtn}
                           onPress={() => handleDeleteItem(idx)}
@@ -1251,48 +1252,42 @@ const styles = StyleSheet.create({
     ...(Platform.OS === 'web' ? ({ outlineStyle: 'none' } as any) : {}),
   },
   itemAmountWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    position: 'relative',
+    height: 38,
+    width: 90,
+    justifyContent: 'center',
+  },
+  smallCurrency: {
+    position: 'absolute',
+    left: 8,
+    zIndex: 2,
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#64748b',
+    ...(Platform.OS === 'web' ? ({ pointerEvents: 'none' } as any) : {}),
+  },
+  itemAmountInput: {
+    width: 90,
+    height: 38,
     backgroundColor: '#ffffff',
     borderWidth: 1,
     borderColor: '#e2e8f0',
     borderRadius: 6,
-    paddingLeft: 6,
-    paddingRight: 6,
-    height: 38,
-    width: 85,
-    overflow: 'hidden',
-  },
-  smallCurrency: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#64748b',
-    marginRight: 2,
-  },
-  itemAmountInput: {
+    paddingLeft: 22,
+    paddingRight: 8,
     fontSize: 13,
     fontWeight: '600',
     color: '#0f172a',
-    flex: 1,
-    minWidth: 0,
-    width: 0,
     textAlign: 'right',
-    paddingVertical: 0,
-    paddingRight: 2,
-    paddingLeft: 0,
-    borderWidth: 0,
-    backgroundColor: 'transparent',
     ...(Platform.OS === 'web'
       ? ({
           outlineStyle: 'none',
-          minWidth: 0,
-          width: '100%',
           boxSizing: 'border-box',
         } as any)
       : {}),
   },
   taxToggleBtn: {
-    width: 74,
+    width: 65,
     height: 38,
     borderRadius: 6,
     borderWidth: 1,
@@ -1318,33 +1313,6 @@ const styles = StyleSheet.create({
     color: '#94a3b8',
     fontWeight: '500',
   },
-  itemTotalBadge: {
-    width: 68,
-    height: 38,
-    justifyContent: 'center',
-    alignItems: 'flex-end',
-    paddingRight: 4,
-  },
-  itemTotalText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#0f172a',
-  },
-  compactTotalBadge: {
-    paddingHorizontal: 8,
-    height: 38,
-    backgroundColor: '#f1f5f9',
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: '#cbd5e1',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  compactTotalText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#0f172a',
-  },
   assigneeWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1352,10 +1320,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#e2e8f0',
     borderRadius: 6,
-    paddingLeft: 6,
-    paddingRight: 6,
+    paddingHorizontal: 6,
     height: 38,
-    width: 95,
+    width: 90,
     overflow: 'hidden',
   },
   assigneeIcon: {
@@ -1371,13 +1338,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 0,
     borderWidth: 0,
     backgroundColor: 'transparent',
-    minWidth: 0,
-    width: 0,
     ...(Platform.OS === 'web'
       ? ({
           outlineStyle: 'none',
           minWidth: 0,
-          width: '100%',
         } as any)
       : {}),
   },
