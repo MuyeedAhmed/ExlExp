@@ -78,53 +78,97 @@ const CreditCardRowItem = React.memo<CreditCardRowItemProps>(({
   onEdit,
   confirmDelete,
 }) => {
+  const dateStr = item.date ? (isWeb ? item.date : item.date.substring(5)) : '';
   const amt = Number(item.amount) || 0;
+  const isPaid = amt < 0;
 
-  let spendVal = '-';
-  let paidVal = '-';
-  let rewardsVal = '-';
+  // Spend and paid with paid in a green color and a lighter background
+  let formattedAmount = '';
+  let amountColor = '#0f172a';
 
-  if (item.isReward) {
-    if (amt < 0) {
-      paidVal = `$${formatCurrency(Math.abs(amt))}`;
-    }
-    rewardsVal = `$${formatCurrency(item.rewardValue || 0)}`;
+  if (isPaid) {
+    formattedAmount = `-$${formatCurrency(Math.abs(amt))}`;
+    amountColor = '#16a34a';
   } else if (amt > 0) {
-    spendVal = `$${formatCurrency(amt)}`;
-  } else if (amt < 0) {
-    paidVal = `$${formatCurrency(Math.abs(amt))}`;
+    formattedAmount = `$${formatCurrency(amt)}`;
+    amountColor = '#0f172a';
+  } else {
+    formattedAmount = '$0.00';
+    amountColor = '#64748b';
   }
 
+  // Reward calculation and formatting
+  const hasReward = Boolean(item.isReward);
+  const rewardVal = hasReward
+    ? ((item.rewardValue !== undefined && item.rewardValue !== null && item.rewardValue > 0)
+        ? Number(item.rewardValue)
+        : Math.abs(amt))
+    : 0;
+
   return (
-    <View key={item.id} style={[styles.tableRow, isWeb ? styles.tableRowWeb : styles.tableRowMobile]}>
-      <Text style={[styles.cell, isWeb ? styles.colDateWeb : styles.colDateMobile, styles.monoText]}>
-        {item.date ? item.date.substring(5) : ''}
-      </Text>
-      <Text style={[styles.cell, isWeb ? styles.colDescWeb : styles.colDescMobile]} numberOfLines={1}>
-        {item.description}
-      </Text>
-      
-      <Text style={[styles.cell, isWeb ? styles.colSpendWeb : styles.colSpendMobile, styles.monoText]}>
-        {spendVal}
-      </Text>
-      <Text style={[styles.cell, isWeb ? styles.colPaidWeb : styles.colPaidMobile, styles.monoText, paidVal !== '-' && { color: '#16a34a' }]}>
-        {paidVal}
-      </Text>
-      <Text style={[styles.cell, isWeb ? styles.colRewardsWeb : styles.colRewardsMobile, styles.monoText, rewardsVal !== '-' && { color: '#16a34a' }]}>
-        {rewardsVal}
-      </Text>
-      
-      <Text style={[styles.cell, isWeb ? styles.colCategoryWeb : styles.colCategoryMobile]} numberOfLines={1}>
-        {item.category || 'Others'}
-      </Text>
-      
-      <View style={[styles.cellActions, isWeb ? styles.colActionsWeb : styles.colActionsMobile]}>
-        <TouchableOpacity style={styles.actionBtn} onPress={() => onEdit(item)} accessibilityLabel="Edit">
-          <Text style={styles.actionIconText}>✏️</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.actionBtn} onPress={() => confirmDelete(item.id)} accessibilityLabel="Delete">
-          <Text style={styles.actionIconText}>🗑️</Text>
-        </TouchableOpacity>
+    <View style={[styles.twoLineTxRow, isPaid && styles.paidTxRow]}>
+      {/* CC Line 1: Date, Description, Amount (Spend and paid with paid in a green color and a lighter background), edit/delete */}
+      <View style={styles.txLine1}>
+        <Text style={[styles.txDate, styles.monoText, isWeb && { width: 78 }]}>{dateStr}</Text>
+        <Text style={styles.txDesc} numberOfLines={1} ellipsizeMode="tail">
+          {item.description}
+        </Text>
+        <View style={styles.txRightCol}>
+          <View style={[styles.amountContainer, isPaid && styles.paidAmountPill]}>
+            <Text
+              style={[
+                styles.txAmount,
+                styles.monoText,
+                styles.boldText,
+                { color: amountColor },
+              ]}
+            >
+              {formattedAmount}
+            </Text>
+          </View>
+          <View style={styles.actionsRow}>
+            <TouchableOpacity
+              style={styles.actionIconButton}
+              onPress={() => onEdit(item)}
+              accessibilityLabel="Edit transaction"
+            >
+              <Text style={styles.actionIconText}>✏️</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.actionIconButton}
+              onPress={() => confirmDelete(item.id)}
+              accessibilityLabel="Delete transaction"
+            >
+              <Text style={styles.actionIconText}>🗑️</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+
+      {/* CC Line 2: Category, From/To, If reward Then add a green circle and indicate the value of the reward */}
+      <View style={styles.txLine2}>
+        <View style={[styles.txDateSpacer, { width: isWeb ? 78 : 44 }]} />
+        <View style={styles.txLine2Left}>
+          <View style={styles.txCategoryPill}>
+            <Text style={styles.txCategoryText} numberOfLines={1}>
+              {item.category || 'Others'}
+            </Text>
+          </View>
+          {/* {!!item.fromTo && (
+            <Text style={styles.txFromTo} numberOfLines={1} ellipsizeMode="tail">
+              • {item.fromTo}
+            </Text>
+          )} */}
+        
+          {hasReward && (
+            <View style={styles.rewardPill}>
+              <View style={styles.rewardGreenDot} />
+              <Text style={styles.rewardText}>
+                +${formatCurrency(rewardVal)} reward
+              </Text>
+            </View>
+          )}
+        </View>
       </View>
     </View>
   );
@@ -669,58 +713,41 @@ export const CreditCardsTab: React.FC<CreditCardsTabProps> = React.memo(({
             </View>
           </View>
 
-          {/* Spreadsheet Grid */}
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={true}
-            style={styles.tableScroll}
-            contentContainerStyle={isWeb ? styles.tableScrollContentWeb : undefined}
-          >
-            <View style={isWeb ? styles.tableContainerWeb : styles.tableContainerMobile}>
-              {/* Table Headers */}
-              <View style={[styles.tableRowHeader, isWeb ? styles.tableRowWeb : styles.tableRowMobile]}>
-                <Text style={[styles.headerCell, isWeb ? styles.colDateWeb : styles.colDateMobile]}>Date</Text>
-                <Text style={[styles.headerCell, isWeb ? styles.colDescWeb : styles.colDescMobile]}>Description</Text>
-                <Text style={[styles.headerCell, isWeb ? styles.colSpendWeb : styles.colSpendMobile]}>Spend</Text>
-                <Text style={[styles.headerCell, isWeb ? styles.colPaidWeb : styles.colPaidMobile]}>Paid</Text>
-                <Text style={[styles.headerCell, isWeb ? styles.colRewardsWeb : styles.colRewardsMobile]}>Rewards</Text>
-                <Text style={[styles.headerCell, isWeb ? styles.colCategoryWeb : styles.colCategoryMobile]}>Category</Text>
-                <Text style={[styles.headerCell, isWeb ? styles.colActionsWeb : styles.colActionsMobile]}>Actions</Text>
-              </View>
-
-              {/* Table Rows */}
-              <ScrollView
-                style={styles.rowsScroll}
-                contentContainerStyle={[styles.rowsScrollContent, !isWeb && styles.rowsScrollContentMobile]}
-              >
-                {cardExpenses.length === 0 ? (
+          {/* 2-line vertical transactions list for Credit Card */}
+          <View style={styles.detailsListContainer}>
+            <ScrollView
+              style={styles.rowsScroll}
+              contentContainerStyle={[styles.rowsScrollContent, !isWeb && styles.rowsScrollContentMobile]}
+            >
+              {cardExpenses.length === 0 ? (
+                <View style={styles.emptyContainer}>
                   <Text style={styles.emptyText}>No transactions recorded for this card.</Text>
-                ) : (
-                  <>
-                    {cardExpenses.slice(0, visibleCount).map(item => (
-                      <CreditCardRowItem
-                        key={item.id}
-                        item={item}
-                        isWeb={isWeb}
-                        onEdit={onEdit}
-                        confirmDelete={confirmDelete}
-                      />
-                    ))}
-                    {cardExpenses.length > visibleCount && (
-                      <TouchableOpacity
-                        style={[styles.loadMoreRow, isWeb ? styles.loadMoreRowWeb : styles.loadMoreRowMobile]}
-                        onPress={() => setVisibleCount(prev => prev + 25)}
-                      >
-                        <Text style={styles.loadMoreText}>
-                          Show More (showing {visibleCount} of {cardExpenses.length})
-                        </Text>
-                      </TouchableOpacity>
-                    )}
-                  </>
-                )}
-              </ScrollView>
-            </View>
-          </ScrollView>
+                </View>
+              ) : (
+                <>
+                  {cardExpenses.slice(0, visibleCount).map(item => (
+                    <CreditCardRowItem
+                      key={item.id}
+                      item={item}
+                      isWeb={isWeb}
+                      onEdit={onEdit}
+                      confirmDelete={confirmDelete}
+                    />
+                  ))}
+                  {cardExpenses.length > visibleCount && (
+                    <TouchableOpacity
+                      style={styles.loadMoreButton}
+                      onPress={() => setVisibleCount(prev => prev + 25)}
+                    >
+                      <Text style={styles.loadMoreButtonText}>
+                        Show More (showing {visibleCount} of {cardExpenses.length})
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                </>
+              )}
+            </ScrollView>
+          </View>
         </View>
       )}
 
@@ -1553,6 +1580,139 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 13,
     fontWeight: 'bold',
+  },
+  detailsListContainer: {
+    flex: 1,
+    backgroundColor: '#ffffff',
+  },
+  twoLineTxRow: {
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f9',
+    backgroundColor: '#ffffff',
+  },
+  paidTxRow: {
+    backgroundColor: '#f0fdf4',
+  },
+  txLine1: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  txDate: {
+    fontSize: 11,
+    color: '#64748b',
+    width: 44,
+  },
+  txDesc: {
+    flex: 1,
+    marginLeft: 6,
+    marginRight: 8,
+    fontSize: 13,
+    color: '#000000',
+  },
+  txRightCol: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  amountContainer: {
+    paddingHorizontal: 4,
+    paddingVertical: 1,
+    borderRadius: 4,
+  },
+  paidAmountPill: {
+    backgroundColor: '#dcfce7',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  txAmount: {
+    fontSize: 13,
+    fontWeight: '700',
+    textAlign: 'right',
+  },
+  actionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  actionIconButton: {
+    padding: 4,
+    borderRadius: 4,
+    backgroundColor: '#f8fafc',
+  },
+  txLine2: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 3,
+  },
+  txDateSpacer: {
+    width: 44,
+  },
+  txLine2Left: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    gap: 6,
+  },
+  txFromTo: {
+    fontSize: 11,
+    fontWeight: '500',
+    color: '#5d5d5d',
+    flexShrink: 1,
+  },
+  txCategoryPill: {
+    backgroundColor: '#f1f5f9',
+    paddingHorizontal: 6,
+    paddingVertical: 1.5,
+    borderRadius: 4,
+  },
+  txCategoryText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#475569',
+  },
+  rewardPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#dcfce7',
+    paddingHorizontal: 6,
+    paddingVertical: 1.5,
+    borderRadius: 10,
+    gap: 4,
+  },
+  rewardGreenDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#16a34a',
+  },
+  rewardText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#15803d',
+  },
+  loadMoreButton: {
+    backgroundColor: '#f8fafc',
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
+    borderRadius: 6,
+    paddingVertical: 12,
+    margin: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loadMoreButtonText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#0f172a',
+  },
+  emptyContainer: {
+    padding: 32,
+    alignItems: 'center',
   },
 });
 

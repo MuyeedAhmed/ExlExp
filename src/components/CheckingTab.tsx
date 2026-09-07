@@ -16,7 +16,7 @@ interface CheckingTabProps {
 interface CheckingRowItemProps {
   item: Expense;
   isWeb: boolean;
-  isSaving: boolean;
+  isSaving?: boolean;
   onEdit: (expense: Expense) => void;
   confirmDelete: (id: string) => void;
 }
@@ -24,76 +24,63 @@ interface CheckingRowItemProps {
 const CheckingRowItem = React.memo<CheckingRowItemProps>(({
   item,
   isWeb,
-  isSaving,
   onEdit,
   confirmDelete,
 }) => {
+  const dateStr = item.date ? (isWeb ? item.date : item.date.substring(5)) : '';
   const isDeposit = item.amount >= 0;
   const formattedAmount = isDeposit
     ? `+$${item.amount.toFixed(2)}`
     : `-$${Math.abs(item.amount).toFixed(2)}`;
+  const amountColor = isDeposit ? '#16a34a' : '#dc2626';
+
+  const detailsStr = item.details || item.description || '';
+  const fromToStr = item.fromTo || ((item.details?.startsWith('Zelle ') || item.description?.startsWith('Zelle ')) ? 'Zelle' : item.description) || '';
 
   return (
-    <View style={[styles.tableRow, isWeb ? styles.tableRowWeb : (isSaving ? styles.tableRowMobileSaving : styles.tableRowMobileChecking)]}>
-      <Text style={[styles.cell, isWeb ? styles.colDateWeb : styles.colDateMobile, styles.monoText]}>
-        {item.date ? item.date.substring(5) : ''}
-      </Text>
-      <Text style={[styles.cell, isWeb ? (isSaving ? styles.colFromToSavingWeb : styles.colFromToWeb) : styles.colFromToMobile]} numberOfLines={1}>
-        {item.fromTo || ((item.details?.startsWith('Zelle ') || item.description?.startsWith('Zelle ')) ? 'Zelle' : item.description) || ''}
-      </Text>
-      {isSaving ? (
-        <>
+    <View style={styles.twoLineTxRow}>
+      {/* Acc Line 1: Date, Details, Amount, edit/delete */}
+      <View style={styles.txLine1}>
+        <Text style={[styles.txDate, styles.monoText, isWeb && { width: 78 }]}>{dateStr}</Text>
+        <Text style={styles.txDesc} numberOfLines={1} ellipsizeMode="tail">
+          {detailsStr}
+        </Text>
+        <View style={styles.txRightCol}>
           <Text
             style={[
-              styles.cell,
-              isWeb ? styles.colAmountWeb : styles.colAmountMobile,
+              styles.txAmount,
               styles.monoText,
-              item.isInterest ? { color: '#94a3b8' } : (isDeposit ? styles.depositText : styles.withdrawText),
-            ]}
-          >
-            {item.isInterest ? '-' : formattedAmount}
-          </Text>
-          <Text
-            style={[
-              styles.cell,
-              isWeb ? styles.colInterestWeb : styles.colInterestMobile,
-              styles.monoText,
-              item.isInterest ? styles.depositText : { color: '#94a3b8' },
-            ]}
-          >
-            {item.isInterest ? formattedAmount : '-'}
-          </Text>
-          <Text style={[styles.cell, isWeb ? styles.colDetailsSavingWeb : styles.colDetailsSavingMobile]} numberOfLines={1}>
-            {item.details || ''}
-          </Text>
-        </>
-      ) : (
-        <>
-          <Text
-            style={[
-              styles.cell,
-              isWeb ? styles.colAmountWeb : styles.colAmountMobile,
-              styles.monoText,
-              isDeposit ? styles.depositText : styles.withdrawText,
+              styles.boldText,
+              { color: amountColor },
             ]}
           >
             {formattedAmount}
           </Text>
-          <Text style={[styles.cell, isWeb ? styles.colDetailsCheckingWeb : styles.colDetailsCheckingMobile]} numberOfLines={1}>
-            {item.details || ''}
-          </Text>
-        </>
-      )}
-      <Text style={[styles.cell, isWeb ? styles.colCategoryWeb : styles.colCategoryMobile]} numberOfLines={1}>
-        {item.category || 'Others'}
-      </Text>
-      <View style={[styles.cellActions, isWeb ? styles.colActionsWeb : styles.colActionsMobile]}>
-        <TouchableOpacity style={styles.actionBtn} onPress={() => onEdit(item)} accessibilityLabel="Edit">
-          <Text style={styles.actionIconText}>✏️</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.actionBtn} onPress={() => confirmDelete(item.id)} accessibilityLabel="Delete">
-          <Text style={styles.actionIconText}>🗑️</Text>
-        </TouchableOpacity>
+          <View style={styles.actionsRow}>
+            <TouchableOpacity
+              style={styles.actionIconButton}
+              onPress={() => onEdit(item)}
+              accessibilityLabel="Edit transaction"
+            >
+              <Text style={styles.actionIconText}>✏️</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.actionIconButton}
+              onPress={() => confirmDelete(item.id)}
+              accessibilityLabel="Delete transaction"
+            >
+              <Text style={styles.actionIconText}>🗑️</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+
+      {/* Acc Line 2: Empty, From/To */}
+      <View style={styles.txLine2}>
+        <View style={[styles.txDateSpacer, { width: isWeb ? 78 : 44 }]} />
+        <Text style={styles.txFromTo} numberOfLines={1} ellipsizeMode="tail">
+          {fromToStr}
+        </Text>
       </View>
     </View>
   );
@@ -357,140 +344,111 @@ export const CheckingTab: React.FC<CheckingTabProps> = React.memo(({
         </View>
       )}
 
-      {/* Spreadsheet grid */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={true} style={styles.tableScroll} contentContainerStyle={isWeb ? styles.tableScrollContentWeb : undefined}>
-        <View style={[
-          styles.tableContainer,
-          isWeb
-            ? styles.tableContainerWeb
-            : selectedAccountId === 'brokerage'
-            ? styles.tableContainerMobileBrokerage
-            : activeAccount?.isSaving
-            ? styles.tableContainerMobileSaving
-            : styles.tableContainerMobileChecking
-        ]}>
-          {selectedAccountId === 'brokerage' ? (
-            <>
-              {/* Brokerage Table Headers */}
-              <View style={[styles.tableRowHeader, isWeb ? styles.tableRowWeb : styles.tableRowMobileBrokerage]}>
-                <Text style={[styles.headerCell, isWeb ? styles.colBrokNameWeb : styles.colBrokNameMobile]}>Account Name</Text>
-                <Text style={[styles.headerCell, isWeb ? styles.colBrokBalanceWeb : styles.colBrokBalanceMobile]}>Current Balance</Text>
-                <Text style={[styles.headerCell, isWeb ? styles.colBrokActionsWeb : styles.colBrokActionsMobile]}>Actions</Text>
-              </View>
-              {/* Brokerage Table Rows */}
-              <ScrollView
-                style={styles.rowsScroll}
-                contentContainerStyle={[styles.rowsScrollContent, !isWeb && styles.rowsScrollContentMobile]}
-              >
-                {brokerageAccounts.length === 0 ? (
-                  <Text style={styles.emptyText}>No brokerage accounts configured.</Text>
-                ) : (
-                  brokerageAccounts.map(item => (
-                    <View key={item.id} style={[styles.tableRow, isWeb ? styles.tableRowWeb : styles.tableRowMobileBrokerage]}>
-                      <Text style={[styles.cell, isWeb ? styles.colBrokNameWeb : styles.colBrokNameMobile]}>{item.name}</Text>
-                      {editingBrokerageId === item.id ? (
-                        <TextInput
-                          style={[
-                            styles.cell,
-                            isWeb ? styles.colBrokBalanceWeb : styles.colBrokBalanceMobile,
-                            {
-                              fontFamily: Platform.OS === 'ios' ? 'Courier New' : 'monospace',
-                              borderWidth: 1,
-                              borderColor: '#3b82f6',
-                              backgroundColor: '#eff6ff',
-                              paddingVertical: 2,
-                              paddingHorizontal: 4,
-                            }
-                          ]}
-                          value={editingBrokerageValue}
-                          onChangeText={setEditingBrokerageValue}
-                          keyboardType="decimal-pad"
-                          autoFocus
-                        />
-                      ) : (
-                        <Text style={[styles.cell, isWeb ? styles.colBrokBalanceWeb : styles.colBrokBalanceMobile, styles.monoText]}>
-                          ${getAccountBalance(item.id).toFixed(2)}
-                        </Text>
-                      )}
-                      <View style={[styles.cellActions, isWeb ? styles.colBrokActionsWeb : styles.colBrokActionsMobile]}>
-                        {editingBrokerageId === item.id ? (
-                          <>
-                            <TouchableOpacity style={styles.actionBtn} onPress={() => handleSaveBrokerage(item.id)} accessibilityLabel="Save">
-                              <Text style={styles.actionIconText}>💾</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity style={styles.actionBtn} onPress={() => setEditingBrokerageId(null)} accessibilityLabel="Cancel">
-                              <Text style={styles.actionIconText}>❌</Text>
-                            </TouchableOpacity>
-                          </>
-                        ) : (
-                          <TouchableOpacity style={styles.actionBtn} onPress={() => handleStartEditBrokerage(item.id, getAccountBalance(item.id))} accessibilityLabel="Edit">
-                            <Text style={styles.actionIconText}>✏️</Text>
-                          </TouchableOpacity>
-                        )}
-                      </View>
-                    </View>
-                  ))
-                )}
-              </ScrollView>
-            </>
-          ) : (
-            <>
-               {/* Table Headers */}
-              <View style={[styles.tableRowHeader, isWeb ? styles.tableRowWeb : (activeAccount?.isSaving ? styles.tableRowMobileSaving : styles.tableRowMobileChecking)]}>
-                <Text style={[styles.headerCell, isWeb ? styles.colDateWeb : styles.colDateMobile]}>Date</Text>
-                <Text style={[styles.headerCell, isWeb ? (activeAccount?.isSaving ? styles.colFromToSavingWeb : styles.colFromToWeb) : styles.colFromToMobile]}>From/To</Text>
-                {activeAccount?.isSaving ? (
-                  <>
-                    <Text style={[styles.headerCell, isWeb ? styles.colAmountWeb : styles.colAmountMobile]}>Amount</Text>
-                    <Text style={[styles.headerCell, isWeb ? styles.colInterestWeb : styles.colInterestMobile]}>Interest</Text>
-                    <Text style={[styles.headerCell, isWeb ? styles.colDetailsSavingWeb : styles.colDetailsSavingMobile]}>Details</Text>
-                  </>
-                ) : (
-                  <>
-                    <Text style={[styles.headerCell, isWeb ? styles.colAmountWeb : styles.colAmountMobile]}>Amount</Text>
-                    <Text style={[styles.headerCell, isWeb ? styles.colDetailsCheckingWeb : styles.colDetailsCheckingMobile]}>Details</Text>
-                  </>
-                )}
-                <Text style={[styles.headerCell, isWeb ? styles.colCategoryWeb : styles.colCategoryMobile]}>Category</Text>
-                <Text style={[styles.headerCell, isWeb ? styles.colActionsWeb : styles.colActionsMobile]}>Actions</Text>
-              </View>
-
-              {/* Table Rows */}
-              <ScrollView
-                style={styles.rowsScroll}
-                contentContainerStyle={[styles.rowsScrollContent, !isWeb && styles.rowsScrollContentMobile]}
-              >
-                {checkingExpenses.length === 0 ? (
-                  <Text style={styles.emptyText}>No transactions recorded.</Text>
-                ) : (
-                  <>
-                    {checkingExpenses.slice(0, visibleCount).map(item => (
-                      <CheckingRowItem
-                        key={item.id}
-                        item={item}
-                        isWeb={isWeb}
-                        isSaving={!!activeAccount?.isSaving}
-                        onEdit={onEdit}
-                        confirmDelete={confirmDelete}
+      {selectedAccountId === 'brokerage' ? (
+        /* Spreadsheet grid for Brokerage */
+        <ScrollView horizontal showsHorizontalScrollIndicator={true} style={styles.tableScroll} contentContainerStyle={isWeb ? styles.tableScrollContentWeb : undefined}>
+          <View style={[styles.tableContainer, isWeb ? styles.tableContainerWeb : styles.tableContainerMobileBrokerage]}>
+            {/* Brokerage Table Headers */}
+            <View style={[styles.tableRowHeader, isWeb ? styles.tableRowWeb : styles.tableRowMobileBrokerage]}>
+              <Text style={[styles.headerCell, isWeb ? styles.colBrokNameWeb : styles.colBrokNameMobile]}>Account Name</Text>
+              <Text style={[styles.headerCell, isWeb ? styles.colBrokBalanceWeb : styles.colBrokBalanceMobile]}>Current Balance</Text>
+              <Text style={[styles.headerCell, isWeb ? styles.colBrokActionsWeb : styles.colBrokActionsMobile]}>Actions</Text>
+            </View>
+            {/* Brokerage Table Rows */}
+            <ScrollView
+              style={styles.rowsScroll}
+              contentContainerStyle={[styles.rowsScrollContent, !isWeb && styles.rowsScrollContentMobile]}
+            >
+              {brokerageAccounts.length === 0 ? (
+                <Text style={styles.emptyText}>No brokerage accounts configured.</Text>
+              ) : (
+                brokerageAccounts.map(item => (
+                  <View key={item.id} style={[styles.tableRow, isWeb ? styles.tableRowWeb : styles.tableRowMobileBrokerage]}>
+                    <Text style={[styles.cell, isWeb ? styles.colBrokNameWeb : styles.colBrokNameMobile]}>{item.name}</Text>
+                    {editingBrokerageId === item.id ? (
+                      <TextInput
+                        style={[
+                          styles.cell,
+                          isWeb ? styles.colBrokBalanceWeb : styles.colBrokBalanceMobile,
+                          {
+                            fontFamily: Platform.OS === 'ios' ? 'Courier New' : 'monospace',
+                            borderWidth: 1,
+                            borderColor: '#3b82f6',
+                            backgroundColor: '#eff6ff',
+                            paddingVertical: 2,
+                            paddingHorizontal: 4,
+                          }
+                        ]}
+                        value={editingBrokerageValue}
+                        onChangeText={setEditingBrokerageValue}
+                        keyboardType="decimal-pad"
+                        autoFocus
                       />
-                    ))}
-                    {checkingExpenses.length > visibleCount && (
-                      <TouchableOpacity
-                        style={[styles.loadMoreRow, isWeb ? styles.loadMoreRowWeb : (activeAccount?.isSaving ? styles.loadMoreRowMobileSaving : styles.loadMoreRowMobileChecking)]}
-                        onPress={() => setVisibleCount(prev => prev + 25)}
-                      >
-                        <Text style={styles.loadMoreText}>
-                          Show More (showing {visibleCount} of {checkingExpenses.length})
-                        </Text>
-                      </TouchableOpacity>
+                    ) : (
+                      <Text style={[styles.cell, isWeb ? styles.colBrokBalanceWeb : styles.colBrokBalanceMobile, styles.monoText]}>
+                        ${getAccountBalance(item.id).toFixed(2)}
+                      </Text>
                     )}
-                  </>
+                    <View style={[styles.cellActions, isWeb ? styles.colBrokActionsWeb : styles.colBrokActionsMobile]}>
+                      {editingBrokerageId === item.id ? (
+                        <>
+                          <TouchableOpacity style={styles.actionBtn} onPress={() => handleSaveBrokerage(item.id)} accessibilityLabel="Save">
+                            <Text style={styles.actionIconText}>💾</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity style={styles.actionBtn} onPress={() => setEditingBrokerageId(null)} accessibilityLabel="Cancel">
+                            <Text style={styles.actionIconText}>❌</Text>
+                          </TouchableOpacity>
+                        </>
+                      ) : (
+                        <TouchableOpacity style={styles.actionBtn} onPress={() => handleStartEditBrokerage(item.id, getAccountBalance(item.id))} accessibilityLabel="Edit">
+                          <Text style={styles.actionIconText}>✏️</Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  </View>
+                ))
+              )}
+            </ScrollView>
+          </View>
+        </ScrollView>
+      ) : (
+        /* 2-line vertical transactions list for Checking & Savings */
+        <View style={styles.detailsListContainer}>
+          <ScrollView
+            style={styles.rowsScroll}
+            contentContainerStyle={[styles.rowsScrollContent, !isWeb && styles.rowsScrollContentMobile]}
+          >
+            {checkingExpenses.length === 0 ? (
+              <View style={styles.emptyContainer}>
+                <Text style={styles.emptyText}>No transactions recorded.</Text>
+              </View>
+            ) : (
+              <>
+                {checkingExpenses.slice(0, visibleCount).map(item => (
+                  <CheckingRowItem
+                    key={item.id}
+                    item={item}
+                    isWeb={isWeb}
+                    isSaving={!!activeAccount?.isSaving}
+                    onEdit={onEdit}
+                    confirmDelete={confirmDelete}
+                  />
+                ))}
+                {checkingExpenses.length > visibleCount && (
+                  <TouchableOpacity
+                    style={styles.loadMoreButton}
+                    onPress={() => setVisibleCount(prev => prev + 25)}
+                  >
+                    <Text style={styles.loadMoreButtonText}>
+                      Show More (showing {visibleCount} of {checkingExpenses.length})
+                    </Text>
+                  </TouchableOpacity>
                 )}
-              </ScrollView>
-            </>
-          )}
+              </>
+            )}
+          </ScrollView>
         </View>
-      </ScrollView>
+      )}
     </View>
   );
 });
@@ -862,5 +820,91 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 11,
     fontWeight: 'bold',
+  },
+  detailsListContainer: {
+    flex: 1,
+    backgroundColor: '#ffffff',
+  },
+  twoLineTxRow: {
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f9',
+    backgroundColor: '#ffffff',
+  },
+  txLine1: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  txDate: {
+    fontSize: 11,
+    color: '#64748b',
+    width: 44,
+  },
+  txDesc: {
+    flex: 1,
+    marginLeft: 6,
+    marginRight: 8,
+    fontSize: 13,
+    color: '#000000',
+  },
+  txRightCol: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  txAmount: {
+    fontSize: 13,
+    fontWeight: '700',
+    textAlign: 'right',
+  },
+  boldText: {
+    fontWeight: '700',
+  },
+  actionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  actionIconButton: {
+    padding: 4,
+    borderRadius: 4,
+    backgroundColor: '#f8fafc',
+  },
+  txLine2: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 2,
+  },
+  txDateSpacer: {
+    width: 44,
+  },
+  txFromTo: {
+    flex: 1,
+    marginLeft: 6,
+    marginRight: 8,
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#5d5d5d',
+  },
+  loadMoreButton: {
+    backgroundColor: '#f8fafc',
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
+    borderRadius: 6,
+    paddingVertical: 12,
+    margin: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loadMoreButtonText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#0f172a',
+  },
+  emptyContainer: {
+    padding: 32,
+    alignItems: 'center',
   },
 });
