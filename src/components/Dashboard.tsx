@@ -289,8 +289,8 @@ export const Dashboard: React.FC<DashboardProps> = React.memo(({
       }
     }
 
-    // Build trend in chronological order (11 months ago to current month)
-    const trendMonths = [...last12Months].reverse().map(m => ({
+    // Build trend in reverse chronological order (current month to 11 months ago)
+    const trendMonths = last12Months.map(m => ({
       ...m,
       totalSpending: Math.max(0, monthSpendMap.get(m.key) || 0),
     }));
@@ -441,6 +441,68 @@ export const Dashboard: React.FC<DashboardProps> = React.memo(({
             ${formatCurrency(netBalance)}
           </Text>
         </View>
+      </View>
+
+      {/* Recent Transactions */}
+      <View style={[styles.sheetGrid, { marginTop: 12 }]}>
+        <TouchableOpacity
+          style={styles.sheetHeaderRow}
+          onPress={() => setShowAllTransactions(true)}
+          disabled={expenses.length === 0}
+          activeOpacity={expenses.length > 0 ? 0.7 : 1}
+          accessibilityRole="button"
+          accessibilityLabel="Show all transactions"
+        >
+          <Text style={[styles.sheetHeaderCell, { flex: 1 }]}>
+            Recent Transactions
+          </Text>
+          
+        </TouchableOpacity>
+
+        {recent10Transactions.length === 0 ? (
+          <View style={styles.emptyCardRow}>
+            <Text style={styles.emptyCardText}>No transactions recorded yet.</Text>
+          </View>
+        ) : (
+          recent10Transactions.map(item => {
+            const dateStr = item.date ? item.date.substring(5) : '';
+
+            return (
+              <View key={item.id} style={styles.twoLineTxRow}>
+                {/* Line 1: Date, Card/Account, Amount */}
+                <View style={styles.txLine1}>
+                  <Text style={[styles.txDate, styles.monoText]}>{dateStr}</Text>
+                  <Text style={styles.txDesc} numberOfLines={1} ellipsizeMode="tail">
+                    {item.description}
+                  </Text>
+                  <Text style={[styles.txAmount, styles.monoText, { color: item.amountColor }]}>
+                    {item.formattedAmount}
+                  </Text>
+                </View>
+
+                {/* Line 2: Empty under date, Desc */}
+                <View style={styles.txLine2}>
+                  <View style={styles.txDateSpacer} />
+                  <Text style={styles.txAccount} numberOfLines={1} ellipsizeMode="tail">
+                    {item.displayAccount}
+                  </Text>
+                </View>
+              </View>
+            );
+          })
+        )}
+
+        {expenses.length > 0 && (
+          <TouchableOpacity
+            style={styles.showAllFooterBtn}
+            onPress={() => setShowAllTransactions(true)}
+            accessibilityLabel="Show all transactions"
+          >
+            <Text style={styles.showAllFooterBtnText}>
+              Show all transactions →
+            </Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* ========================================================= */}
@@ -672,64 +734,11 @@ export const Dashboard: React.FC<DashboardProps> = React.memo(({
         </View>
       </View>
 
-      {/* Recent Transactions */}
-      <View style={[styles.sheetGrid, { marginTop: 12 }]}>
-        <View style={styles.sheetHeaderRow}>
-          <Text style={[styles.sheetHeaderCell, { flex: 1 }]}>
-            Recent Transactions
-          </Text>
-        </View>
-
-        {recent10Transactions.length === 0 ? (
-          <View style={styles.emptyCardRow}>
-            <Text style={styles.emptyCardText}>No transactions recorded yet.</Text>
-          </View>
-        ) : (
-          recent10Transactions.map(item => {
-            const dateStr = item.date ? item.date.substring(5) : '';
-
-            return (
-              <View key={item.id} style={styles.twoLineTxRow}>
-                {/* Line 1: Date, Card/Account, Amount */}
-                <View style={styles.txLine1}>
-                  <Text style={[styles.txDate, styles.monoText]}>{dateStr}</Text>
-                  <Text style={styles.txDesc} numberOfLines={1} ellipsizeMode="tail">
-                    {item.description}
-                  </Text>
-                  <Text style={[styles.txAmount, styles.monoText, { color: item.amountColor }]}>
-                    {item.formattedAmount}
-                  </Text>
-                </View>
-
-                {/* Line 2: Empty under date, Desc */}
-                <View style={styles.txLine2}>
-                  <View style={styles.txDateSpacer} />
-                  <Text style={styles.txAccount} numberOfLines={1} ellipsizeMode="tail">
-                    {item.displayAccount}
-                  </Text>
-                </View>
-              </View>
-            );
-          })
-        )}
-
-        {expenses.length > 0 && (
-          <TouchableOpacity
-            style={styles.showAllFooterBtn}
-            onPress={() => setShowAllTransactions(true)}
-            accessibilityLabel="Show all transactions"
-          >
-            <Text style={styles.showAllFooterBtnText}>
-              Show all transactions →
-            </Text>
-          </TouchableOpacity>
-        )}
-      </View>
 
       {/* Checking Accounts List - Spreadsheet Grid Style */}
       <View style={[styles.sheetGrid, { marginTop: 12 }]}>
         <View style={styles.sheetHeaderRow}>
-          <Text style={[styles.sheetHeaderCell, { flex: 2 }]}>Checking Accounts Registry (Active)</Text>
+          <Text style={[styles.sheetHeaderCell, { flex: 2 }]}>Active Checking Accounts</Text>
           <Text style={[styles.sheetHeaderCell, { flex: 1, textAlign: 'right' }]}>Current Balance</Text>
         </View>
         {activeCheckingAccounts.length === 0 ? (
@@ -761,7 +770,7 @@ export const Dashboard: React.FC<DashboardProps> = React.memo(({
       {/* Credit Card List - Spreadsheet Grid Style */}
       <View style={[styles.sheetGrid, { marginTop: 12 }]}>
         <View style={styles.sheetHeaderRow}>
-          <Text style={[styles.sheetHeaderCell, { flex: 2 }]}>Credit Card Registry (Active)</Text>
+          <Text style={[styles.sheetHeaderCell, { flex: 2 }]}>Credit Cards with Balance</Text>
           <Text style={[styles.sheetHeaderCell, { flex: 1, textAlign: 'right' }]}>Owed Balance</Text>
         </View>
         {activeCreditCards.length === 0 ? (
