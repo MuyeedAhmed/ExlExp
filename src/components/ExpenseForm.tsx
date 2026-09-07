@@ -15,6 +15,7 @@ import {
   TouchableWithoutFeedback,
 } from 'react-native';
 import { Expense, CreditCard } from '../types';
+import { formatCurrencyInput } from '../transactionUtils';
 
 interface ExpenseFormProps {
   cards: CreditCard[];
@@ -382,7 +383,7 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = React.memo(({
         } else {
           setIsCcBillPay(false);
         }
-        setAmount(Math.abs(editingExpense.amount).toString());
+        setAmount(Math.abs(editingExpense.amount).toFixed(2));
 
         // Find the other linked transaction in expenses
         const linked = expenses.find(
@@ -433,7 +434,7 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = React.memo(({
         setIsFee(!!editingExpense.isFee);
         setIsReward(!!editingExpense.isReward);
         setRewardType(editingExpense.rewardType || 'cashback');
-        setRewardValue(editingExpense.rewardValue ? editingExpense.rewardValue.toString() : '');
+        setRewardValue(editingExpense.rewardValue != null ? editingExpense.rewardValue.toFixed(2) : '');
         setIsInterest(!!editingExpense.isInterest);
         setCategory(editingExpense.category || 'Others');
 
@@ -441,7 +442,7 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = React.memo(({
         const isDepositAcc = !!(card?.isChecking || card?.isSaving || card?.isBrokerage);
 
         if (isDepositAcc) {
-          setAmount(Math.abs(editingExpense.amount).toString());
+          setAmount(Math.abs(editingExpense.amount).toFixed(2));
           setFromOrTo(editingExpense.amount >= 0 ? 'From' : 'To');
           const zelleInfo = parseZelleDetails(editingExpense.details || '', editingExpense.fromTo, editingExpense.description);
           if (zelleInfo) {
@@ -458,7 +459,7 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = React.memo(({
             setZelleDetails('');
           }
         } else {
-          setAmount(Math.abs(editingExpense.amount).toString());
+          setAmount(Math.abs(editingExpense.amount).toFixed(2));
           setFromOrTo('To');
           setFromTo('');
           setDetails('');
@@ -482,10 +483,19 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = React.memo(({
     }
   }, [isZelle]);
 
+  const handleAmountInput = (val: string) => {
+    setAmount(formatCurrencyInput(val));
+  };
+
+  const handleRewardValueInput = (val: string) => {
+    setRewardValue(formatCurrencyInput(val));
+  };
+
   const handleCreditChange = (val: string) => {
-    setAmount(val);
+    const formatted = formatCurrencyInput(val);
+    setAmount(formatted);
     if (rewardValue === '' || rewardValue === amount) {
-      setRewardValue(val);
+      setRewardValue(formatted);
     }
   };
 
@@ -951,7 +961,7 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = React.memo(({
                 <TextInput
                   style={[styles.input, styles.centeredInput]}
                   value={amount}
-                  onChangeText={setAmount}
+                  onChangeText={handleAmountInput}
                   placeholder="0.00"
                   placeholderTextColor="#94a3b8"
                   keyboardType="decimal-pad"
@@ -1145,7 +1155,7 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = React.memo(({
                 <TextInput
                   style={[styles.input, styles.centeredInput]}
                   value={amount}
-                  onChangeText={setAmount}
+                  onChangeText={handleAmountInput}
                   placeholder="0.00"
                   placeholderTextColor="#94a3b8"
                   keyboardType="decimal-pad"
@@ -1274,7 +1284,7 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = React.memo(({
                   <TextInput
                     style={[styles.input, styles.amountInput]}
                     value={rewardValue}
-                    onChangeText={setRewardValue}
+                    onChangeText={handleRewardValueInput}
                     placeholder="0.00"
                     placeholderTextColor="#94a3b8"
                     keyboardType="decimal-pad"
