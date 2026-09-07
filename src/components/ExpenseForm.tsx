@@ -840,10 +840,10 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = React.memo(({
                 <Text style={styles.scanReceiptBannerIcon}>📸</Text>
               </View>
               <View style={styles.scanReceiptTextGroup}>
-                <Text style={styles.scanReceiptBannerTitle}>Scan Receipt (AI)</Text>
-                <Text style={styles.scanReceiptBannerSub}>
+                <Text style={styles.scanReceiptBannerTitle}>Scan Receipt</Text>
+                {/* <Text style={styles.scanReceiptBannerSub}>
                   Auto-fill card, total & items with AWS SageMaker
-                </Text>
+                </Text> */}
               </View>
             </View>
             <View style={styles.scanReceiptBadge}>

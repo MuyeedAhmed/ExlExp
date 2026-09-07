@@ -37,6 +37,76 @@ interface ReceiptScannerModalProps {
   }) => void;
 }
 
+/**
+ * Distributes TotalTax = T - ST across items that have the tax toggle ON.
+ * If TotalTax > 0 and taxed items exist, adds proportional tax to each taxed item
+ * so that sum(item.amount) == T exactly.
+ */
+function recalculateItemsWithTax(
+  itemsList: ReceiptItem[],
+  total: number
+): { updatedItems: ReceiptItem[]; baseSubtotal: number; totalTax: number } {
+  const baseSubtotal = Math.round(
+    itemsList.reduce((sum, it) => sum + (it.rawAmount ?? it.amount ?? 0), 0) * 100
+  ) / 100;
+
+  const totalTax = Math.max(0, Math.round((total - baseSubtotal) * 100) / 100);
+
+  const taxedItems = itemsList.filter(it => it.isTaxed);
+  const taxedSubtotal = Math.round(
+    taxedItems.reduce((sum, it) => sum + (it.rawAmount ?? it.amount ?? 0), 0) * 100
+  ) / 100;
+
+  if (totalTax <= 0 || taxedSubtotal <= 0) {
+    const updated = itemsList.map(it => {
+      const base = it.rawAmount ?? it.amount ?? 0;
+      return {
+        ...it,
+        rawAmount: base,
+        amount: base,
+        taxAmount: 0,
+      };
+    });
+    return { updatedItems: updated, baseSubtotal, totalTax };
+  }
+
+  let allocatedTaxSum = 0;
+  const updated = itemsList.map(it => {
+    const base = it.rawAmount ?? it.amount ?? 0;
+    if (!it.isTaxed || base <= 0) {
+      return {
+        ...it,
+        rawAmount: base,
+        amount: base,
+        taxAmount: 0,
+      };
+    }
+    const rawTax = (base / taxedSubtotal) * totalTax;
+    const itemTax = Math.round(rawTax * 100) / 100;
+    allocatedTaxSum = Math.round((allocatedTaxSum + itemTax) * 100) / 100;
+    return {
+      ...it,
+      rawAmount: base,
+      amount: Math.round((base + itemTax) * 100) / 100,
+      taxAmount: itemTax,
+    };
+  });
+
+  // Reconcile 1-cent rounding difference with the last taxed item
+  const roundingDiff = Math.round((totalTax - allocatedTaxSum) * 100) / 100;
+  if (roundingDiff !== 0) {
+    const lastTaxedIdx = updated.map(it => it.isTaxed).lastIndexOf(true);
+    if (lastTaxedIdx !== -1) {
+      const target = updated[lastTaxedIdx];
+      const newTax = Math.round(((target.taxAmount || 0) + roundingDiff) * 100) / 100;
+      target.taxAmount = newTax;
+      target.amount = Math.round(((target.rawAmount || 0) + newTax) * 100) / 100;
+    }
+  }
+
+  return { updatedItems: updated, baseSubtotal, totalTax };
+}
+
 export const ReceiptScannerModal: React.FC<ReceiptScannerModalProps> = ({
   visible,
   cards,
@@ -91,20 +161,44 @@ export const ReceiptScannerModal: React.FC<ReceiptScannerModalProps> = ({
   const { width: windowWidth } = useWindowDimensions();
   const isCompactScreen = windowWidth < 520;
 
+  const baseSubtotal = useMemo(() => {
+    return Math.round(items.reduce((sum, it) => sum + (it.rawAmount ?? it.amount ?? 0), 0) * 100) / 100;
+  }, [items]);
+
+  const parsedTotal = parseFloat(totalAmount) || 0;
+  const calculatedTotalTax = Math.max(0, Math.round((parsedTotal - baseSubtotal) * 100) / 100);
+  const taxedCount = items.filter(it => it.isTaxed).length;
+
   const populateFromRecognition = (result: ReceiptRecognitionResult) => {
     setRecognitionResult(result);
     setMerchant(result.merchant || 'Store Purchase');
     setDate(result.date || new Date().toISOString().split('T')[0]);
-    setTotalAmount(result.totalAmount ? result.totalAmount.toFixed(2) : '0.00');
 
-    const defaultTaxed = Boolean(result.tax && result.tax > 0);
-    const initialItems = (result.items || []).map(it => ({
-      ...it,
-      amount: typeof it.amount === 'number' ? Number(it.amount.toFixed(2)) : it.amount,
-      isTaxed: it.isTaxed ?? defaultTaxed,
-      assignedTo: it.assignedTo ?? '',
-    }));
-    setItems(initialItems);
+    const totalVal = typeof result.totalAmount === 'number'
+      ? result.totalAmount
+      : (parseFloat(String(result.totalAmount)) || 0);
+
+    const rawSubtotal = (result.items || []).reduce(
+      (sum, it) => sum + (typeof it.amount === 'number' ? it.amount : parseFloat(String(it.amount)) || 0),
+      0
+    );
+    const hasTax = Boolean((result.tax && result.tax > 0) || (totalVal > rawSubtotal + 0.005));
+
+    const initialRawItems: ReceiptItem[] = (result.items || []).map(it => {
+      const amt = typeof it.amount === 'number' ? Number(it.amount.toFixed(2)) : parseFloat(String(it.amount)) || 0;
+      return {
+        ...it,
+        rawAmount: amt,
+        amount: amt,
+        isTaxed: it.isTaxed !== undefined ? it.isTaxed : hasTax,
+        assignedTo: it.assignedTo ?? '',
+        taxAmount: 0,
+      };
+    });
+
+    const { updatedItems } = recalculateItemsWithTax(initialRawItems, totalVal);
+    setItems(updatedItems);
+    setTotalAmount(totalVal > 0 ? totalVal.toFixed(2) : '0.00');
 
     // Match card automatically
     const matched = matchCardToAccount(result.cardUsage, cards);
@@ -129,78 +223,116 @@ export const ReceiptScannerModal: React.FC<ReceiptScannerModalProps> = ({
     }
   };
 
+  const handleTotalAmountChange = (newTotalStr: string) => {
+    setTotalAmount(newTotalStr);
+    const parsedTot = parseFloat(newTotalStr) || 0;
+    const { updatedItems } = recalculateItemsWithTax(items, parsedTot);
+    setItems(updatedItems);
+  };
+
   const handleItemChange = (index: number, field: keyof ReceiptItem, value: any) => {
+    const parsedTot = parseFloat(totalAmount) || 0;
+
+    if (field === 'isTaxed') {
+      const nextItems = items.map((it, i) =>
+        i === index ? { ...it, isTaxed: Boolean(value), amountStr: undefined } : it
+      );
+      const { updatedItems } = recalculateItemsWithTax(nextItems, parsedTot);
+      setItems(updatedItems);
+      return;
+    }
+
+    if (field === 'amount') {
+      const valStr = String(value);
+      const baseVal = parseFloat(valStr) || 0;
+      const nextItems = items.map((it, i) =>
+        i === index
+          ? { ...it, rawAmount: baseVal, amount: baseVal, amountStr: valStr }
+          : { ...it, amountStr: undefined }
+      );
+      const { updatedItems } = recalculateItemsWithTax(nextItems, parsedTot);
+      updatedItems[index].amountStr = valStr;
+      setItems(updatedItems);
+      return;
+    }
+
     const updated = [...items];
     updated[index] = { ...updated[index], [field]: value };
     setItems(updated);
+  };
 
-    // If amount changed, auto-recalculate total
-    if (field === 'amount') {
-      const newTotal = updated.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
-      setTotalAmount(newTotal.toFixed(2));
-    }
+  const handleItemBlur = (index: number) => {
+    setItems(prev =>
+      prev.map((it, i) => (i === index ? { ...it, amountStr: undefined } : it))
+    );
   };
 
   const handleDeleteItem = (index: number) => {
-    const updated = items.filter((_, i) => i !== index);
-    setItems(updated);
-    const newTotal = updated.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
-    setTotalAmount(newTotal.toFixed(2));
+    const remaining = items.filter((_, i) => i !== index);
+    const parsedTot = parseFloat(totalAmount) || 0;
+    const { updatedItems } = recalculateItemsWithTax(remaining, parsedTot);
+    setItems(updatedItems);
   };
 
   const handleAddItem = () => {
     const newItem: ReceiptItem = {
       id: `custom-${Date.now()}`,
       description: 'New Item',
+      rawAmount: 0.0,
       amount: 0.0,
       quantity: 1,
       category: 'Others',
       isTaxed: false,
       assignedTo: '',
+      taxAmount: 0,
     };
-    setItems([...items, newItem]);
+    const parsedTot = parseFloat(totalAmount) || 0;
+    const { updatedItems } = recalculateItemsWithTax([...items, newItem], parsedTot);
+    setItems(updatedItems);
+  };
+
+  const handleToggleAllTax = () => {
+    const anyUntaxed = items.some(it => !it.isTaxed);
+    const nextItems = items.map(it => ({ ...it, isTaxed: anyUntaxed, amountStr: undefined }));
+    const parsedTot = parseFloat(totalAmount) || 0;
+    const { updatedItems } = recalculateItemsWithTax(nextItems, parsedTot);
+    setItems(updatedItems);
   };
 
   const splitSummary = useMemo(() => {
     const summary: Record<string, { subtotal: number; taxedSubtotal: number; taxShare: number; total: number }> = {};
-    const parsedTotalTax = parseFloat(recognitionResult?.tax != null ? String(recognitionResult.tax) : '0') || 0;
-
     let hasAnyAssignee = false;
-    let totalTaxedAmount = 0;
-    let overallSubtotal = 0;
 
     items.forEach(it => {
-      const assignee = it.assignedTo?.trim() || 'Me';
-      if (it.assignedTo?.trim()) hasAnyAssignee = true;
-      const amt = parseFloat(String(it.amount)) || 0;
-      overallSubtotal += amt;
+      const rawAssignee = it.assignedTo?.trim();
+      if (rawAssignee) hasAnyAssignee = true;
+      const assigneeStr = rawAssignee || 'Me';
+      const base = it.rawAmount ?? it.amount ?? 0;
+      const tax = it.taxAmount ?? 0;
+      const finalAmt = it.amount ?? base;
 
-      if (!summary[assignee]) {
-        summary[assignee] = { subtotal: 0, taxedSubtotal: 0, taxShare: 0, total: 0 };
-      }
-      summary[assignee].subtotal += amt;
+      const assignees = assigneeStr.split(',').map(s => s.trim()).filter(Boolean);
+      const shareCount = assignees.length > 0 ? assignees.length : 1;
 
-      if (it.isTaxed) {
-        summary[assignee].taxedSubtotal += amt;
-        totalTaxedAmount += amt;
-      }
+      assignees.forEach(person => {
+        if (!summary[person]) {
+          summary[person] = { subtotal: 0, taxedSubtotal: 0, taxShare: 0, total: 0 };
+        }
+        summary[person].subtotal = Math.round((summary[person].subtotal + base / shareCount) * 100) / 100;
+        summary[person].taxShare = Math.round((summary[person].taxShare + tax / shareCount) * 100) / 100;
+        summary[person].total = Math.round((summary[person].total + finalAmt / shareCount) * 100) / 100;
+        if (it.isTaxed) {
+          summary[person].taxedSubtotal = Math.round((summary[person].taxedSubtotal + base / shareCount) * 100) / 100;
+        }
+      });
     });
 
     if (!hasAnyAssignee && Object.keys(summary).length <= 1) {
       return {};
     }
 
-    Object.keys(summary).forEach(person => {
-      const s = summary[person];
-      const taxPortion = totalTaxedAmount > 0
-        ? (s.taxedSubtotal / totalTaxedAmount) * parsedTotalTax
-        : (overallSubtotal > 0 ? (s.subtotal / overallSubtotal) * parsedTotalTax : 0);
-      s.taxShare = Math.round(taxPortion * 100) / 100;
-      s.total = Math.round((s.subtotal + s.taxShare) * 100) / 100;
-    });
-
     return summary;
-  }, [items, recognitionResult?.tax]);
+  }, [items]);
 
   const handleApply = () => {
     const parsedAmount = parseFloat(totalAmount) || 0;
@@ -227,14 +359,18 @@ export const ReceiptScannerModal: React.FC<ReceiptScannerModalProps> = ({
     if (items.length > 0) {
       const itemSummaries = items.map(it => {
         let tag = '';
-        if (it.isTaxed) tag += ' [Tax]';
+        if (it.isTaxed && (it.taxAmount || 0) > 0) {
+          tag += ` [Tax: +$${(it.taxAmount || 0).toFixed(2)}]`;
+        } else if (it.isTaxed) {
+          tag += ' [Tax]';
+        }
         if (it.assignedTo?.trim()) tag += ` @${it.assignedTo.trim()}`;
         return `${it.description} ($${Number(it.amount).toFixed(2)}${tag})`;
       });
       detailsString = `Items: ${itemSummaries.join(', ')}`;
 
-      if (recognitionResult?.tax) {
-        detailsString += ` | Tax: $${recognitionResult.tax.toFixed(2)}`;
+      if (calculatedTotalTax > 0) {
+        detailsString += ` | Tax: $${calculatedTotalTax.toFixed(2)}`;
       }
 
       const assignedPeople = Object.keys(splitSummary);
@@ -439,8 +575,7 @@ export const ReceiptScannerModal: React.FC<ReceiptScannerModalProps> = ({
                     <View>
                       <Text style={styles.totalLabel}>Total Amount Due</Text>
                       <Text style={styles.totalSub}>
-                        {recognitionResult.subtotal ? `Subtotal: $${recognitionResult.subtotal.toFixed(2)}` : ''}
-                        {recognitionResult.tax ? `  •  Tax: $${recognitionResult.tax.toFixed(2)}` : ''}
+                        {`ST (Items): $${baseSubtotal.toFixed(2)}  •  Tax (T-ST): $${calculatedTotalTax.toFixed(2)}  •  ${taxedCount} taxed`}
                       </Text>
                     </View>
                     <View style={styles.totalInputWrapper}>
@@ -448,7 +583,7 @@ export const ReceiptScannerModal: React.FC<ReceiptScannerModalProps> = ({
                       <TextInput
                         style={styles.totalTextInput}
                         value={totalAmount}
-                        onChangeText={setTotalAmount}
+                        onChangeText={handleTotalAmountChange}
                         keyboardType="decimal-pad"
                       />
                     </View>
@@ -484,10 +619,7 @@ export const ReceiptScannerModal: React.FC<ReceiptScannerModalProps> = ({
                       </TouchableOpacity>
                       <TouchableOpacity
                         style={styles.quickAssignChip}
-                        onPress={() => {
-                          const anyUntaxed = items.some(it => !it.isTaxed);
-                          setItems(items.map(it => ({ ...it, isTaxed: anyUntaxed })));
-                        }}
+                        onPress={handleToggleAllTax}
                       >
                         <Text style={styles.quickAssignChipText}>Toggle All Tax</Text>
                       </TouchableOpacity>
@@ -498,9 +630,10 @@ export const ReceiptScannerModal: React.FC<ReceiptScannerModalProps> = ({
                   {!isCompactScreen && items.length > 0 && (
                     <View style={styles.itemsTableHeader}>
                       <Text style={[styles.columnHeader, { flex: 1 }]}>Item Description</Text>
-                      <Text style={[styles.columnHeader, { width: 85, textAlign: 'right' }]}>Amount</Text>
-                      <Text style={[styles.columnHeader, { width: 62, textAlign: 'center' }]}>Tax</Text>
-                      <Text style={[styles.columnHeader, { width: 100, textAlign: 'left' }]}>Assigned To</Text>
+                      <Text style={[styles.columnHeader, { width: 85, textAlign: 'right' }]}>Price</Text>
+                      <Text style={[styles.columnHeader, { width: 74, textAlign: 'center' }]}>Tax</Text>
+                      <Text style={[styles.columnHeader, { width: 68, textAlign: 'right' }]}>Total</Text>
+                      <Text style={[styles.columnHeader, { width: 95, textAlign: 'left', paddingLeft: 4 }]}>Assigned To</Text>
                       <View style={{ width: 32 }} />
                     </View>
                   )}
@@ -519,8 +652,17 @@ export const ReceiptScannerModal: React.FC<ReceiptScannerModalProps> = ({
                             <Text style={styles.smallCurrency}>$</Text>
                             <TextInput
                               style={styles.itemAmountInput}
-                              value={String(item.amount ?? '')}
+                              value={
+                                item.amountStr !== undefined
+                                  ? item.amountStr
+                                  : typeof item.rawAmount === 'number'
+                                  ? item.rawAmount.toFixed(2)
+                                  : typeof item.amount === 'number'
+                                  ? item.amount.toFixed(2)
+                                  : ''
+                              }
                               onChangeText={val => handleItemChange(idx, 'amount', val)}
+                              onBlur={() => handleItemBlur(idx)}
                               keyboardType="decimal-pad"
                             />
                           </View>
@@ -541,16 +683,25 @@ export const ReceiptScannerModal: React.FC<ReceiptScannerModalProps> = ({
                             activeOpacity={0.7}
                           >
                             <Text style={[styles.taxCheckmark, item.isTaxed ? styles.taxTextActive : styles.taxTextInactive]}>
-                              {item.isTaxed ? '☑ Taxed' : '☐ Tax'}
+                              {item.isTaxed
+                                ? item.taxAmount && item.taxAmount > 0
+                                  ? `☑ +$${item.taxAmount.toFixed(2)}`
+                                  : '☑ Taxed'
+                                : '☐ Tax'}
                             </Text>
                           </TouchableOpacity>
+                          <View style={styles.compactTotalBadge}>
+                            <Text style={styles.compactTotalText}>
+                              ${(item.amount ?? item.rawAmount ?? 0).toFixed(2)}
+                            </Text>
+                          </View>
                           <View style={[styles.assigneeWrapper, { flex: 1 }]}>
                             <Text style={styles.assigneeIcon}>👤</Text>
                             <TextInput
                               style={styles.assigneeInput}
                               value={item.assignedTo ?? ''}
                               onChangeText={val => handleItemChange(idx, 'assignedTo', val)}
-                              placeholder="Assigned to (e.g. Me, Alex, Split)"
+                              placeholder="Assigned to (e.g. Me, Alex)"
                               placeholderTextColor="#94a3b8"
                             />
                           </View>
@@ -566,13 +717,22 @@ export const ReceiptScannerModal: React.FC<ReceiptScannerModalProps> = ({
                           placeholder="Item description"
                         />
 
-                        {/* 2. Amount */}
+                        {/* 2. Base Price */}
                         <View style={styles.itemAmountWrapper}>
                           <Text style={styles.smallCurrency}>$</Text>
                           <TextInput
                             style={styles.itemAmountInput}
-                            value={String(item.amount ?? '')}
+                            value={
+                              item.amountStr !== undefined
+                                ? item.amountStr
+                                : typeof item.rawAmount === 'number'
+                                ? item.rawAmount.toFixed(2)
+                                : typeof item.amount === 'number'
+                                ? item.amount.toFixed(2)
+                                : ''
+                            }
                             onChangeText={val => handleItemChange(idx, 'amount', val)}
+                            onBlur={() => handleItemBlur(idx)}
                             keyboardType="decimal-pad"
                           />
                         </View>
@@ -587,11 +747,22 @@ export const ReceiptScannerModal: React.FC<ReceiptScannerModalProps> = ({
                           activeOpacity={0.7}
                         >
                           <Text style={[styles.taxCheckmark, item.isTaxed ? styles.taxTextActive : styles.taxTextInactive]}>
-                            {item.isTaxed ? '☑ Tax' : '☐ Tax'}
+                            {item.isTaxed
+                              ? item.taxAmount && item.taxAmount > 0
+                                ? `☑ +$${item.taxAmount.toFixed(2)}`
+                                : '☑ Tax'
+                              : '☐ Tax'}
                           </Text>
                         </TouchableOpacity>
 
-                        {/* 4. Assigned To (Splitwise type) */}
+                        {/* 4. Total Amount Badge */}
+                        <View style={styles.itemTotalBadge}>
+                          <Text style={styles.itemTotalText}>
+                            ${(item.amount ?? item.rawAmount ?? 0).toFixed(2)}
+                          </Text>
+                        </View>
+
+                        {/* 5. Assigned To (Splitwise type) */}
                         <View style={styles.assigneeWrapper}>
                           <Text style={styles.assigneeIcon}>👤</Text>
                           <TextInput
@@ -603,7 +774,7 @@ export const ReceiptScannerModal: React.FC<ReceiptScannerModalProps> = ({
                           />
                         </View>
 
-                        {/* 5. Delete Button */}
+                        {/* 6. Delete Button */}
                         <TouchableOpacity
                           style={styles.deleteItemBtn}
                           onPress={() => handleDeleteItem(idx)}
@@ -1124,7 +1295,7 @@ const styles = StyleSheet.create({
       : {}),
   },
   taxToggleBtn: {
-    width: 62,
+    width: 74,
     height: 38,
     borderRadius: 6,
     borderWidth: 1,
@@ -1140,7 +1311,7 @@ const styles = StyleSheet.create({
     borderColor: '#e2e8f0',
   },
   taxCheckmark: {
-    fontSize: 12,
+    fontSize: 11,
   },
   taxTextActive: {
     color: '#16a34a',
@@ -1149,6 +1320,33 @@ const styles = StyleSheet.create({
   taxTextInactive: {
     color: '#94a3b8',
     fontWeight: '500',
+  },
+  itemTotalBadge: {
+    width: 68,
+    height: 38,
+    justifyContent: 'center',
+    alignItems: 'flex-end',
+    paddingRight: 4,
+  },
+  itemTotalText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#0f172a',
+  },
+  compactTotalBadge: {
+    paddingHorizontal: 8,
+    height: 38,
+    backgroundColor: '#f1f5f9',
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  compactTotalText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#0f172a',
   },
   assigneeWrapper: {
     flexDirection: 'row',
@@ -1160,7 +1358,7 @@ const styles = StyleSheet.create({
     paddingLeft: 6,
     paddingRight: 6,
     height: 38,
-    width: 100,
+    width: 95,
     overflow: 'hidden',
   },
   assigneeIcon: {

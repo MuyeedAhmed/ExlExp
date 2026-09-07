@@ -17,6 +17,9 @@ export interface ReceiptItem {
   category?: string;
   isTaxed?: boolean;
   assignedTo?: string;
+  rawAmount?: number;
+  taxAmount?: number;
+  amountStr?: string;
 }
 
 export interface CardUsage {
