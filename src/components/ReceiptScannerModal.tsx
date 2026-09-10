@@ -1132,9 +1132,6 @@ export const ReceiptScannerModal: React.FC<ReceiptScannerModalProps> = ({
               <TouchableOpacity style={styles.cancelBtn} onPress={handleClose}>
                 <Text style={styles.cancelBtnText}>Discard</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.reviewBtn} onPress={() => handleApply(false)}>
-                <Text style={styles.reviewBtnText}>Review Form</Text>
-              </TouchableOpacity>
               <TouchableOpacity style={styles.applyBtn} onPress={() => handleApply(true)}>
                 <Text style={styles.applyBtnText}>
                   ➕ Log Expense (${parseFloat(totalAmount || '0').toFixed(2)})
@@ -2160,19 +2157,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
     color: '#64748b',
-  },
-  reviewBtn: {
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderRadius: 8,
-    backgroundColor: '#f8fafc',
-    borderWidth: 1,
-    borderColor: '#cbd5e1',
-  },
-  reviewBtnText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#475569',
   },
   applyBtn: {
     paddingVertical: 10,
