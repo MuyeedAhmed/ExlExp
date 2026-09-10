@@ -305,10 +305,12 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = React.memo(({
     items: ReceiptItem[];
     details: string;
     category?: string;
+    autoSubmit?: boolean;
   }) => {
     setLogType('transaction');
     setAmount(data.amount.toFixed(2));
     setDescription(data.description);
+    setFromTo(data.description);
     setDate(data.date);
     if (data.selectedCardId) {
       setSelectedCardId(data.selectedCardId);
@@ -316,8 +318,35 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = React.memo(({
     if (data.details) {
       setDetails(data.details);
     }
-    if (data.category && CATEGORIES.includes(data.category)) {
-      setCategory(data.category);
+    const cat = data.category && CATEGORIES.includes(data.category) ? data.category : 'Grocery';
+    setCategory(cat);
+
+    if (data.autoSubmit) {
+      const targetCard = cards.find(c => c.id === data.selectedCardId);
+      const isChecking = targetCard?.isChecking || targetCard?.isSaving || targetCard?.isBrokerage;
+
+      const expensePayload: Omit<Expense, 'id'> = {
+        description: data.description.trim() || 'Store Purchase',
+        amount: isChecking ? -data.amount : data.amount,
+        creditCardId: data.selectedCardId,
+        date: data.date,
+        category: cat,
+        details: data.details || undefined,
+        fromTo: isChecking ? (data.description.trim() || 'Store Purchase') : undefined,
+      };
+
+      onSubmit(expensePayload, data.selectedCardId);
+      resetForm();
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 3000);
+      if (Platform.OS === 'web') {
+        console.info('[ExpenseForm] Receipt expense logged successfully');
+      } else {
+        Alert.alert(
+          'Expense Logged! 🎉',
+          `Added $${data.amount.toFixed(2)} at ${data.description || 'Store'} to ${targetCard?.name || 'Account'}.`
+        );
+      }
     }
   };
 

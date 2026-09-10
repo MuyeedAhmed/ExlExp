@@ -34,6 +34,7 @@ interface ReceiptScannerModalProps {
     items: ReceiptItem[];
     details: string;
     category?: string;
+    autoSubmit?: boolean;
   }) => void;
   onUpdateCard?: (card: CreditCard) => void;
   onAddCard?: (card: Omit<CreditCard, 'id'>) => void;
@@ -482,7 +483,7 @@ export const ReceiptScannerModal: React.FC<ReceiptScannerModalProps> = ({
     return summary;
   }, [items]);
 
-  const handleApply = () => {
+  const handleApply = (autoSubmit: boolean = true) => {
     const parsedAmount = parseFloat(totalAmount) || 0;
     if (parsedAmount <= 0) {
       if (Platform.OS === 'web') {
@@ -548,11 +549,12 @@ export const ReceiptScannerModal: React.FC<ReceiptScannerModalProps> = ({
     onApplyReceipt({
       selectedCardId,
       amount: parsedAmount,
-      description: merchant.trim() || 'Store Receipt',
+      description: merchant.trim() || 'Store Purchase',
       date: date.trim() || new Date().toISOString().split('T')[0],
       items: finalItems,
       details: detailsString,
       category: dominantCategory,
+      autoSubmit,
     });
 
     handleClose();
@@ -1130,9 +1132,9 @@ export const ReceiptScannerModal: React.FC<ReceiptScannerModalProps> = ({
               <TouchableOpacity style={styles.cancelBtn} onPress={handleClose}>
                 <Text style={styles.cancelBtnText}>Discard</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.applyBtn} onPress={handleApply}>
+              <TouchableOpacity style={styles.applyBtn} onPress={() => handleApply(true)}>
                 <Text style={styles.applyBtnText}>
-                  Apply to Log Entry (${parseFloat(totalAmount || '0').toFixed(2)})
+                  ➕ Log Expense (${parseFloat(totalAmount || '0').toFixed(2)})
                 </Text>
               </TouchableOpacity>
             </View>
@@ -2137,27 +2139,28 @@ const styles = StyleSheet.create({
   modalFooter: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
-    gap: 12,
-    paddingHorizontal: 20,
-    paddingVertical: 14,
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     borderTopWidth: 1,
     borderTopColor: '#f1f5f9',
     backgroundColor: '#ffffff',
   },
   cancelBtn: {
-    paddingVertical: 11,
-    paddingHorizontal: 16,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
     borderRadius: 8,
     backgroundColor: '#f1f5f9',
   },
   cancelBtnText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
     color: '#64748b',
   },
   applyBtn: {
-    paddingVertical: 11,
-    paddingHorizontal: 20,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
     borderRadius: 8,
     backgroundColor: '#10b981',
     shadowColor: '#10b981',
@@ -2167,7 +2170,7 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   applyBtnText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '700',
     color: '#ffffff',
   },
