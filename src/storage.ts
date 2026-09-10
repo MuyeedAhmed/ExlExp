@@ -277,101 +277,129 @@ export const saveCreditCards = async (cards: CreditCard[], username: string): Pr
 
   // If local user, do not sync with Supabase
   if (username === 'local') {
+    console.info('[Storage] saveCreditCards: running in Local Mode (offline-only), not syncing to cloud.');
     return;
   }
 
   // 2. Write changes to Supabase cards table
   try {
     // Fetch existing cards from Supabase to perform delta sync
-    const { data: dbCards, error: getError } = await supabase
+    const { data: dbCardsRaw, error: getError } = await supabase
       .from('cards')
-      .select('*')
-      .eq('username', username);
+      .select('*');
     if (getError) throw getError;
 
-    const cardsToInsert = cards.map(({ isChecking, ...rest }, index) => ({
-      ...rest,
-      priority: index,
-      isHidden: !!rest.isHidden,
-      openDate: rest.openDate || todayStr,
-      username: username
-    }));
-
-    const dbIds = new Set(dbCards.map(c => c.id));
+    const allDbCards = dbCardsRaw || [];
+    // Existing cards for this user or unassigned cards
+    const dbCards = allDbCards.filter(c => c.username === username || !c.username);
+    const dbIds = new Set(allDbCards.map(c => c.id));
     const clientIds = new Set(cards.map(c => c.id));
+
+    // Detect column naming conventions from existing DB records
+    const sampleDbCard = allDbCards[0] || {};
+    const dateKey = 'opendate' in sampleDbCard ? 'opendate' : ('open_date' in sampleDbCard ? 'open_date' : 'openDate');
+    const hiddenKey = 'ishidden' in sampleDbCard ? 'ishidden' : 'isHidden';
+    const savingKey = 'issaving' in sampleDbCard ? 'issaving' : 'isSaving';
+    const brokerageKey = 'isbrokerage' in sampleDbCard ? 'isbrokerage' : 'isBrokerage';
+    const hasLast4 = 'last4' in sampleDbCard;
+
+    const cardsToInsert = cards.map(({ isChecking, ...rest }, index) => {
+      const payload: any = {
+        id: rest.id,
+        name: rest.name,
+        priority: index,
+        username: username,
+      };
+      payload[hiddenKey] = !!rest.isHidden;
+      if (rest.isSaving !== undefined) payload[savingKey] = !!rest.isSaving;
+      if (rest.isBrokerage !== undefined) payload[brokerageKey] = !!rest.isBrokerage;
+      payload[dateKey] = rest.openDate || todayStr;
+      if (hasLast4 || rest.last4 !== undefined) payload.last4 = rest.last4 || '0000';
+      return payload;
+    });
 
     // Delete cards in DB but not in Client
     const toDeleteIds = dbCards.filter(c => !clientIds.has(c.id)).map(c => c.id);
     if (toDeleteIds.length > 0) {
-      const { error } = await supabase.from('cards').delete().eq('username', username).in('id', toDeleteIds);
-      if (error) throw error;
+      const { error } = await supabase.from('cards').delete().in('id', toDeleteIds);
+      if (error) {
+        console.warn('[Storage] Delete cards error:', error);
+      } else {
+        console.info('[Storage] Deleted cards from Supabase:', toDeleteIds.length);
+      }
     }
 
     // Insert new cards
     const toInsert = cardsToInsert.filter(c => !dbIds.has(c.id));
     if (toInsert.length > 0) {
-      const { error } = await supabase.from('cards').insert(toInsert);
-      if (error) {
-        console.warn('Insert card error (possibly last4 column not yet added to Supabase), retrying without last4:', error);
-        const fallbackInsert = toInsert.map(({ last4, ...rest }) => rest);
+      const { error: insertErr } = await supabase.from('cards').insert(toInsert);
+      if (insertErr) {
+        console.warn('[Storage] Insert card error, retrying with fallback fields:', insertErr);
+        const fallbackInsert = toInsert.map(c => ({
+          id: c.id,
+          name: c.name,
+          priority: c.priority,
+          username: c.username,
+        }));
         const { error: insertErr2 } = await supabase.from('cards').insert(fallbackInsert);
-        if (insertErr2) throw insertErr2;
+        if (insertErr2) {
+          console.error('[Storage] Fallback insert card error:', insertErr2);
+        } else {
+          console.info('[Storage] Inserted cards with fallback successfully');
+        }
+      } else {
+        console.info('[Storage] Inserted new cards into Supabase:', toInsert.length);
       }
     }
 
     // Update modified cards
     const toUpdate = cardsToInsert.filter(c => {
-      const dbCard = dbCards.find(dc => dc.id === c.id);
+      const dbCard = allDbCards.find(dc => dc.id === c.id);
       if (!dbCard) return false;
       const dbOpenDate = dbCard.openDate || dbCard.opendate || dbCard.open_date;
+      const dbHidden = dbCard.isHidden ?? dbCard.ishidden;
+      const dbSaving = dbCard.isSaving ?? dbCard.issaving;
+      const dbBrokerage = dbCard.isBrokerage ?? dbCard.isbrokerage;
       return (
         dbCard.name !== c.name ||
         dbCard.priority !== c.priority ||
-        !!dbCard.isHidden !== !!c.isHidden ||
-        !!dbCard.isSaving !== !!c.isSaving ||
-        !!dbCard.isBrokerage !== !!c.isBrokerage ||
-        dbOpenDate !== c.openDate ||
-        (dbCard.last4 || '0000') !== (c.last4 || '0000')
+        !!dbHidden !== !!c[hiddenKey] ||
+        !!dbSaving !== !!c[savingKey] ||
+        !!dbBrokerage !== !!c[brokerageKey] ||
+        dbOpenDate !== c[dateKey] ||
+        (dbCard.last4 || '0000') !== (c.last4 || '0000') ||
+        dbCard.username !== username
       );
     });
 
     if (toUpdate.length > 0) {
       for (const item of toUpdate) {
-        const dbCard = dbCards.find(dc => dc.id === item.id);
         const updatePayload: any = {
           name: item.name,
           priority: item.priority,
-          isHidden: item.isHidden,
-          isSaving: item.isSaving,
-          isBrokerage: item.isBrokerage,
           username: username,
-          last4: item.last4 || '0000',
         };
+        updatePayload[hiddenKey] = item[hiddenKey];
+        if (item[savingKey] !== undefined) updatePayload[savingKey] = item[savingKey];
+        if (item[brokerageKey] !== undefined) updatePayload[brokerageKey] = item[brokerageKey];
+        updatePayload[dateKey] = item[dateKey];
+        if (hasLast4 || item.last4 !== undefined) updatePayload.last4 = item.last4 || '0000';
 
-        if (dbCard && 'opendate' in dbCard) {
-          updatePayload.opendate = item.openDate;
-        } else if (dbCard && 'open_date' in dbCard) {
-          updatePayload.open_date = item.openDate;
-        } else {
-          updatePayload.openDate = item.openDate;
-        }
-
-        const { error } = await supabase.from('cards').update(updatePayload).eq('username', username).eq('id', item.id);
-        if (error) {
-          console.warn('Update card error with last4/openDate (possibly column not in DB yet):', error);
-          // Fallback update without last4/openDate if column differs
+        const { error: updateErr } = await supabase.from('cards').update(updatePayload).eq('id', item.id);
+        if (updateErr) {
+          console.warn('[Storage] Update card error with extended payload, retrying basic update:', updateErr);
           await supabase.from('cards').update({
             name: item.name,
             priority: item.priority,
-            isHidden: item.isHidden,
-            isSaving: item.isSaving,
-            isBrokerage: item.isBrokerage,
-          }).eq('username', username).eq('id', item.id);
+            username: username,
+          }).eq('id', item.id);
+        } else {
+          console.info('[Storage] Updated card in Supabase:', item.name);
         }
       }
     }
   } catch (error) {
-    console.log('Supabase offline or error, could not sync credit cards to cloud database:', error);
+    console.error('[Storage] Supabase sync error for credit cards:', error);
   }
 };
 

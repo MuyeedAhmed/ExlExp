@@ -194,27 +194,23 @@ export const Settings: React.FC<SettingsProps> = React.memo(({
   };
 
   // Subpage Routing
-  if (currentSubpage === 'accounts') {
+  if (currentSubpage === 'accounts' || currentSubpage === 'add_account') {
     return (
       <AccountsPage
         cards={cards}
+        onAddCard={onAddCard}
         onDeleteCard={onDeleteCard}
         onRenameCard={onRenameCard}
         onMoveCard={onMoveCard}
         onToggleCardVisibility={onToggleCardVisibility}
         onUpdateCard={onUpdateCard}
-        onNavigateToAdd={() => setCurrentSubpage('add_account')}
+        initialAddOpen={currentSubpage === 'add_account'}
+        onCloseAddModal={() => {
+          if (currentSubpage === 'add_account') {
+            setCurrentSubpage('accounts');
+          }
+        }}
         onBack={() => setCurrentSubpage('main')}
-      />
-    );
-  }
-
-  if (currentSubpage === 'add_account') {
-    return (
-      <AddAccountPage
-        onAddCard={onAddCard}
-        onBack={() => setCurrentSubpage('accounts')}
-        onSuccess={() => setCurrentSubpage('accounts')}
       />
     );
   }

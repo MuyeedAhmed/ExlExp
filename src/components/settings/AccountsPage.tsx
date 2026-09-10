@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   StyleSheet,
   Text,
@@ -16,12 +16,15 @@ import { CreditCard } from '../../types';
 
 interface AccountsPageProps {
   cards: CreditCard[];
+  onAddCard?: (card: Omit<CreditCard, 'id'>) => void;
   onDeleteCard: (id: string) => void;
   onRenameCard: (id: string, name: string) => void;
   onMoveCard: (id: string, direction: 'up' | 'down') => void;
   onToggleCardVisibility: (id: string) => void;
   onUpdateCard?: (updatedCard: CreditCard) => void;
-  onNavigateToAdd: () => void;
+  onNavigateToAdd?: () => void;
+  initialAddOpen?: boolean;
+  onCloseAddModal?: () => void;
   onBack: () => void;
 }
 
@@ -73,12 +76,15 @@ const webDateInputStyle: React.CSSProperties = {
 
 export const AccountsPage: React.FC<AccountsPageProps> = ({
   cards,
+  onAddCard,
   onDeleteCard,
   onRenameCard,
   onMoveCard,
   onToggleCardVisibility,
   onUpdateCard,
   onNavigateToAdd,
+  initialAddOpen,
+  onCloseAddModal,
   onBack,
 }) => {
   const todayStr = new Date().toISOString().split('T')[0];
@@ -90,13 +96,27 @@ export const AccountsPage: React.FC<AccountsPageProps> = ({
   const [editName, setEditName] = useState<string>('');
   const [editType, setEditType] = useState<AccountTypeOption>('checking');
   const [editOpenDate, setEditOpenDate] = useState<string>(todayStr);
-  const [editLast4, setEditLast4] = useState<string>('0000');
+  const [editLast4, setEditLast4] = useState<string>('');
   const [editIsHidden, setEditIsHidden] = useState<boolean>(false);
 
-  // Calendar Date Picker Modal State
+  // Modal Add Account State
+  const [addModalVisible, setAddModalVisible] = useState<boolean>(!!initialAddOpen);
+  const [addName, setAddName] = useState<string>('');
+  const [addType, setAddType] = useState<AccountTypeOption>('checking');
+  const [addOpenDate, setAddOpenDate] = useState<string>(todayStr);
+  const [addLast4, setAddLast4] = useState<string>('');
+
+  // Calendar Date Picker Modal State (Shared)
+  const [datePickerTarget, setDatePickerTarget] = useState<'edit' | 'add'>('edit');
   const [datePickerVisible, setDatePickerVisible] = useState<boolean>(false);
   const [calendarYear, setCalendarYear] = useState<number>(() => new Date().getFullYear());
   const [calendarMonth, setCalendarMonth] = useState<number>(() => new Date().getMonth());
+
+  useEffect(() => {
+    if (initialAddOpen) {
+      handleOpenAddModal();
+    }
+  }, [initialAddOpen]);
 
   const handleOpenEditModal = (card: CreditCard) => {
     setEditingCard(card);
@@ -104,11 +124,36 @@ export const AccountsPage: React.FC<AccountsPageProps> = ({
     setEditType(getCardType(card));
     const cardDate = card.openDate || todayStr;
     setEditOpenDate(cardDate);
-    setEditLast4(card.last4 || '0000');
+    setEditLast4(card.last4 && card.last4 !== '0000' ? card.last4 : '');
     setEditIsHidden(!!card.isHidden);
+  };
 
-    if (/^\d{4}-\d{2}-\d{2}$/.test(cardDate)) {
-      const parts = cardDate.split('-').map(Number);
+  const handleOpenAddModal = () => {
+    if (onNavigateToAdd && !onAddCard) {
+      onNavigateToAdd();
+      return;
+    }
+    setAddName('');
+    const defaultType: AccountTypeOption =
+      activeFilter === 'credit' ? 'credit' : activeFilter === 'deposit' ? 'checking' : 'checking';
+    setAddType(defaultType);
+    setAddOpenDate(todayStr);
+    setAddLast4('');
+    setAddModalVisible(true);
+  };
+
+  const handleCloseAddModal = () => {
+    setAddModalVisible(false);
+    if (onCloseAddModal) {
+      onCloseAddModal();
+    }
+  };
+
+  const openDatePickerForEdit = () => {
+    setDatePickerTarget('edit');
+    const targetDate = editOpenDate || todayStr;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(targetDate)) {
+      const parts = targetDate.split('-').map(Number);
       if (parts.length === 3 && !isNaN(parts[0]) && !isNaN(parts[1])) {
         setCalendarYear(parts[0]);
         setCalendarMonth(parts[1] - 1);
@@ -118,6 +163,24 @@ export const AccountsPage: React.FC<AccountsPageProps> = ({
       setCalendarYear(now.getFullYear());
       setCalendarMonth(now.getMonth());
     }
+    setDatePickerVisible(true);
+  };
+
+  const openDatePickerForAdd = () => {
+    setDatePickerTarget('add');
+    const targetDate = addOpenDate || todayStr;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(targetDate)) {
+      const parts = targetDate.split('-').map(Number);
+      if (parts.length === 3 && !isNaN(parts[0]) && !isNaN(parts[1])) {
+        setCalendarYear(parts[0]);
+        setCalendarMonth(parts[1] - 1);
+      }
+    } else {
+      const now = new Date();
+      setCalendarYear(now.getFullYear());
+      setCalendarMonth(now.getMonth());
+    }
+    setDatePickerVisible(true);
   };
 
   const handleSaveEdit = () => {
@@ -151,6 +214,40 @@ export const AccountsPage: React.FC<AccountsPageProps> = ({
 
     setEditingCard(null);
     setDatePickerVisible(false);
+  };
+
+  const handleSaveAdd = () => {
+    const trimmedName = addName.trim();
+    if (!trimmedName) {
+      showAlert('Required', 'Please enter an account or card name.');
+      return;
+    }
+
+    const cleanedLast4 = addLast4.replace(/\D/g, '').slice(0, 4) || '0000';
+    const isCredit = addType === 'credit';
+
+    if (onAddCard) {
+      if (isCredit) {
+        onAddCard({
+          name: trimmedName,
+          isChecking: false,
+          isSaving: false,
+          isBrokerage: false,
+          openDate: addOpenDate.trim() || todayStr,
+          last4: cleanedLast4,
+        });
+      } else {
+        onAddCard({
+          name: trimmedName,
+          isChecking: addType === 'checking',
+          isSaving: addType === 'saving',
+          isBrokerage: addType === 'brokerage',
+          last4: cleanedLast4,
+        });
+      }
+    }
+
+    handleCloseAddModal();
   };
 
   const getCalendarDays = () => {
@@ -188,7 +285,11 @@ export const AccountsPage: React.FC<AccountsPageProps> = ({
     const formattedM = (calendarMonth + 1) < 10 ? `0${calendarMonth + 1}` : `${calendarMonth + 1}`;
     const formattedD = day < 10 ? `0${day}` : `${day}`;
     const formatted = `${calendarYear}-${formattedM}-${formattedD}`;
-    setEditOpenDate(formatted);
+    if (datePickerTarget === 'edit') {
+      setEditOpenDate(formatted);
+    } else {
+      setAddOpenDate(formatted);
+    }
     setDatePickerVisible(false);
   };
 
@@ -228,6 +329,19 @@ export const AccountsPage: React.FC<AccountsPageProps> = ({
     }
   };
 
+  const getAddPlaceholder = () => {
+    switch (addType) {
+      case 'checking':
+        return 'e.g. Chase Total Checking';
+      case 'saving':
+        return 'e.g. Ally High Yield Savings';
+      case 'brokerage':
+        return 'e.g. Fidelity Brokerage';
+      case 'credit':
+        return 'e.g. Chase Sapphire Preferred';
+    }
+  };
+
   const depositAccounts = cards.filter(c => c.isChecking || c.isSaving || c.isBrokerage);
   const creditCards = cards.filter(c => !c.isChecking && !c.isSaving && !c.isBrokerage);
 
@@ -237,6 +351,8 @@ export const AccountsPage: React.FC<AccountsPageProps> = ({
     return true;
   });
 
+  const currentDateForPicker = datePickerTarget === 'edit' ? editOpenDate : addOpenDate;
+
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
       {/* Top Header with Back and Add Button */}
@@ -245,7 +361,7 @@ export const AccountsPage: React.FC<AccountsPageProps> = ({
           <Text style={styles.backButtonIcon}>‹</Text>
           <Text style={styles.backButtonText}>Settings</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.headerAddButton} onPress={onNavigateToAdd} accessibilityLabel="Add Account or Card">
+        <TouchableOpacity style={styles.headerAddButton} onPress={handleOpenAddModal} accessibilityLabel="Add Account or Card">
           <Text style={styles.headerAddButtonText}>➕ Add</Text>
         </TouchableOpacity>
       </View>
@@ -260,7 +376,7 @@ export const AccountsPage: React.FC<AccountsPageProps> = ({
       </View>
 
       {/* Prominent Add Button Banner */}
-      <TouchableOpacity style={styles.addAccountBanner} onPress={onNavigateToAdd}>
+      <TouchableOpacity style={styles.addAccountBanner} onPress={handleOpenAddModal}>
         <View style={styles.addBannerLeft}>
           <View style={styles.addBannerIconWrap}>
             <Text style={styles.addBannerIcon}>➕</Text>
@@ -317,7 +433,7 @@ export const AccountsPage: React.FC<AccountsPageProps> = ({
           <View style={styles.emptyState}>
             <Text style={styles.emptyStateEmoji}>💳</Text>
             <Text style={styles.emptyStateText}>No accounts found in this category.</Text>
-            <TouchableOpacity style={styles.emptyStateBtn} onPress={onNavigateToAdd}>
+            <TouchableOpacity style={styles.emptyStateBtn} onPress={handleOpenAddModal}>
               <Text style={styles.emptyStateBtnText}>Add One Now</Text>
             </TouchableOpacity>
           </View>
@@ -418,7 +534,9 @@ export const AccountsPage: React.FC<AccountsPageProps> = ({
         )}
       </View>
 
-      {/* Edit Account Popup Modal */}
+      {/* ========================================================= */}
+      {/* 1. EDIT ACCOUNT POPUP MODAL                               */}
+      {/* ========================================================= */}
       <Modal
         visible={!!editingCard}
         transparent={true}
@@ -468,7 +586,7 @@ export const AccountsPage: React.FC<AccountsPageProps> = ({
               keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}
             >
-              {/* 1. Account Type Selector */}
+              {/* Account Type Selector */}
               <View style={styles.formGroup}>
                 <Text style={styles.fieldLabel}>Account Type</Text>
                 <View style={styles.typeGrid}>
@@ -522,7 +640,7 @@ export const AccountsPage: React.FC<AccountsPageProps> = ({
                 </View>
               </View>
 
-              {/* 2. Account Name Input */}
+              {/* Account Name Input */}
               <View style={styles.formGroup}>
                 <Text style={styles.fieldLabel}>
                   {editType === 'credit' ? 'Credit Card Name' : 'Account Name'}
@@ -537,7 +655,7 @@ export const AccountsPage: React.FC<AccountsPageProps> = ({
                 />
               </View>
 
-              {/* 3. Last 4 Digits */}
+              {/* Last 4 Digits */}
               <View style={styles.formGroup}>
                 <Text style={styles.fieldLabel}>Card / Account Last 4 Digits</Text>
                 <View style={styles.last4Row}>
@@ -555,7 +673,7 @@ export const AccountsPage: React.FC<AccountsPageProps> = ({
                 <Text style={styles.helperText}>Used for receipt scanning & automatic account matching.</Text>
               </View>
 
-              {/* 4. Opening Date (shown for Credit Cards) */}
+              {/* Opening Date (shown for Credit Cards) */}
               {editType === 'credit' && (
                 <View style={styles.formGroup}>
                   <Text style={styles.fieldLabel}>Card Opening Date</Text>
@@ -571,7 +689,7 @@ export const AccountsPage: React.FC<AccountsPageProps> = ({
                   ) : (
                     <TouchableOpacity
                       style={styles.datePickerBtn}
-                      onPress={() => setDatePickerVisible(true)}
+                      onPress={openDatePickerForEdit}
                     >
                       <Text style={styles.datePickerBtnIcon}>📅</Text>
                       <Text style={styles.datePickerBtnText}>{editOpenDate || 'Select Date'}</Text>
@@ -583,7 +701,7 @@ export const AccountsPage: React.FC<AccountsPageProps> = ({
                 </View>
               )}
 
-              {/* 5. Visibility Toggle */}
+              {/* Visibility Toggle */}
               <View style={styles.toggleRow}>
                 <View style={styles.toggleTextCol}>
                   <Text style={styles.toggleTitle}>Hide from Transaction Logs</Text>
@@ -600,7 +718,7 @@ export const AccountsPage: React.FC<AccountsPageProps> = ({
                 </TouchableOpacity>
               </View>
 
-              {/* 6. Action Buttons */}
+              {/* Action Buttons */}
               <View style={styles.modalActions}>
                 <TouchableOpacity style={styles.saveBtn} onPress={handleSaveEdit}>
                   <Text style={styles.saveBtnText}>Save Changes</Text>
@@ -628,7 +746,193 @@ export const AccountsPage: React.FC<AccountsPageProps> = ({
         </KeyboardAvoidingView>
       </Modal>
 
-      {/* Calendar Date Picker Modal (for Mobile and Web fallback) */}
+      {/* ========================================================= */}
+      {/* 2. ADD ACCOUNT POPUP MODAL                                */}
+      {/* ========================================================= */}
+      <Modal
+        visible={addModalVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={handleCloseAddModal}
+      >
+        <KeyboardAvoidingView
+          style={styles.modalOverlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
+          <TouchableWithoutFeedback onPress={handleCloseAddModal}>
+            <View style={StyleSheet.absoluteFill} />
+          </TouchableWithoutFeedback>
+
+          <View style={styles.modalContainer}>
+            {/* Modal Header */}
+            <View style={styles.modalHeader}>
+              <View style={styles.modalHeaderTitleRow}>
+                <Text style={styles.modalIcon}>
+                  {addType === 'checking'
+                    ? '🏛️'
+                    : addType === 'saving'
+                    ? '💰'
+                    : addType === 'brokerage'
+                    ? '📈'
+                    : '💳'}
+                </Text>
+                <View>
+                  <Text style={styles.modalTitle}>
+                    {addType === 'credit' ? 'Add New Credit Card' : 'Add New Account'}
+                  </Text>
+                  <Text style={styles.modalSubtitle}>Configure account type and details</Text>
+                </View>
+              </View>
+              <TouchableOpacity
+                style={styles.modalCloseBtn}
+                onPress={handleCloseAddModal}
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+              >
+                <Text style={styles.modalCloseBtnText}>✕</Text>
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView
+              style={styles.modalScrollView}
+              contentContainerStyle={styles.modalScrollContent}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+            >
+              {/* Account Type Selector */}
+              <View style={styles.formGroup}>
+                <Text style={styles.fieldLabel}>Account Type</Text>
+                <View style={styles.typeGrid}>
+                  <TouchableOpacity
+                    style={[styles.typeCard, addType === 'checking' && styles.selectedTypeCard]}
+                    onPress={() => setAddType('checking')}
+                  >
+                    <Text style={styles.typeCardIcon}>🏛️</Text>
+                    <View style={styles.typeCardTextWrap}>
+                      <Text style={[styles.typeCardTitle, addType === 'checking' && styles.selectedTypeCardTitle]}>
+                        Checking
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[styles.typeCard, addType === 'saving' && styles.selectedTypeCard]}
+                    onPress={() => setAddType('saving')}
+                  >
+                    <Text style={styles.typeCardIcon}>💰</Text>
+                    <View style={styles.typeCardTextWrap}>
+                      <Text style={[styles.typeCardTitle, addType === 'saving' && styles.selectedTypeCardTitle]}>
+                        Savings
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[styles.typeCard, addType === 'brokerage' && styles.selectedTypeCard]}
+                    onPress={() => setAddType('brokerage')}
+                  >
+                    <Text style={styles.typeCardIcon}>📈</Text>
+                    <View style={styles.typeCardTextWrap}>
+                      <Text style={[styles.typeCardTitle, addType === 'brokerage' && styles.selectedTypeCardTitle]}>
+                        Brokerage
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[styles.typeCard, addType === 'credit' && styles.selectedTypeCard]}
+                    onPress={() => setAddType('credit')}
+                  >
+                    <Text style={styles.typeCardIcon}>💳</Text>
+                    <View style={styles.typeCardTextWrap}>
+                      <Text style={[styles.typeCardTitle, addType === 'credit' && styles.selectedTypeCardTitle]}>
+                        Credit Card
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              {/* Account Name Input */}
+              <View style={styles.formGroup}>
+                <Text style={styles.fieldLabel}>
+                  {addType === 'credit' ? 'Credit Card Name' : 'Account Name'}
+                </Text>
+                <TextInput
+                  style={styles.fullWidthInput}
+                  value={addName}
+                  onChangeText={setAddName}
+                  placeholder={getAddPlaceholder()}
+                  placeholderTextColor="#94a3b8"
+                  autoFocus
+                />
+              </View>
+
+              {/* Last 4 Digits */}
+              <View style={styles.formGroup}>
+                <Text style={styles.fieldLabel}>Card / Account Last 4 Digits (Optional)</Text>
+                <View style={styles.last4Row}>
+                  <Text style={styles.last4Prefix}>••••</Text>
+                  <TextInput
+                    style={[styles.fullWidthInput, styles.last4Input]}
+                    value={addLast4}
+                    onChangeText={setAddLast4}
+                    placeholder="0000"
+                    placeholderTextColor="#94a3b8"
+                    maxLength={4}
+                    keyboardType="number-pad"
+                  />
+                </View>
+                <Text style={styles.helperText}>Used for receipt scanning & automatic account matching.</Text>
+              </View>
+
+              {/* Opening Date (shown for Credit Cards) */}
+              {addType === 'credit' && (
+                <View style={styles.formGroup}>
+                  <Text style={styles.fieldLabel}>Card Opening Date</Text>
+                  {Platform.OS === 'web' ? (
+                    <View style={styles.webDateContainer}>
+                      <input
+                        type="date"
+                        value={addOpenDate}
+                        onChange={(e) => setAddOpenDate(e.target.value)}
+                        style={webDateInputStyle}
+                      />
+                    </View>
+                  ) : (
+                    <TouchableOpacity
+                      style={styles.datePickerBtn}
+                      onPress={openDatePickerForAdd}
+                    >
+                      <Text style={styles.datePickerBtnIcon}>📅</Text>
+                      <Text style={styles.datePickerBtnText}>{addOpenDate || 'Select Date'}</Text>
+                    </TouchableOpacity>
+                  )}
+                  <Text style={styles.helperText}>
+                    Used to calculate account age on the credit cards overview.
+                  </Text>
+                </View>
+              )}
+
+              {/* Action Buttons */}
+              <View style={styles.modalActions}>
+                <TouchableOpacity style={styles.saveBtn} onPress={handleSaveAdd}>
+                  <Text style={styles.saveBtnText}>
+                    {addType === 'credit' ? '➕ Add Credit Card' : '➕ Add Account'}
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity style={styles.cancelBtn} onPress={handleCloseAddModal}>
+                  <Text style={styles.cancelBtnText}>Cancel</Text>
+                </TouchableOpacity>
+              </View>
+            </ScrollView>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      {/* ========================================================= */}
+      {/* 3. CALENDAR DATE PICKER MODAL (Shared)                    */}
+      {/* ========================================================= */}
       <Modal
         visible={datePickerVisible}
         transparent={true}
@@ -643,7 +947,11 @@ export const AccountsPage: React.FC<AccountsPageProps> = ({
           <View style={styles.calendarModalCard}>
             {/* Calendar Header */}
             <View style={styles.calendarModalHeader}>
-              <Text style={styles.calendarModalTitle}>Select Opening Date</Text>
+              <Text style={styles.calendarModalTitle}>
+                {(datePickerTarget === 'edit' && editType === 'credit') || (datePickerTarget === 'add' && addType === 'credit')
+                  ? 'Select Card Opening Date'
+                  : 'Select Date'}
+              </Text>
               <TouchableOpacity
                 style={styles.calendarCloseBtn}
                 onPress={() => setDatePickerVisible(false)}
@@ -684,7 +992,7 @@ export const AccountsPage: React.FC<AccountsPageProps> = ({
                 const formattedM = (calendarMonth + 1) < 10 ? `0${calendarMonth + 1}` : `${calendarMonth + 1}`;
                 const formattedD = day < 10 ? `0${day}` : `${day}`;
                 const dayStr = `${calendarYear}-${formattedM}-${formattedD}`;
-                const isSelected = editOpenDate === dayStr;
+                const isSelected = currentDateForPicker === dayStr;
                 const isToday = todayStr === dayStr;
 
                 return (
@@ -716,7 +1024,11 @@ export const AccountsPage: React.FC<AccountsPageProps> = ({
               <TouchableOpacity
                 style={styles.calendarTodayBtn}
                 onPress={() => {
-                  setEditOpenDate(todayStr);
+                  if (datePickerTarget === 'edit') {
+                    setEditOpenDate(todayStr);
+                  } else {
+                    setAddOpenDate(todayStr);
+                  }
                   setDatePickerVisible(false);
                 }}
               >
@@ -1050,7 +1362,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
 
-  /* Edit Modal Styles */
+  /* Modal Base Styles */
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(15, 23, 42, 0.6)',
