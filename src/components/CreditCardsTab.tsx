@@ -10,7 +10,8 @@ import {
   Modal,
   TouchableWithoutFeedback,
 } from 'react-native';
-import { Expense, CreditCard } from '../types';
+import { Expense, CreditCard, CardPerk } from '../types';
+import { CardPerksTracker } from './CardPerksTracker';
 
 const formatCurrency = (val: number): string => {
   if (Math.abs(val) < 0.005) return '0.00';
@@ -63,7 +64,11 @@ interface CreditCardsTabProps {
   onSelectCard?: (id: string) => void;
   onUpdateCard?: (updatedCard: CreditCard) => void;
   onNavigateToSettings?: (subpage?: 'main' | 'accounts' | 'add_account' | 'user') => void;
-  onNavigateToAdd?: (cardId?: string) => void;
+  onNavigateToAdd?: (cardId?: string, prefill?: { description?: string; amount?: number }) => void;
+  perks?: CardPerk[];
+  onAddPerk?: (perk: Omit<CardPerk, 'id'>) => void;
+  onUpdatePerk?: (perk: CardPerk) => void;
+  onDeletePerk?: (id: string) => void;
 }
 
 interface CreditCardRowItemProps {
@@ -185,6 +190,10 @@ export const CreditCardsTab: React.FC<CreditCardsTabProps> = React.memo(({
   onUpdateCard,
   onNavigateToSettings,
   onNavigateToAdd,
+  perks = [],
+  onAddPerk,
+  onUpdatePerk,
+  onDeletePerk,
 }) => {
   const isWeb = Platform.OS === 'web';
   const todayStr = useMemo(() => new Date().toISOString().split('T')[0], []);
@@ -680,6 +689,19 @@ export const CreditCardsTab: React.FC<CreditCardsTabProps> = React.memo(({
               </ScrollView>
             )}
           </View>
+
+          {/* 3. REWARDS & STATEMENT CREDITS TRACKER (UNDER OVERVIEW) */}
+          {onAddPerk && onUpdatePerk && onDeletePerk && (
+            <CardPerksTracker
+              perks={perks}
+              cards={cards}
+              expenses={expenses}
+              onAddPerk={onAddPerk}
+              onUpdatePerk={onUpdatePerk}
+              onDeletePerk={onDeletePerk}
+              onNavigateToAdd={onNavigateToAdd}
+            />
+          )}
         </ScrollView>
       ) : (
         /* ========================================================= */

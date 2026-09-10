@@ -43,3 +43,17 @@ export interface User {
   username: string;
 }
 
+export type PerkCadence = 'monthly' | 'semi_annually' | 'annually' | 'anniversary';
+
+export interface CardPerk {
+  id: string;
+  cardId: string; // references CreditCard.id
+  name: string; // e.g. "Dunkin' Credit", "Dining Credit", "Airline Incidentals"
+  amount: number; // total allowance per cycle e.g. 7.00
+  cadence: PerkCadence;
+  matchKeywords?: string; // comma-separated search terms e.g. "dunkin, dunkin donuts"
+  manualRedeemedAmount?: number; // manual adjustment / already redeemed amount
+  notes?: string;
+  username?: string; // foreign key referencing users.username
+}
+

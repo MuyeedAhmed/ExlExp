@@ -35,6 +35,8 @@ interface ExpenseFormProps {
   onUpdateCard?: (card: CreditCard) => void;
   onAddCard?: (card: Omit<CreditCard, 'id'>) => void;
   defaultAccountId?: string;
+  prefillDescription?: string;
+  prefillAmount?: number;
 }
 
 const parseZelleDetails = (detailsStr: string, fromToStr?: string, descStr?: string) => {
@@ -231,6 +233,8 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = React.memo(({
   onUpdateCard,
   onAddCard,
   defaultAccountId,
+  prefillDescription,
+  prefillAmount,
 }) => {
   const [logType, setLogType] = useState<'transaction' | 'transfer'>('transaction');
   const [showToast, setShowToast] = useState(false);
@@ -280,6 +284,18 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = React.memo(({
   }, [defaultAccountId, editingExpense, cards]);
 
   const [description, setDescription] = useState('');
+
+  // Handle prefill description and amount from quick log buttons
+  useEffect(() => {
+    if (!editingExpense) {
+      if (prefillDescription) {
+        setDescription(prefillDescription);
+      }
+      if (prefillAmount !== undefined && prefillAmount > 0) {
+        setAmount(prefillAmount.toFixed(2));
+      }
+    }
+  }, [prefillDescription, prefillAmount, editingExpense]);
 
   // Checking/Saving specific states
   const [fromTo, setFromTo] = useState('');

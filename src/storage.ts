@@ -1,11 +1,12 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Expense, CreditCard, FutureExpense } from './types';
+import { Expense, CreditCard, FutureExpense, CardPerk, PerkCadence } from './types';
 import { supabase } from './supabaseClient';
 import { normalizeCategory } from './transactionUtils';
 
 const EXPENSES_KEY = '@ExlExp:expenses';
 const CARDS_KEY = '@ExlExp:credit_cards';
 const FUTURE_EXPENSES_KEY = '@ExlExp:future_expenses';
+const CARD_PERKS_KEY = '@ExlExp:card_perks';
 
 
 
@@ -478,6 +479,132 @@ export const saveFutureExpenses = async (futureExpenses: FutureExpense[], userna
   }
 };
 
+const normalizeCardPerk = (raw: any): CardPerk => {
+  return {
+    id: String(raw.id || ''),
+    cardId: String(raw.cardId || raw.cardid || raw.card_id || ''),
+    name: String(raw.name || ''),
+    amount: Number(raw.amount) || 0,
+    cadence: (raw.cadence || 'monthly') as PerkCadence,
+    matchKeywords: raw.matchKeywords || raw.matchkeywords || raw.match_keywords || undefined,
+    manualRedeemedAmount:
+      raw.manualRedeemedAmount !== undefined && raw.manualRedeemedAmount !== null
+        ? Number(raw.manualRedeemedAmount)
+        : raw.manualredeemedamount !== undefined && raw.manualredeemedamount !== null
+        ? Number(raw.manualredeemedamount)
+        : raw.manual_redeemed_amount !== undefined && raw.manual_redeemed_amount !== null
+        ? Number(raw.manual_redeemed_amount)
+        : undefined,
+    notes: raw.notes || undefined,
+    username: raw.username || undefined,
+  };
+};
+
+export const getCardPerks = async (username: string): Promise<CardPerk[]> => {
+  if (username === 'local') {
+    try {
+      const data = await AsyncStorage.getItem('@ExlExp:local:card_perks');
+      const parsed = data ? JSON.parse(data) : [];
+      return Array.isArray(parsed) ? parsed.map(normalizeCardPerk) : [];
+    } catch (e) {
+      console.error('Error fetching local card perks:', e);
+      return [];
+    }
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('card_perks')
+      .select('*')
+      .eq('username', username);
+
+    if (error) throw error;
+    const list = data || [];
+    return list.map(normalizeCardPerk);
+  } catch (error) {
+    console.log('Supabase offline or table missing, using local AsyncStorage for card perks:', error);
+    try {
+      const data = await AsyncStorage.getItem(`@ExlExp:${username}:card_perks`);
+      const parsed = data ? JSON.parse(data) : [];
+      return Array.isArray(parsed) ? parsed.map(normalizeCardPerk) : [];
+    } catch (e) {
+      console.error('Error fetching card perks from AsyncStorage:', e);
+      return [];
+    }
+  }
+};
+
+export const saveCardPerks = async (perks: CardPerk[], username: string): Promise<void> => {
+  // Always save to local AsyncStorage
+  try {
+    await AsyncStorage.setItem(`@ExlExp:${username}:card_perks`, JSON.stringify(perks));
+  } catch (e) {
+    console.error('Error saving card perks to AsyncStorage:', e);
+  }
+
+  if (username === 'local') {
+    return;
+  }
+
+  try {
+    const { error: delError } = await supabase
+      .from('card_perks')
+      .delete()
+      .eq('username', username)
+      .neq('id', '');
+    if (delError) throw delError;
+
+    if (perks.length > 0) {
+      // 1. Primary insert attempt with camelCase
+      const mapped = perks.map(p => ({
+        id: p.id,
+        cardId: p.cardId,
+        name: p.name,
+        amount: p.amount,
+        cadence: p.cadence,
+        matchKeywords: p.matchKeywords || null,
+        manualRedeemedAmount: p.manualRedeemedAmount !== undefined && p.manualRedeemedAmount !== null ? p.manualRedeemedAmount : null,
+        notes: p.notes || null,
+        username,
+      }));
+      const { error: insError } = await supabase.from('card_perks').insert(mapped);
+      if (insError) {
+        console.warn('Supabase card_perks insert warning, retrying with snake_case fields:', insError);
+        // Fallback 1: snake_case / lowercase columns
+        const snakeMapped = perks.map(p => ({
+          id: p.id,
+          card_id: p.cardId,
+          name: p.name,
+          amount: p.amount,
+          cadence: p.cadence,
+          match_keywords: p.matchKeywords || null,
+          manual_redeemed_amount: p.manualRedeemedAmount !== undefined && p.manualRedeemedAmount !== null ? p.manualRedeemedAmount : null,
+          notes: p.notes || null,
+          username,
+        }));
+        const { error: snakeErr } = await supabase.from('card_perks').insert(snakeMapped);
+        if (snakeErr) {
+          console.warn('Supabase snake_case insert failed, retrying without manualRedeemedAmount column:', snakeErr);
+          // Fallback 2: without manualRedeemedAmount in case column not yet added
+          const noManualMapped = perks.map(p => ({
+            id: p.id,
+            cardId: p.cardId,
+            name: p.name,
+            amount: p.amount,
+            cadence: p.cadence,
+            matchKeywords: p.matchKeywords || null,
+            notes: p.notes || null,
+            username,
+          }));
+          await supabase.from('card_perks').insert(noManualMapped);
+        }
+      }
+    }
+  } catch (error) {
+    console.log('Supabase offline or table missing, could not sync card perks to cloud:', error);
+  }
+};
+
 export const updatePassword = async (
   username: string,
   currentPass: string,
@@ -555,11 +682,12 @@ export const updateUsername = async (
 
     if (insertErr) throw insertErr;
 
-    // 4. Update expenses, credit_cards, future_expenses to new username
+    // 4. Update expenses, credit_cards, future_expenses, card_perks to new username
     await Promise.all([
       supabase.from('expenses').update({ username: trimmedNew }).eq('username', trimmedOld),
       supabase.from('credit_cards').update({ username: trimmedNew }).eq('username', trimmedOld),
       supabase.from('future_expenses').update({ username: trimmedNew }).eq('username', trimmedOld),
+      supabase.from('card_perks').update({ username: trimmedNew }).eq('username', trimmedOld),
     ]);
 
     // 5. Delete old user entry
@@ -567,14 +695,16 @@ export const updateUsername = async (
 
     // 6. Migrate AsyncStorage local cache
     try {
-      const [exp, cards, future] = await Promise.all([
+      const [exp, cards, future, perks] = await Promise.all([
         AsyncStorage.getItem(`@ExlExp:${trimmedOld}:expenses`),
         AsyncStorage.getItem(`@ExlExp:${trimmedOld}:credit_cards`),
         AsyncStorage.getItem(`@ExlExp:${trimmedOld}:future_expenses`),
+        AsyncStorage.getItem(`@ExlExp:${trimmedOld}:card_perks`),
       ]);
       if (exp) await AsyncStorage.setItem(`@ExlExp:${trimmedNew}:expenses`, exp);
       if (cards) await AsyncStorage.setItem(`@ExlExp:${trimmedNew}:credit_cards`, cards);
       if (future) await AsyncStorage.setItem(`@ExlExp:${trimmedNew}:future_expenses`, future);
+      if (perks) await AsyncStorage.setItem(`@ExlExp:${trimmedNew}:card_perks`, perks);
       await AsyncStorage.setItem('@ExlExp:currentUser', trimmedNew);
     } catch (e) {
       console.warn('AsyncStorage migration error:', e);
@@ -632,13 +762,15 @@ export interface BackupData {
   expenses: Expense[];
   cards: CreditCard[];
   futureExpenses: FutureExpense[];
+  perks?: CardPerk[];
 }
 
 export const exportAllDataAsJSON = async (username: string): Promise<string> => {
-  const [expenses, cards, futureExpenses] = await Promise.all([
+  const [expenses, cards, futureExpenses, perks] = await Promise.all([
     getExpenses(username),
     getCreditCards(username),
     getFutureExpenses(username),
+    getCardPerks(username),
   ]);
 
   const backup: BackupData = {
@@ -648,6 +780,7 @@ export const exportAllDataAsJSON = async (username: string): Promise<string> => 
     expenses,
     cards,
     futureExpenses,
+    perks,
   };
 
   return JSON.stringify(backup, null, 2);
@@ -659,7 +792,7 @@ export const importAllDataFromJSON = async (
 ): Promise<{
   success: boolean;
   error?: string;
-  count?: { expenses: number; cards: number; futureExpenses: number };
+  count?: { expenses: number; cards: number; futureExpenses: number; perks: number };
 }> => {
   try {
     const data = JSON.parse(jsonString);
@@ -671,16 +804,22 @@ export const importAllDataFromJSON = async (
     const expenses: Expense[] = Array.isArray(data.expenses) ? data.expenses : [];
     const cards: CreditCard[] = Array.isArray(data.cards) ? data.cards : [];
     const futureExpenses: FutureExpense[] = Array.isArray(data.futureExpenses) ? data.futureExpenses : [];
+    const perks: CardPerk[] = Array.isArray(data.perks) ? data.perks : [];
 
-    if (expenses.length === 0 && cards.length === 0 && futureExpenses.length === 0) {
+    if (expenses.length === 0 && cards.length === 0 && futureExpenses.length === 0 && perks.length === 0) {
       return { success: false, error: 'No valid ExlExp data found in this file.' };
     }
 
-    await Promise.all([
+    const promises: Promise<any>[] = [
       saveExpenses(expenses, username),
       saveCreditCards(cards, username),
       saveFutureExpenses(futureExpenses, username),
-    ]);
+    ];
+    if (perks.length > 0) {
+      promises.push(saveCardPerks(perks, username));
+    }
+
+    await Promise.all(promises);
 
     return {
       success: true,
@@ -688,6 +827,7 @@ export const importAllDataFromJSON = async (
         expenses: expenses.length,
         cards: cards.length,
         futureExpenses: futureExpenses.length,
+        perks: perks.length,
       },
     };
   } catch (err: any) {
@@ -697,14 +837,15 @@ export const importAllDataFromJSON = async (
 
 export const migrateLocalDataToCloud = async (targetUsername: string): Promise<void> => {
   try {
-    const [localExpenses, localCards, localFuture] = await Promise.all([
+    const [localExpenses, localCards, localFuture, localPerks] = await Promise.all([
       getExpenses('local'),
       getCreditCards('local'),
       getFutureExpenses('local'),
+      getCardPerks('local'),
     ]);
 
     // Check if local has real data before uploading
-    const hasData = localExpenses.length > 0 || localCards.length > 0 || localFuture.length > 0;
+    const hasData = localExpenses.length > 0 || localCards.length > 0 || localFuture.length > 0 || localPerks.length > 0;
     if (!hasData) return;
 
     if (localCards.length > 0) {
@@ -715,6 +856,9 @@ export const migrateLocalDataToCloud = async (targetUsername: string): Promise<v
     }
     if (localFuture.length > 0) {
       await saveFutureExpenses(localFuture, targetUsername);
+    }
+    if (localPerks.length > 0) {
+      await saveCardPerks(localPerks, targetUsername);
     }
   } catch (err) {
     console.error('Failed to migrate local data to cloud:', err);

@@ -13,7 +13,7 @@ import {
   BackHandler,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { Expense, CreditCard, FutureExpense } from './src/types';
+import { Expense, CreditCard, FutureExpense, CardPerk } from './src/types';
 import {
   getExpenses,
   saveExpenses,
@@ -21,6 +21,8 @@ import {
   saveCreditCards,
   getFutureExpenses,
   saveFutureExpenses,
+  getCardPerks,
+  saveCardPerks,
   initializeLocalDefaults,
   migrateLocalDataToCloud,
   DEFAULT_LOCAL_CARDS,
@@ -31,6 +33,7 @@ import { CheckingTab } from './src/components/CheckingTab';
 import { CreditCardsTab, isClosedCard } from './src/components/CreditCardsTab';
 import { Settings } from './src/components/Settings';
 import { LoginScreen } from './src/components/LoginScreen';
+import { checkAndNotifyExpiringPerks } from './src/utils/notificationService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // @ts-ignore
@@ -96,6 +99,9 @@ function MainApp() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [cards, setCards] = useState<CreditCard[]>([]);
   const [futureExpenses, setFutureExpenses] = useState<FutureExpense[]>([]);
+  const [perks, setPerks] = useState<CardPerk[]>([]);
+  const [prefillDescription, setPrefillDescription] = useState<string>('');
+  const [prefillAmount, setPrefillAmount] = useState<number | undefined>(undefined);
   const [activeTab, setActiveTab] = useState<TabType>('dashboard');
   const [tabHistory, setTabHistory] = useState<TabType[]>(['dashboard']);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
@@ -126,9 +132,11 @@ function MainApp() {
     });
   };
 
-  const handleNavigateToAdd = (specificAccountId?: string) => {
+  const handleNavigateToAdd = (specificAccountId?: string, prefill?: { description?: string; amount?: number }) => {
     Keyboard.dismiss();
     setEditingExpense(null);
+    setPrefillDescription(prefill?.description || '');
+    setPrefillAmount(prefill?.amount);
     let targetAccId = specificAccountId;
     if (!targetAccId) {
       if (activeTab === 'checking' && selectedCheckingAccountId && selectedCheckingAccountId !== 'brokerage') {
@@ -211,10 +219,11 @@ function MainApp() {
   // Reload data helper
   const reloadUserData = async (username: string) => {
     try {
-      const [freshExpenses, freshCards, freshFutureExpenses] = await Promise.all([
+      const [freshExpenses, freshCards, freshFutureExpenses, freshPerks] = await Promise.all([
         getExpenses(username),
         getCreditCards(username),
         getFutureExpenses(username),
+        getCardPerks(username),
       ]);
       setExpenses(freshExpenses);
       if (freshCards.length === 0 && username === 'local') {
@@ -224,6 +233,7 @@ function MainApp() {
         setCards(freshCards);
       }
       setFutureExpenses(freshFutureExpenses);
+      setPerks(freshPerks);
     } catch (e) {
       console.error('Failed to reload data:', e);
     }
@@ -235,6 +245,7 @@ function MainApp() {
       setExpenses([]);
       setCards([]);
       setFutureExpenses([]);
+      setPerks([]);
       setLoading(false);
       return;
     }
@@ -246,15 +257,17 @@ function MainApp() {
       if (username === 'local') {
         try {
           await initializeLocalDefaults('local');
-          const [localExpenses, localCards, localFuture] = await Promise.all([
+          const [localExpenses, localCards, localFuture, localPerks] = await Promise.all([
             getExpenses('local'),
             getCreditCards('local'),
             getFutureExpenses('local'),
+            getCardPerks('local'),
           ]);
           setExpenses(localExpenses);
           const finalLocalCards = localCards.length > 0 ? localCards : DEFAULT_LOCAL_CARDS;
           setCards(finalLocalCards);
           setFutureExpenses(localFuture);
+          setPerks(localPerks);
 
           try {
             const savedAcc = await AsyncStorage.getItem('@ExlExp:lastLoggedAccountId');
@@ -282,23 +295,27 @@ function MainApp() {
       let cachedExpenses: Expense[] = [];
       let cachedCards: CreditCard[] = [];
       let cachedFutureExpenses: FutureExpense[] = [];
+      let cachedPerks: CardPerk[] = [];
       
       try {
-        const [expData, cardData, futureData] = await Promise.all([
+        const [expData, cardData, futureData, perksData] = await Promise.all([
           AsyncStorage.getItem(`@ExlExp:${username}:expenses`),
           AsyncStorage.getItem(`@ExlExp:${username}:credit_cards`),
           AsyncStorage.getItem(`@ExlExp:${username}:future_expenses`),
+          AsyncStorage.getItem(`@ExlExp:${username}:card_perks`),
         ]);
 
         if (expData) cachedExpenses = JSON.parse(expData);
         if (cardData) cachedCards = JSON.parse(cardData);
         if (futureData) cachedFutureExpenses = JSON.parse(futureData);
+        if (perksData) cachedPerks = JSON.parse(perksData);
 
         const hasNonEmptyCache = cachedExpenses.length > 0 || cachedCards.length > 0;
         if (hasNonEmptyCache) {
           setExpenses(cachedExpenses);
           setCards(cachedCards);
           setFutureExpenses(cachedFutureExpenses);
+          setPerks(cachedPerks);
           setLoading(false); // Render dashboard instantly only if real data was cached
         }
       } catch (cacheError) {
@@ -307,10 +324,11 @@ function MainApp() {
 
       // 3. Perform sync from Supabase with smooth delay to avoid 0's glance
       try {
-        const [freshExpenses, freshCards, freshFutureExpenses] = await Promise.all([
+        const [freshExpenses, freshCards, freshFutureExpenses, freshPerks] = await Promise.all([
           getExpenses(username),
           getCreditCards(username),
           getFutureExpenses(username),
+          getCardPerks(username),
           // Smooth minimum delay of 500ms so loading screen displays cleanly without abrupt flicker
           new Promise(resolve => setTimeout(resolve, 500)),
         ]);
@@ -318,6 +336,7 @@ function MainApp() {
         setExpenses(freshExpenses);
         setCards(freshCards);
         setFutureExpenses(freshFutureExpenses);
+        setPerks(freshPerks);
 
         try {
           const savedAcc = await AsyncStorage.getItem('@ExlExp:lastLoggedAccountId');
@@ -339,6 +358,7 @@ function MainApp() {
           AsyncStorage.setItem(`@ExlExp:${username}:expenses`, JSON.stringify(freshExpenses)),
           AsyncStorage.setItem(`@ExlExp:${username}:credit_cards`, JSON.stringify(freshCards)),
           AsyncStorage.setItem(`@ExlExp:${username}:future_expenses`, JSON.stringify(freshFutureExpenses)),
+          AsyncStorage.setItem(`@ExlExp:${username}:card_perks`, JSON.stringify(freshPerks)),
         ]);
       } catch (syncError) {
         console.error('Sync from Supabase failed:', syncError);
@@ -633,6 +653,39 @@ function MainApp() {
     await saveFutureExpenses(updated, currentUser!);
   };
 
+  const handlePerkAdd = async (newPerk: Omit<CardPerk, 'id'>) => {
+    const newId = 'perk-' + Math.random().toString(36).substr(2, 9) + Date.now().toString(36);
+    const updated: CardPerk[] = [
+      {
+        ...newPerk,
+        id: newId,
+        username: currentUser || undefined,
+      },
+      ...perks,
+    ];
+    setPerks(updated);
+    await saveCardPerks(updated, currentUser!);
+  };
+
+  const handlePerkUpdate = async (updatedPerk: CardPerk) => {
+    const updated = perks.map(p => (p.id === updatedPerk.id ? updatedPerk : p));
+    setPerks(updated);
+    await saveCardPerks(updated, currentUser!);
+  };
+
+  const handlePerkDelete = async (id: string) => {
+    const updated = perks.filter(p => p.id !== id);
+    setPerks(updated);
+    await saveCardPerks(updated, currentUser!);
+  };
+
+  // Check and notify for perks expiring in <= 5 days
+  useEffect(() => {
+    if (perks.length > 0 && cards.length > 0) {
+      checkAndNotifyExpiringPerks(perks, cards, expenses, { triggerInAppAlert: true });
+    }
+  }, [perks, cards, expenses]);
+
   const handleBrokerageBalanceUpdate = async (brokerageCardId: string, newBalance: number) => {
     // Check if there is an existing transaction for this brokerage card
     const existingIdx = expenses.findIndex(e => e.creditCardId === brokerageCardId);
@@ -691,6 +744,7 @@ function MainApp() {
       saveExpenses(expenses, currentUser),
       saveCreditCards(cards, currentUser),
       saveFutureExpenses(futureExpenses, currentUser),
+      saveCardPerks(perks, currentUser),
     ]);
   };
 
@@ -927,6 +981,10 @@ function MainApp() {
               onUpdateCard={handleCardUpdate}
               onNavigateToSettings={handleNavigateToSettings}
               onNavigateToAdd={handleNavigateToAdd}
+              perks={perks}
+              onAddPerk={handlePerkAdd}
+              onUpdatePerk={handlePerkUpdate}
+              onDeletePerk={handlePerkDelete}
             />
           </View>
         )}
@@ -957,13 +1015,23 @@ function MainApp() {
             <ExpenseForm
               cards={cards}
               expenses={expenses}
-              onSubmit={handleExpenseSubmit}
+              onSubmit={(data, targetId, stayInLog) => {
+                setPrefillDescription('');
+                setPrefillAmount(undefined);
+                handleExpenseSubmit(data, targetId, stayInLog);
+              }}
               editingExpense={editingExpense}
-              onCancelEditing={handleCancelEditing}
+              onCancelEditing={() => {
+                setPrefillDescription('');
+                setPrefillAmount(undefined);
+                handleCancelEditing();
+              }}
               onNavigateToSettings={() => navigateToTab('settings')}
               onUpdateCard={handleCardUpdate}
               onAddCard={handleCardAdd}
               defaultAccountId={activeAccountForAdd || lastLoggedAccountId}
+              prefillDescription={prefillDescription}
+              prefillAmount={prefillAmount}
             />
           </View>
         )}
