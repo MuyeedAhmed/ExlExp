@@ -179,3 +179,24 @@ export function formatCurrencyInput(rawText: string): string {
   if (isNaN(num) || num === 0) return '';
   return (num / 100).toFixed(2);
 }
+
+/**
+ * Normalizes legacy, misspelled, or alternative category names into clean standardized categories.
+ */
+export function normalizeCategory(cat?: string): string {
+  if (!cat) return 'Others';
+  const trimmed = cat.trim();
+  const lower = trimmed.toLowerCase();
+  if (lower === 'other' || lower === 'others') return 'Others';
+  if (lower === 'necessary others' || lower === 'necessary purchases' || lower === 'necessary') return 'Necessary Purchases';
+  if (lower === 'lux others' || lower === 'luxary purchases' || lower === 'luxury purchases' || lower === 'luxury') return 'Luxury Purchases';
+  if (lower === 'utilities (inc. wifi)' || lower === 'utilities (inc. wifi/bill)' || lower === 'utility' || lower === 'utilities') return 'Utilities';
+  if (lower === 'transportation (gas/toll)' || lower === 'transport' || lower === 'transportation') return 'Transportation';
+  if (lower === 'eating out' || lower === 'food' || lower === 'dining' || lower === 'restaurant') return 'Eating Out';
+  if (lower === 'grocery' || lower === 'groceries' || lower === 'grocery / food') return 'Grocery';
+  if (lower === 'car payment') return 'Car Payment';
+  if (lower === 'rent' || lower === 'housing') return 'Rent';
+  if (lower === 'salary' || lower === 'income') return 'Salary';
+  if (lower === 'transfer') return 'Transfer';
+  return trimmed;
+}

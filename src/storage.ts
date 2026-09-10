@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Expense, CreditCard, FutureExpense } from './types';
 import { supabase } from './supabaseClient';
+import { normalizeCategory } from './transactionUtils';
 
 const EXPENSES_KEY = '@ExlExp:expenses';
 const CARDS_KEY = '@ExlExp:credit_cards';
@@ -16,8 +17,9 @@ export const getExpenses = async (username: string): Promise<Expense[]> => {
     try {
       const data = await AsyncStorage.getItem(`@ExlExp:local:expenses`);
       const parsed: Expense[] = data ? JSON.parse(data) : [];
-      inMemoryExpensesByUser['local'] = parsed;
-      return parsed;
+      const normalized = parsed.map(e => ({ ...e, category: normalizeCategory(e.category) }));
+      inMemoryExpensesByUser['local'] = normalized;
+      return normalized;
     } catch (e) {
       console.error('Error fetching local expenses:', e);
       return [];
@@ -51,16 +53,22 @@ export const getExpenses = async (username: string): Promise<Expense[]> => {
     }
 
     const mappedResult = allExpenses.map(e => {
+      let desc = e.description;
+      let fromTo = e.fromTo;
+      let details = e.details;
       if (e.description && e.description.includes(' // ')) {
         const parts = e.description.split(' // ');
-        return {
-          ...e,
-          description: parts[0],
-          fromTo: parts[0],
-          details: parts[1] || ''
-        };
+        desc = parts[0];
+        fromTo = parts[0];
+        details = parts[1] || '';
       }
-      return e;
+      return {
+        ...e,
+        description: desc,
+        fromTo: fromTo,
+        details: details,
+        category: normalizeCategory(e.category),
+      };
     });
 
     inMemoryExpensesByUser[username] = mappedResult;
@@ -70,8 +78,9 @@ export const getExpenses = async (username: string): Promise<Expense[]> => {
     try {
       const data = await AsyncStorage.getItem(`@ExlExp:${username}:expenses`);
       const parsed: Expense[] = data ? JSON.parse(data) : [];
-      inMemoryExpensesByUser[username] = parsed;
-      return parsed;
+      const normalized = parsed.map(e => ({ ...e, category: normalizeCategory(e.category) }));
+      inMemoryExpensesByUser[username] = normalized;
+      return normalized;
     } catch (e) {
       console.error('Error fetching expenses from AsyncStorage:', e);
       return [];
@@ -108,7 +117,7 @@ export const saveExpenses = async (expenses: Expense[], username: string): Promi
       return {
         ...rest,
         description: desc,
-        category: e.isTransfer ? 'Transfer' : (e.category || 'Others'),
+        category: e.isTransfer ? 'Transfer' : normalizeCategory(e.category),
         username: username
       };
     };

@@ -15,7 +15,7 @@ import Svg, { Circle } from 'react-native-svg';
 import { Expense, CreditCard, FutureExpense } from '../types';
 import { AllTransactionsPage } from './AllTransactionsPage';
 import { ScheduledBillModal } from './ScheduledBillModal';
-import { consolidateTransactions, formatCurrencyInput } from '../transactionUtils';
+import { consolidateTransactions, formatCurrencyInput, normalizeCategory } from '../transactionUtils';
 
 const formatCurrency = (val: number): string => {
   if (Math.abs(val) < 0.005) return '0.00';
@@ -38,41 +38,17 @@ const formatShortK = (val: number): string => {
 };
 
 const CATEGORY_COLORS: { [key: string]: string } = {
-  rent: '#6366f1', // Indigo
-  housing: '#6366f1',
-  utilities: '#0284c7', // Sky Blue
-  utility: '#0284c7',
-  'car payment': '#8b5cf6', // Purple
-  transportation: '#8b5cf6', // Violet
-  transport: '#8b5cf6',
-  gas: '#ec4899',
-  grocery: '#10b981', // Emerald Green
-  groceries: '#10b981',
-  'grocery / food': '#10b981',
-  food: '#f59e0b', // Amber
-  'eating out': '#f59e0b', // Amber
-  dining: '#f59e0b',
-  restaurant: '#f59e0b',
-  'necessary purchases': '#14b8a6', // Teal
-  necessary: '#14b8a6',
-  'luxary purchases': '#ec4899', // Pink
+  rent: '#e45023',                 
+  utilities: '#0284c7',
+  'car payment': '#000000',
+  transportation: '#06b6d4',
+  grocery: '#07802b',
+  'eating out': '#f59e0b',
+  'necessary purchases': '#14b8a6',
   'luxury purchases': '#ec4899',
-  luxury: '#ec4899',
-  shopping: '#ec4899',
-  bills: '#0284c7',
-  entertainment: '#f97316', // Orange
-  subscriptions: '#a855f7', // Purple
-  subscription: '#a855f7',
-  health: '#ef4444', // Red
-  healthcare: '#ef4444',
-  medical: '#ef4444',
-  travel: '#06b6d4', // Cyan
-  personal: '#14b8a6',
-  fee: '#b45309', // Amber Brown
-  'annual fee': '#b45309',
-  fees: '#b45309',
-  others: '#64748b', // Slate Gray
-  other: '#64748b',
+  others: '#64748b',
+  salary: '#22c55e',
+  transfer: '#94a3b8',
 };
 
 const PALETTE = [
@@ -93,6 +69,8 @@ const PALETTE = [
 
 const getCategoryColor = (name: string): string => {
   if (!name) return '#64748b';
+  const key = name.trim().toLowerCase();
+  if (CATEGORY_COLORS[key]) return CATEGORY_COLORS[key];
   if (CATEGORY_COLORS[name]) return CATEGORY_COLORS[name];
   let hash = 0;
   for (let i = 0; i < name.length; i++) {
@@ -289,7 +267,7 @@ export const Dashboard: React.FC<DashboardProps> = React.memo(({
       if (spendAmt !== 0) {
         monthSpendMap.set(monthKey, (monthSpendMap.get(monthKey) || 0) + spendAmt);
         const catMap = monthCategoryMap.get(monthKey)!;
-        const cat = e.category || 'Others';
+        const cat = normalizeCategory(e.category);
         catMap[cat] = (catMap[cat] || 0) + spendAmt;
       }
     }

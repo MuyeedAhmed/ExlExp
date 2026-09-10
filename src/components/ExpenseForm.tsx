@@ -215,7 +215,7 @@ const CATEGORIES = [
   'Grocery',
   'Eating Out',
   'Necessary Purchases',
-  'Luxary Purchases',
+  'Luxury Purchases',
   'Others',
   'Salary',
   'Transfer'
