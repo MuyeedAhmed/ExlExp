@@ -8,6 +8,9 @@ import {
   ScrollView,
   Alert,
   Platform,
+  Modal,
+  KeyboardAvoidingView,
+  TouchableWithoutFeedback,
 } from 'react-native';
 import { CreditCard } from '../../types';
 
@@ -22,6 +25,8 @@ interface AccountsPageProps {
   onBack: () => void;
 }
 
+type AccountTypeOption = 'checking' | 'saving' | 'brokerage' | 'credit';
+
 const getAccountIcon = (card: CreditCard) => {
   if (card.isSaving) return '💰';
   if (card.isBrokerage) return '📈';
@@ -34,6 +39,36 @@ const getAccountTypeLabel = (card: CreditCard) => {
   if (card.isBrokerage) return 'Brokerage';
   if (card.isChecking) return 'Checking';
   return 'Credit Card';
+};
+
+const getCardType = (card: CreditCard): AccountTypeOption => {
+  if (card.isSaving) return 'saving';
+  if (card.isBrokerage) return 'brokerage';
+  if (card.isChecking) return 'checking';
+  return 'credit';
+};
+
+const MONTH_NAMES = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December'
+];
+
+const DAYS_OF_WEEK = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
+
+const webDateInputStyle: React.CSSProperties = {
+  width: '100%',
+  borderWidth: '1px',
+  borderStyle: 'solid',
+  borderColor: '#cbd5e1',
+  borderRadius: '8px',
+  padding: '10px 14px',
+  fontSize: '14px',
+  color: '#0f172a',
+  backgroundColor: '#ffffff',
+  fontFamily: 'inherit',
+  outline: 'none',
+  boxSizing: 'border-box',
+  cursor: 'pointer',
 };
 
 export const AccountsPage: React.FC<AccountsPageProps> = ({
@@ -50,37 +85,111 @@ export const AccountsPage: React.FC<AccountsPageProps> = ({
 
   const [activeFilter, setActiveFilter] = useState<'all' | 'deposit' | 'credit'>('all');
 
-  // Editing state
-  const [editingCardId, setEditingCardId] = useState<string | null>(null);
-  const [editingCardName, setEditingCardName] = useState<string>('');
-  const [editingCardOpenDate, setEditingCardOpenDate] = useState<string>(todayStr);
-  const [editingCardLast4, setEditingCardLast4] = useState<string>('0000');
+  // Modal Editing State
+  const [editingCard, setEditingCard] = useState<CreditCard | null>(null);
+  const [editName, setEditName] = useState<string>('');
+  const [editType, setEditType] = useState<AccountTypeOption>('checking');
+  const [editOpenDate, setEditOpenDate] = useState<string>(todayStr);
+  const [editLast4, setEditLast4] = useState<string>('0000');
+  const [editIsHidden, setEditIsHidden] = useState<boolean>(false);
 
-  const handleStartRename = (card: CreditCard) => {
-    setEditingCardId(card.id);
-    setEditingCardName(card.name);
-    setEditingCardOpenDate(card.openDate || todayStr);
-    setEditingCardLast4(card.last4 || '0000');
+  // Calendar Date Picker Modal State
+  const [datePickerVisible, setDatePickerVisible] = useState<boolean>(false);
+  const [calendarYear, setCalendarYear] = useState<number>(() => new Date().getFullYear());
+  const [calendarMonth, setCalendarMonth] = useState<number>(() => new Date().getMonth());
+
+  const handleOpenEditModal = (card: CreditCard) => {
+    setEditingCard(card);
+    setEditName(card.name);
+    setEditType(getCardType(card));
+    const cardDate = card.openDate || todayStr;
+    setEditOpenDate(cardDate);
+    setEditLast4(card.last4 || '0000');
+    setEditIsHidden(!!card.isHidden);
+
+    if (/^\d{4}-\d{2}-\d{2}$/.test(cardDate)) {
+      const parts = cardDate.split('-').map(Number);
+      if (parts.length === 3 && !isNaN(parts[0]) && !isNaN(parts[1])) {
+        setCalendarYear(parts[0]);
+        setCalendarMonth(parts[1] - 1);
+      }
+    } else {
+      const now = new Date();
+      setCalendarYear(now.getFullYear());
+      setCalendarMonth(now.getMonth());
+    }
   };
 
-  const handleSaveRename = (id: string) => {
-    if (!editingCardName.trim()) {
+  const handleSaveEdit = () => {
+    if (!editingCard) return;
+    const trimmedName = editName.trim();
+    if (!trimmedName) {
       showAlert('Error', 'Account/card name cannot be empty.');
       return;
     }
-    const card = cards.find(c => c.id === id);
-    const cleanedLast4 = editingCardLast4.replace(/\D/g, '').slice(0, 4) || '0000';
-    if (card && onUpdateCard) {
-      onUpdateCard({
-        ...card,
-        name: editingCardName.trim(),
-        openDate: editingCardOpenDate || card.openDate || todayStr,
-        last4: cleanedLast4,
-      });
+
+    const cleanedLast4 = editLast4.replace(/\D/g, '').slice(0, 4) || '0000';
+    const isCredit = editType === 'credit';
+    const finalOpenDate = isCredit ? (editOpenDate.trim() || todayStr) : editingCard.openDate;
+
+    const updatedCard: CreditCard = {
+      ...editingCard,
+      name: trimmedName,
+      isChecking: editType === 'checking',
+      isSaving: editType === 'saving',
+      isBrokerage: editType === 'brokerage',
+      last4: cleanedLast4,
+      openDate: finalOpenDate,
+      isHidden: editIsHidden,
+    };
+
+    if (onUpdateCard) {
+      onUpdateCard(updatedCard);
     } else {
-      onRenameCard(id, editingCardName.trim());
+      onRenameCard(editingCard.id, trimmedName);
     }
-    setEditingCardId(null);
+
+    setEditingCard(null);
+    setDatePickerVisible(false);
+  };
+
+  const getCalendarDays = () => {
+    const daysInMonth = new Date(calendarYear, calendarMonth + 1, 0).getDate();
+    const firstDayIndex = new Date(calendarYear, calendarMonth, 1).getDay();
+    const days: (number | null)[] = [];
+    for (let i = 0; i < firstDayIndex; i++) {
+      days.push(null);
+    }
+    for (let d = 1; d <= daysInMonth; d++) {
+      days.push(d);
+    }
+    return days;
+  };
+
+  const handlePrevMonth = () => {
+    if (calendarMonth === 0) {
+      setCalendarMonth(11);
+      setCalendarYear(calendarYear - 1);
+    } else {
+      setCalendarMonth(calendarMonth - 1);
+    }
+  };
+
+  const handleNextMonth = () => {
+    if (calendarMonth === 11) {
+      setCalendarMonth(0);
+      setCalendarYear(calendarYear + 1);
+    } else {
+      setCalendarMonth(calendarMonth + 1);
+    }
+  };
+
+  const handleSelectDay = (day: number) => {
+    const formattedM = (calendarMonth + 1) < 10 ? `0${calendarMonth + 1}` : `${calendarMonth + 1}`;
+    const formattedD = day < 10 ? `0${day}` : `${day}`;
+    const formatted = `${calendarYear}-${formattedM}-${formattedD}`;
+    setEditOpenDate(formatted);
+    setDatePickerVisible(false);
   };
 
   const confirmDeleteCard = (id: string, name: string) => {
@@ -237,125 +346,70 @@ export const AccountsPage: React.FC<AccountsPageProps> = ({
                     </TouchableOpacity>
                   </View>
 
-                  {/* Account Information & Inline Editing */}
-                  <View style={styles.listItemTextContainer}>
-                    {editingCardId === card.id ? (
-                      <View style={styles.editingContainer}>
-                        <TextInput
-                          style={styles.editInput}
-                          value={editingCardName}
-                          onChangeText={setEditingCardName}
-                          placeholder="Account Name"
-                          placeholderTextColor="#94a3b8"
-                          autoFocus
-                        />
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 }}>
-                          <Text style={{ fontSize: 11, color: '#64748b', fontWeight: '600' }}>Last 4:</Text>
-                          <TextInput
-                            style={[styles.editInput, { width: 65, textAlign: 'center', height: 32, paddingVertical: 2 }]}
-                            value={editingCardLast4}
-                            onChangeText={setEditingCardLast4}
-                            placeholder="0000"
-                            placeholderTextColor="#94a3b8"
-                            maxLength={4}
-                            keyboardType="number-pad"
-                          />
-                          {isCredit && (
-                            <TextInput
-                              style={[styles.editInput, styles.dateEditInput, { flex: 1, height: 32, paddingVertical: 2 }]}
-                              value={editingCardOpenDate}
-                              onChangeText={setEditingCardOpenDate}
-                              placeholder="YYYY-MM-DD"
-                              placeholderTextColor="#94a3b8"
-                            />
-                          )}
-                        </View>
-                      </View>
-                    ) : (
-                      <View style={styles.cardItemRow}>
-                        <Text style={styles.cardEmojiIcon}>{getAccountIcon(card)}</Text>
-                        <View style={styles.cardItemInfo}>
-                          <View style={styles.cardTitleRow}>
-                            <Text
-                              style={[
-                                styles.listItemTitle,
-                                card.isHidden && styles.hiddenCardTitle,
-                              ]}
-                            >
-                              {card.name}
+                  {/* Account Information */}
+                  <TouchableOpacity
+                    style={styles.listItemTextContainer}
+                    onPress={() => handleOpenEditModal(card)}
+                    activeOpacity={0.7}
+                  >
+                    <View style={styles.cardItemRow}>
+                      <Text style={styles.cardEmojiIcon}>{getAccountIcon(card)}</Text>
+                      <View style={styles.cardItemInfo}>
+                        <View style={styles.cardTitleRow}>
+                          <Text
+                            style={[
+                              styles.listItemTitle,
+                              card.isHidden && styles.hiddenCardTitle,
+                            ]}
+                            numberOfLines={1}
+                            ellipsizeMode="tail"
+                          >
+                            {card.name}
+                          </Text>
+                          <View style={styles.typeBadge}>
+                            <Text style={styles.typeBadgeText}>
+                              •••• {card.last4 || '0000'}
                             </Text>
-                            <View style={styles.typeBadge}>
-                              <Text style={styles.typeBadgeText}>
-                                {getAccountTypeLabel(card)}
-                              </Text>
-                            </View>
-                            <View style={[styles.typeBadge, { backgroundColor: '#f1f5f9' }]}>
-                              <Text style={[styles.typeBadgeText, { color: '#475569', fontWeight: '600' }]}>
-                                •••• {card.last4 || '0000'}
-                              </Text>
-                            </View>
-                            {card.isHidden && (
-                              <View style={styles.hiddenTagBadge}>
-                                <Text style={styles.hiddenTagText}>Hidden</Text>
-                              </View>
-                            )}
                           </View>
-
-                          {isCredit && (
-                            <Text style={styles.listItemSub}>
-                              Opened: {card.openDate || 'Not set'}
-                            </Text>
+                          {card.isHidden && (
+                            <View style={styles.hiddenTagBadge}>
+                              <Text style={styles.hiddenTagText}>Hidden</Text>
+                            </View>
                           )}
                         </View>
+
+                        <Text style={styles.listItemSub}>
+                          {getAccountTypeLabel(card)}
+                          {isCredit && card.openDate ? ` • Opened: ${card.openDate}` : ''}
+                        </Text>
                       </View>
-                    )}
-                  </View>
+                    </View>
+                  </TouchableOpacity>
 
                   {/* Action Buttons */}
                   <View style={styles.actionButtonsRow}>
-                    {editingCardId === card.id ? (
-                      <>
-                        <TouchableOpacity
-                          style={styles.saveEditBtn}
-                          onPress={() => handleSaveRename(card.id)}
-                          accessibilityLabel="Save"
-                        >
-                          <Text style={styles.saveEditBtnText}>💾</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                          style={styles.cancelEditBtn}
-                          onPress={() => setEditingCardId(null)}
-                          accessibilityLabel="Cancel"
-                        >
-                          <Text style={styles.cancelEditBtnText}>❌</Text>
-                        </TouchableOpacity>
-                      </>
-                    ) : (
-                      <>
-                        <TouchableOpacity
-                          style={styles.hideButton}
-                          onPress={() => onToggleCardVisibility(card.id)}
-                        >
-                          <Text style={styles.hideButtonText}>
-                            {card.isHidden ? 'Show' : 'Hide'}
-                          </Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                          style={styles.editIconButton}
-                          onPress={() => handleStartRename(card)}
-                          accessibilityLabel="Edit"
-                        >
-                          <Text style={styles.editIconText}>✏️</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                          style={styles.deleteIconButton}
-                          onPress={() => confirmDeleteCard(card.id, card.name)}
-                          accessibilityLabel="Remove"
-                        >
-                          <Text style={styles.deleteIconText}>🗑️</Text>
-                        </TouchableOpacity>
-                      </>
-                    )}
+                    <TouchableOpacity
+                      style={styles.hideButton}
+                      onPress={() => onToggleCardVisibility(card.id)}
+                    >
+                      <Text style={styles.hideButtonText}>
+                        {card.isHidden ? 'Show' : 'Hide'}
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.editIconButton}
+                      onPress={() => handleOpenEditModal(card)}
+                      accessibilityLabel="Edit"
+                    >
+                      <Text style={styles.editIconText}>✏️</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.deleteIconButton}
+                      onPress={() => confirmDeleteCard(card.id, card.name)}
+                      accessibilityLabel="Remove"
+                    >
+                      <Text style={styles.deleteIconText}>🗑️</Text>
+                    </TouchableOpacity>
                   </View>
                 </View>
               );
@@ -363,6 +417,321 @@ export const AccountsPage: React.FC<AccountsPageProps> = ({
           </View>
         )}
       </View>
+
+      {/* Edit Account Popup Modal */}
+      <Modal
+        visible={!!editingCard}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setEditingCard(null)}
+      >
+        <KeyboardAvoidingView
+          style={styles.modalOverlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
+          <TouchableWithoutFeedback onPress={() => setEditingCard(null)}>
+            <View style={StyleSheet.absoluteFill} />
+          </TouchableWithoutFeedback>
+
+          <View style={styles.modalContainer}>
+            {/* Modal Header */}
+            <View style={styles.modalHeader}>
+              <View style={styles.modalHeaderTitleRow}>
+                <Text style={styles.modalIcon}>
+                  {editType === 'checking'
+                    ? '🏛️'
+                    : editType === 'saving'
+                    ? '💰'
+                    : editType === 'brokerage'
+                    ? '📈'
+                    : '💳'}
+                </Text>
+                <View>
+                  <Text style={styles.modalTitle}>
+                    {editType === 'credit' ? 'Edit Credit Card' : 'Edit Account'}
+                  </Text>
+                  <Text style={styles.modalSubtitle}>Update details, type, and preferences</Text>
+                </View>
+              </View>
+              <TouchableOpacity
+                style={styles.modalCloseBtn}
+                onPress={() => setEditingCard(null)}
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+              >
+                <Text style={styles.modalCloseBtnText}>✕</Text>
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView
+              style={styles.modalScrollView}
+              contentContainerStyle={styles.modalScrollContent}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+            >
+              {/* 1. Account Type Selector */}
+              <View style={styles.formGroup}>
+                <Text style={styles.fieldLabel}>Account Type</Text>
+                <View style={styles.typeGrid}>
+                  <TouchableOpacity
+                    style={[styles.typeCard, editType === 'checking' && styles.selectedTypeCard]}
+                    onPress={() => setEditType('checking')}
+                  >
+                    <Text style={styles.typeCardIcon}>🏛️</Text>
+                    <View style={styles.typeCardTextWrap}>
+                      <Text style={[styles.typeCardTitle, editType === 'checking' && styles.selectedTypeCardTitle]}>
+                        Checking
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[styles.typeCard, editType === 'saving' && styles.selectedTypeCard]}
+                    onPress={() => setEditType('saving')}
+                  >
+                    <Text style={styles.typeCardIcon}>💰</Text>
+                    <View style={styles.typeCardTextWrap}>
+                      <Text style={[styles.typeCardTitle, editType === 'saving' && styles.selectedTypeCardTitle]}>
+                        Savings
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[styles.typeCard, editType === 'brokerage' && styles.selectedTypeCard]}
+                    onPress={() => setEditType('brokerage')}
+                  >
+                    <Text style={styles.typeCardIcon}>📈</Text>
+                    <View style={styles.typeCardTextWrap}>
+                      <Text style={[styles.typeCardTitle, editType === 'brokerage' && styles.selectedTypeCardTitle]}>
+                        Brokerage
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[styles.typeCard, editType === 'credit' && styles.selectedTypeCard]}
+                    onPress={() => setEditType('credit')}
+                  >
+                    <Text style={styles.typeCardIcon}>💳</Text>
+                    <View style={styles.typeCardTextWrap}>
+                      <Text style={[styles.typeCardTitle, editType === 'credit' && styles.selectedTypeCardTitle]}>
+                        Credit Card
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              {/* 2. Account Name Input */}
+              <View style={styles.formGroup}>
+                <Text style={styles.fieldLabel}>
+                  {editType === 'credit' ? 'Credit Card Name' : 'Account Name'}
+                </Text>
+                <TextInput
+                  style={styles.fullWidthInput}
+                  value={editName}
+                  onChangeText={setEditName}
+                  placeholder="e.g. Chase Sapphire Preferred"
+                  placeholderTextColor="#94a3b8"
+                  autoFocus
+                />
+              </View>
+
+              {/* 3. Last 4 Digits */}
+              <View style={styles.formGroup}>
+                <Text style={styles.fieldLabel}>Card / Account Last 4 Digits</Text>
+                <View style={styles.last4Row}>
+                  <Text style={styles.last4Prefix}>••••</Text>
+                  <TextInput
+                    style={[styles.fullWidthInput, styles.last4Input]}
+                    value={editLast4}
+                    onChangeText={setEditLast4}
+                    placeholder="0000"
+                    placeholderTextColor="#94a3b8"
+                    maxLength={4}
+                    keyboardType="number-pad"
+                  />
+                </View>
+                <Text style={styles.helperText}>Used for receipt scanning & automatic account matching.</Text>
+              </View>
+
+              {/* 4. Opening Date (shown for Credit Cards) */}
+              {editType === 'credit' && (
+                <View style={styles.formGroup}>
+                  <Text style={styles.fieldLabel}>Card Opening Date</Text>
+                  {Platform.OS === 'web' ? (
+                    <View style={styles.webDateContainer}>
+                      <input
+                        type="date"
+                        value={editOpenDate}
+                        onChange={(e) => setEditOpenDate(e.target.value)}
+                        style={webDateInputStyle}
+                      />
+                    </View>
+                  ) : (
+                    <TouchableOpacity
+                      style={styles.datePickerBtn}
+                      onPress={() => setDatePickerVisible(true)}
+                    >
+                      <Text style={styles.datePickerBtnIcon}>📅</Text>
+                      <Text style={styles.datePickerBtnText}>{editOpenDate || 'Select Date'}</Text>
+                    </TouchableOpacity>
+                  )}
+                  <Text style={styles.helperText}>
+                    Used to calculate account age on the credit cards overview.
+                  </Text>
+                </View>
+              )}
+
+              {/* 5. Visibility Toggle */}
+              <View style={styles.toggleRow}>
+                <View style={styles.toggleTextCol}>
+                  <Text style={styles.toggleTitle}>Hide from Transaction Logs</Text>
+                  <Text style={styles.toggleDesc}>
+                    Hidden accounts are excluded from everyday dropdowns.
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  style={[styles.switchTrack, editIsHidden && styles.switchTrackActive]}
+                  onPress={() => setEditIsHidden(!editIsHidden)}
+                  activeOpacity={0.8}
+                >
+                  <View style={[styles.switchThumb, editIsHidden && styles.switchThumbActive]} />
+                </TouchableOpacity>
+              </View>
+
+              {/* 6. Action Buttons */}
+              <View style={styles.modalActions}>
+                <TouchableOpacity style={styles.saveBtn} onPress={handleSaveEdit}>
+                  <Text style={styles.saveBtnText}>Save Changes</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity style={styles.cancelBtn} onPress={() => setEditingCard(null)}>
+                  <Text style={styles.cancelBtnText}>Cancel</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.deleteAccountBtn}
+                  onPress={() => {
+                    if (!editingCard) return;
+                    const idToDelete = editingCard.id;
+                    const nameToDelete = editingCard.name;
+                    setEditingCard(null);
+                    confirmDeleteCard(idToDelete, nameToDelete);
+                  }}
+                >
+                  <Text style={styles.deleteAccountBtnText}>🗑️ Remove Account</Text>
+                </TouchableOpacity>
+              </View>
+            </ScrollView>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      {/* Calendar Date Picker Modal (for Mobile and Web fallback) */}
+      <Modal
+        visible={datePickerVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setDatePickerVisible(false)}
+      >
+        <View style={styles.datePickerOverlay}>
+          <TouchableWithoutFeedback onPress={() => setDatePickerVisible(false)}>
+            <View style={StyleSheet.absoluteFill} />
+          </TouchableWithoutFeedback>
+
+          <View style={styles.calendarModalCard}>
+            {/* Calendar Header */}
+            <View style={styles.calendarModalHeader}>
+              <Text style={styles.calendarModalTitle}>Select Opening Date</Text>
+              <TouchableOpacity
+                style={styles.calendarCloseBtn}
+                onPress={() => setDatePickerVisible(false)}
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+              >
+                <Text style={styles.calendarCloseText}>✕</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Month & Year Navigation */}
+            <View style={styles.calendarNavRow}>
+              <TouchableOpacity onPress={handlePrevMonth} style={styles.calendarNavBtn}>
+                <Text style={styles.calendarNavBtnText}>◀</Text>
+              </TouchableOpacity>
+              <Text style={styles.calendarMonthTitle}>
+                {MONTH_NAMES[calendarMonth]} {calendarYear}
+              </Text>
+              <TouchableOpacity onPress={handleNextMonth} style={styles.calendarNavBtn}>
+                <Text style={styles.calendarNavBtnText}>▶</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Days of week */}
+            <View style={styles.calendarWeekRow}>
+              {DAYS_OF_WEEK.map(d => (
+                <View key={d} style={styles.calendarWeekCell}>
+                  <Text style={styles.calendarWeekText}>{d}</Text>
+                </View>
+              ))}
+            </View>
+
+            {/* Days grid */}
+            <View style={styles.calendarDaysGrid}>
+              {getCalendarDays().map((day, idx) => {
+                if (day === null) {
+                  return <View key={`empty-${idx}`} style={styles.calendarEmptyCell} />;
+                }
+                const formattedM = (calendarMonth + 1) < 10 ? `0${calendarMonth + 1}` : `${calendarMonth + 1}`;
+                const formattedD = day < 10 ? `0${day}` : `${day}`;
+                const dayStr = `${calendarYear}-${formattedM}-${formattedD}`;
+                const isSelected = editOpenDate === dayStr;
+                const isToday = todayStr === dayStr;
+
+                return (
+                  <TouchableOpacity
+                    key={`day-${day}`}
+                    style={[
+                      styles.calendarDayCell,
+                      isSelected && styles.calendarSelectedDayCell,
+                      isToday && !isSelected && styles.calendarTodayCell,
+                    ]}
+                    onPress={() => handleSelectDay(day)}
+                  >
+                    <Text
+                      style={[
+                        styles.calendarDayText,
+                        isSelected && styles.calendarSelectedDayText,
+                        isToday && !isSelected && styles.calendarTodayText,
+                      ]}
+                    >
+                      {day}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            {/* Calendar Quick Actions */}
+            <View style={styles.calendarActionsRow}>
+              <TouchableOpacity
+                style={styles.calendarTodayBtn}
+                onPress={() => {
+                  setEditOpenDate(todayStr);
+                  setDatePickerVisible(false);
+                }}
+              >
+                <Text style={styles.calendarTodayBtnText}>Set to Today</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.calendarDoneBtn}
+                onPress={() => setDatePickerVisible(false)}
+              >
+                <Text style={styles.calendarDoneBtnText}>Done</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 };
@@ -600,37 +969,13 @@ const styles = StyleSheet.create({
     gap: 6,
     flexShrink: 0,
   },
-  saveEditBtn: {
-    backgroundColor: '#0f172a',
-    borderRadius: 6,
-    width: 30,
-    height: 30,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  saveEditBtnText: {
-    fontSize: 13,
-  },
-  cancelEditBtn: {
-    backgroundColor: '#f1f5f9',
-    borderWidth: 1,
-    borderColor: '#cbd5e1',
-    borderRadius: 6,
-    width: 30,
-    height: 30,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  cancelEditBtnText: {
-    fontSize: 11,
-  },
   deleteIconButton: {
     backgroundColor: '#fee2e2',
     borderWidth: 1,
     borderColor: '#fca5a5',
     borderRadius: 6,
-    width: 30,
-    height: 30,
+    width: 32,
+    height: 32,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -642,8 +987,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#cbd5e1',
     borderRadius: 6,
-    width: 30,
-    height: 30,
+    width: 32,
+    height: 32,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -655,8 +1000,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#e2e8f0',
     borderRadius: 6,
-    paddingVertical: 5,
-    paddingHorizontal: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 9,
   },
   hideButtonText: {
     color: '#64748b',
@@ -678,27 +1023,6 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: '#94a3b8',
     fontWeight: 'bold',
-  },
-  editingContainer: {
-    flexDirection: 'row',
-    gap: 6,
-    flexWrap: 'wrap',
-    flex: 1,
-  },
-  editInput: {
-    flex: 2,
-    height: 32,
-    borderWidth: 1,
-    borderColor: '#0f172a',
-    borderRadius: 4,
-    paddingHorizontal: 8,
-    fontSize: 13,
-    color: '#0f172a',
-    minWidth: 110,
-  },
-  dateEditInput: {
-    flex: 1,
-    minWidth: 95,
   },
   emptyState: {
     paddingVertical: 32,
@@ -724,5 +1048,412 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 12,
     fontWeight: '700',
+  },
+
+  /* Edit Modal Styles */
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(15, 23, 42, 0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 16,
+  },
+  modalContainer: {
+    width: '100%',
+    maxWidth: 480,
+    maxHeight: '90%',
+    backgroundColor: '#ffffff',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.15,
+    shadowRadius: 16,
+    elevation: 10,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 18,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f9',
+    backgroundColor: '#f8fafc',
+  },
+  modalHeaderTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  modalIcon: {
+    fontSize: 22,
+  },
+  modalTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#0f172a',
+  },
+  modalSubtitle: {
+    fontSize: 11,
+    color: '#64748b',
+    marginTop: 1,
+  },
+  modalCloseBtn: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: '#e2e8f0',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalCloseBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#475569',
+  },
+  modalScrollView: {
+    flexGrow: 0,
+  },
+  modalScrollContent: {
+    padding: 18,
+    gap: 16,
+  },
+  formGroup: {
+    gap: 6,
+  },
+  fieldLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#475569',
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+  },
+  fullWidthInput: {
+    width: '100%',
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 14,
+    color: '#0f172a',
+    backgroundColor: '#ffffff',
+  },
+  last4Row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  last4Prefix: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#64748b',
+  },
+  last4Input: {
+    width: 90,
+    textAlign: 'center',
+    fontWeight: '700',
+    letterSpacing: 1,
+  },
+  helperText: {
+    fontSize: 11,
+    color: '#64748b',
+    marginTop: 2,
+  },
+  typeGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  typeCard: {
+    width: '48%',
+    flexGrow: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 10,
+    backgroundColor: '#ffffff',
+  },
+  selectedTypeCard: {
+    borderColor: '#0f172a',
+    backgroundColor: '#f1f5f9',
+    borderWidth: 2,
+  },
+  typeCardIcon: {
+    fontSize: 18,
+  },
+  typeCardTextWrap: {
+    flex: 1,
+  },
+  typeCardTitle: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#334155',
+  },
+  selectedTypeCardTitle: {
+    color: '#0f172a',
+    fontWeight: '800',
+  },
+  webDateContainer: {
+    width: '100%',
+  },
+  datePickerBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    backgroundColor: '#f8fafc',
+  },
+  datePickerBtnIcon: {
+    fontSize: 16,
+  },
+  datePickerBtnText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#0f172a',
+  },
+  toggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#f1f5f9',
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f9',
+  },
+  toggleTextCol: {
+    flex: 1,
+    marginRight: 12,
+  },
+  toggleTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#0f172a',
+  },
+  toggleDesc: {
+    fontSize: 11,
+    color: '#64748b',
+    marginTop: 2,
+  },
+  switchTrack: {
+    width: 44,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#cbd5e1',
+    padding: 2,
+    justifyContent: 'center',
+  },
+  switchTrackActive: {
+    backgroundColor: '#0f172a',
+  },
+  switchThumb: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#ffffff',
+  },
+  switchThumbActive: {
+    alignSelf: 'flex-end',
+  },
+  modalActions: {
+    gap: 8,
+    marginTop: 8,
+  },
+  saveBtn: {
+    backgroundColor: '#0f172a',
+    borderRadius: 8,
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  saveBtnText: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  cancelBtn: {
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
+    borderRadius: 8,
+    paddingVertical: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#ffffff',
+  },
+  cancelBtnText: {
+    color: '#64748b',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  deleteAccountBtn: {
+    marginTop: 6,
+    paddingVertical: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  deleteAccountBtnText: {
+    color: '#dc2626',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+
+  /* Calendar Date Picker Modal Styles */
+  datePickerOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(15, 23, 42, 0.65)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 16,
+  },
+  calendarModalCard: {
+    width: '100%',
+    maxWidth: 340,
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    elevation: 12,
+  },
+  calendarModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  calendarModalTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#0f172a',
+  },
+  calendarCloseBtn: {
+    padding: 4,
+  },
+  calendarCloseText: {
+    fontSize: 14,
+    color: '#64748b',
+    fontWeight: '700',
+  },
+  calendarNavRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  calendarNavBtn: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 6,
+    backgroundColor: '#f1f5f9',
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
+  },
+  calendarNavBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#0f172a',
+  },
+  calendarMonthTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#0f172a',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  calendarWeekRow: {
+    flexDirection: 'row',
+    marginBottom: 6,
+  },
+  calendarWeekCell: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  calendarWeekText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#64748b',
+  },
+  calendarDaysGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+  },
+  calendarEmptyCell: {
+    width: '14.28%',
+    height: 34,
+  },
+  calendarDayCell: {
+    width: '14.28%',
+    height: 34,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 6,
+    marginVertical: 1,
+  },
+  calendarSelectedDayCell: {
+    backgroundColor: '#0f172a',
+  },
+  calendarTodayCell: {
+    borderWidth: 1,
+    borderColor: '#0f172a',
+  },
+  calendarDayText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#0f172a',
+  },
+  calendarSelectedDayText: {
+    color: '#ffffff',
+    fontWeight: '800',
+  },
+  calendarTodayText: {
+    color: '#0f172a',
+    fontWeight: '800',
+  },
+  calendarActionsRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 14,
+  },
+  calendarTodayBtn: {
+    flex: 1,
+    backgroundColor: '#f1f5f9',
+    borderRadius: 6,
+    paddingVertical: 9,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
+  },
+  calendarTodayBtnText: {
+    color: '#0f172a',
+    fontWeight: '700',
+    fontSize: 12,
+  },
+  calendarDoneBtn: {
+    flex: 1,
+    backgroundColor: '#0f172a',
+    borderRadius: 6,
+    paddingVertical: 9,
+    alignItems: 'center',
+  },
+  calendarDoneBtnText: {
+    color: '#ffffff',
+    fontWeight: '700',
+    fontSize: 12,
   },
 });
