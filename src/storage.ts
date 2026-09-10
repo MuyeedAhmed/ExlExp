@@ -311,7 +311,12 @@ export const saveCreditCards = async (cards: CreditCard[], username: string): Pr
     const toInsert = cardsToInsert.filter(c => !dbIds.has(c.id));
     if (toInsert.length > 0) {
       const { error } = await supabase.from('cards').insert(toInsert);
-      if (error) throw error;
+      if (error) {
+        console.warn('Insert card error (possibly last4 column not yet added to Supabase), retrying without last4:', error);
+        const fallbackInsert = toInsert.map(({ last4, ...rest }) => rest);
+        const { error: insertErr2 } = await supabase.from('cards').insert(fallbackInsert);
+        if (insertErr2) throw insertErr2;
+      }
     }
 
     // Update modified cards
@@ -325,7 +330,8 @@ export const saveCreditCards = async (cards: CreditCard[], username: string): Pr
         !!dbCard.isHidden !== !!c.isHidden ||
         !!dbCard.isSaving !== !!c.isSaving ||
         !!dbCard.isBrokerage !== !!c.isBrokerage ||
-        dbOpenDate !== c.openDate
+        dbOpenDate !== c.openDate ||
+        (dbCard.last4 || '0000') !== (c.last4 || '0000')
       );
     });
 
@@ -339,6 +345,7 @@ export const saveCreditCards = async (cards: CreditCard[], username: string): Pr
           isSaving: item.isSaving,
           isBrokerage: item.isBrokerage,
           username: username,
+          last4: item.last4 || '0000',
         };
 
         if (dbCard && 'opendate' in dbCard) {
@@ -351,8 +358,8 @@ export const saveCreditCards = async (cards: CreditCard[], username: string): Pr
 
         const { error } = await supabase.from('cards').update(updatePayload).eq('username', username).eq('id', item.id);
         if (error) {
-          console.warn('Update card error:', error);
-          // Fallback update without specific openDate if column differs
+          console.warn('Update card error with last4/openDate (possibly column not in DB yet):', error);
+          // Fallback update without last4/openDate if column differs
           await supabase.from('cards').update({
             name: item.name,
             priority: item.priority,
