@@ -9,11 +9,13 @@ import {
   useWindowDimensions,
   Platform,
   BackHandler,
+  Alert,
 } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
 import { Expense, CreditCard, FutureExpense } from '../types';
 import { AllTransactionsPage } from './AllTransactionsPage';
-import { consolidateTransactions, formatCurrencyInput } from '../transactionUtils';
+import { ScheduledBillModal } from './ScheduledBillModal';
+import { consolidateTransactions, formatCurrencyInput, normalizeCategory } from '../transactionUtils';
 
 const formatCurrency = (val: number): string => {
   if (Math.abs(val) < 0.005) return '0.00';
@@ -36,41 +38,17 @@ const formatShortK = (val: number): string => {
 };
 
 const CATEGORY_COLORS: { [key: string]: string } = {
-  rent: '#6366f1', // Indigo
-  housing: '#6366f1',
-  utilities: '#0284c7', // Sky Blue
-  utility: '#0284c7',
-  'car payment': '#8b5cf6', // Purple
-  transportation: '#8b5cf6', // Violet
-  transport: '#8b5cf6',
-  gas: '#ec4899',
-  grocery: '#10b981', // Emerald Green
-  groceries: '#10b981',
-  'grocery / food': '#10b981',
-  food: '#f59e0b', // Amber
-  'eating out': '#f59e0b', // Amber
-  dining: '#f59e0b',
-  restaurant: '#f59e0b',
-  'necessary purchases': '#14b8a6', // Teal
-  necessary: '#14b8a6',
-  'luxary purchases': '#ec4899', // Pink
+  rent: '#e45023',                 
+  utilities: '#0284c7',
+  'car payment': '#000000',
+  transportation: '#06b6d4',
+  grocery: '#07802b',
+  'eating out': '#f59e0b',
+  'necessary purchases': '#14b8a6',
   'luxury purchases': '#ec4899',
-  luxury: '#ec4899',
-  shopping: '#ec4899',
-  bills: '#0284c7',
-  entertainment: '#f97316', // Orange
-  subscriptions: '#a855f7', // Purple
-  subscription: '#a855f7',
-  health: '#ef4444', // Red
-  healthcare: '#ef4444',
-  medical: '#ef4444',
-  travel: '#06b6d4', // Cyan
-  personal: '#14b8a6',
-  fee: '#b45309', // Amber Brown
-  'annual fee': '#b45309',
-  fees: '#b45309',
-  others: '#64748b', // Slate Gray
-  other: '#64748b',
+  others: '#64748b',
+  salary: '#22c55e',
+  transfer: '#94a3b8',
 };
 
 const PALETTE = [
@@ -91,6 +69,8 @@ const PALETTE = [
 
 const getCategoryColor = (name: string): string => {
   if (!name) return '#64748b';
+  const key = name.trim().toLowerCase();
+  if (CATEGORY_COLORS[key]) return CATEGORY_COLORS[key];
   if (CATEGORY_COLORS[name]) return CATEGORY_COLORS[name];
   let hash = 0;
   for (let i = 0; i < name.length; i++) {
@@ -107,7 +87,9 @@ interface DashboardProps {
   cards: CreditCard[];
   futureExpenses: FutureExpense[];
   onAddFutureExpense: (expense: Omit<FutureExpense, 'id'>) => void;
+  onEditFutureExpense?: (expense: FutureExpense) => void;
   onDeleteFutureExpense: (id: string) => void;
+  onExecuteFutureExpense?: (expense: FutureExpense) => void;
   onNavigateToSettings?: () => void;
   onEditExpense?: (expense: Expense) => void;
   onDeleteExpense?: (id: string) => void;
@@ -118,7 +100,9 @@ export const Dashboard: React.FC<DashboardProps> = React.memo(({
   cards,
   futureExpenses,
   onAddFutureExpense,
+  onEditFutureExpense,
   onDeleteFutureExpense,
+  onExecuteFutureExpense,
   onNavigateToSettings,
   onEditExpense,
   onDeleteExpense,
@@ -143,10 +127,9 @@ export const Dashboard: React.FC<DashboardProps> = React.memo(({
     return () => sub.remove();
   }, [showAllTransactions]);
 
-  // Future Expense Form State
-  const [futureDesc, setFutureDesc] = useState('');
-  const [futureAmount, setFutureAmount] = useState('');
-  const [futureDate, setFutureDate] = useState('');
+  // Future Expense Modal State
+  const [billModalVisible, setBillModalVisible] = useState(false);
+  const [editingBill, setEditingBill] = useState<FutureExpense | null>(null);
 
   // 10 most recent transactions (fast O(1) early limit)
   const recent10Transactions = useMemo(() => {
@@ -284,7 +267,7 @@ export const Dashboard: React.FC<DashboardProps> = React.memo(({
       if (spendAmt !== 0) {
         monthSpendMap.set(monthKey, (monthSpendMap.get(monthKey) || 0) + spendAmt);
         const catMap = monthCategoryMap.get(monthKey)!;
-        const cat = e.category || 'Others';
+        const cat = normalizeCategory(e.category);
         catMap[cat] = (catMap[cat] || 0) + spendAmt;
       }
     }
@@ -343,20 +326,79 @@ export const Dashboard: React.FC<DashboardProps> = React.memo(({
     return categorySpending.reduce((sum, item) => sum + Math.max(0, item.amount), 0);
   }, [categorySpending]);
 
-  const handleAddFutureExpense = () => {
-    if (!futureDesc.trim()) return alert('Please enter a description');
-    const amt = parseFloat(futureAmount);
-    if (isNaN(amt) || amt <= 0) return alert('Please enter a valid amount');
+  const handleOpenAddBillModal = () => {
+    setEditingBill(null);
+    setBillModalVisible(true);
+  };
 
-    onAddFutureExpense({
-      description: futureDesc.trim(),
-      amount: amt,
-      dueDate: futureDate.trim() || undefined,
-    });
+  const handleOpenEditBillModal = (bill: FutureExpense) => {
+    setEditingBill(bill);
+    setBillModalVisible(true);
+  };
 
-    setFutureDesc('');
-    setFutureAmount('');
-    setFutureDate('');
+  const handleSaveBill = (bill: { id?: string; description: string; amount: number; dueDate?: string; acc: string }) => {
+    if (bill.id && onEditFutureExpense) {
+      onEditFutureExpense({
+        id: bill.id,
+        description: bill.description,
+        amount: bill.amount,
+        dueDate: bill.dueDate,
+        acc: bill.acc,
+      });
+    } else {
+      onAddFutureExpense({
+        description: bill.description,
+        amount: bill.amount,
+        dueDate: bill.dueDate,
+        acc: bill.acc,
+      });
+    }
+  };
+
+  const handleExecuteBill = (bill: FutureExpense) => {
+    const accCard = cards.find(c => c.id === bill.acc);
+    const accName = accCard ? `${accCard.name} (${accCard.isSaving ? 'Saving' : 'Checking'})` : 'Account';
+    const message = `Execute this scheduled bill?\n\nThis will log a -$${Number(bill.amount).toFixed(2)} transaction to ${accName} with today's date.`;
+
+    const doExecute = () => {
+      if (onExecuteFutureExpense) {
+        onExecuteFutureExpense(bill);
+      }
+    };
+
+    if (Platform.OS === 'web') {
+      if (confirm(message)) {
+        doExecute();
+      }
+    } else {
+      Alert.alert(
+        'Execute Scheduled Bill',
+        message,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Execute', style: 'default', onPress: doExecute },
+        ]
+      );
+    }
+  };
+
+  const handleDeleteBill = (bill: FutureExpense) => {
+    const doDelete = () => onDeleteFutureExpense(bill.id);
+
+    if (Platform.OS === 'web') {
+      if (confirm(`Are you sure you want to delete "${bill.description}"?`)) {
+        doDelete();
+      }
+    } else {
+      Alert.alert(
+        'Delete Scheduled Bill',
+        `Are you sure you want to delete "${bill.description}"?`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Delete', style: 'destructive', onPress: doDelete },
+        ]
+      );
+    }
   };
 
   // Donut SVG Parameters
@@ -801,71 +843,168 @@ export const Dashboard: React.FC<DashboardProps> = React.memo(({
 
       {/* Future Bills Box - Spreadsheet Grid Style */}
       <View style={[styles.sheetGrid, { marginTop: 12 }]}>
-        <View style={styles.sheetHeaderRow}>
-          <Text style={[styles.sheetHeaderCell, { flex: 3 }]}>Upcoming Scheduled Bills (Future Expenses)</Text>
-        </View>
-
-        {/* Inline Add Row Form */}
-        <View style={styles.inlineFormRow}>
-          <TextInput
-            style={[styles.formInput, { flex: 2 }]}
-            value={futureDesc}
-            onChangeText={setFutureDesc}
-            placeholder="Bill Name (e.g. Rent)"
-            placeholderTextColor="#94a3b8"
-          />
-          <TextInput
-            style={[styles.formInput, { flex: 1 }]}
-            value={futureAmount}
-            onChangeText={(val) => setFutureAmount(formatCurrencyInput(val))}
-            placeholder="0.00"
-            placeholderTextColor="#94a3b8"
-            keyboardType="decimal-pad"
-          />
-          <TextInput
-            style={[styles.formInput, { flex: 1 }]}
-            value={futureDate}
-            onChangeText={setFutureDate}
-            placeholder="Due Date"
-            placeholderTextColor="#94a3b8"
-          />
-          <TouchableOpacity style={styles.btnPrimarySmall} onPress={handleAddFutureExpense} accessibilityLabel="Add">
-            <Text style={styles.btnPrimarySmallText}>➕</Text>
+        <View style={[styles.sheetHeaderRow, { justifyContent: 'space-between', alignItems: 'center', paddingRight: 8 }]}>
+          <Text style={[styles.sheetHeaderCell, { flex: 1, borderBottomWidth: 0 }]}>Upcoming Scheduled Bills</Text>
+          <TouchableOpacity
+            style={styles.btnAddBillHeader}
+            onPress={handleOpenAddBillModal}
+            accessibilityLabel="Add Scheduled Bill"
+          >
+            <Text style={styles.btnAddBillHeaderText}>➕ Add Bill</Text>
           </TouchableOpacity>
         </View>
 
-        {/* Future Bills Table Headers */}
-        <View style={styles.tableSubHeader}>
-          <Text style={[styles.subHeaderCell, { flex: 2 }]}>Bill Item</Text>
-          <Text style={[styles.subHeaderCell, { flex: 1, textAlign: 'right' }]}>Amount</Text>
-          <Text style={[styles.subHeaderCell, { flex: 1.2, textAlign: 'center' }]}>Due Date</Text>
-          <Text style={[styles.subHeaderCell, { flex: 1, textAlign: 'center' }]}>Action</Text>
-        </View>
+        {/* Future Bills Table Headers (Web only) */}
+        {isWeb && (
+          <View style={styles.tableSubHeader}>
+            <Text style={[styles.subHeaderCell, { flex: 2.5 }]}>Bill Item</Text>
+            <Text style={[styles.subHeaderCell, { flex: 1.1, textAlign: 'right' }]}>Amount</Text>
+            <Text style={[styles.subHeaderCell, { flex: 1.2, textAlign: 'center' }]}>Due Date</Text>
+            <Text style={[styles.subHeaderCell, { flex: 1.5, textAlign: 'center' }]}>Acc (Checking/Sav)</Text>
+            <Text style={[styles.subHeaderCell, { flex: 1.5, textAlign: 'center' }]}>Action</Text>
+          </View>
+        )}
 
         {/* Future Bills Rows */}
         {futureExpenses.length === 0 ? (
           <View style={styles.sheetRow}>
-            <Text style={[styles.sheetCell, { flex: 5, textAlign: 'center', color: '#64748b' }]}>
+            <Text style={[styles.sheetCell, { flex: 1, textAlign: 'center', color: '#64748b', paddingVertical: 14 }]}>
               No upcoming scheduled bills logged.
             </Text>
           </View>
         ) : (
-          futureExpenses.map(item => (
-            <View key={item.id} style={styles.sheetRow}>
-              <Text style={[styles.sheetCell, { flex: 2 }]}>{item.description}</Text>
-              <Text style={[styles.sheetCell, { flex: 1, textAlign: 'right' }, styles.monoText]}>
-                ${Number(item.amount).toFixed(2)}
-              </Text>
-              <Text style={[styles.sheetCell, { flex: 1.2, textAlign: 'center' }, styles.monoText]}>{item.dueDate || '-'}</Text>
-              <View style={[styles.sheetCell, { flex: 1, alignItems: 'center', paddingVertical: 2 }]}>
-                <TouchableOpacity style={styles.btnDangerSmall} onPress={() => onDeleteFutureExpense(item.id)} accessibilityLabel="Delete">
-                  <Text style={styles.btnDangerSmallText}>🗑️</Text>
-                </TouchableOpacity>
+          futureExpenses.map(item => {
+            const accCard = cards.find(c => c.id === item.acc);
+
+            // Web Spreadsheet Row View
+            if (isWeb) {
+              return (
+                <View key={item.id} style={styles.sheetRow}>
+                  <Text style={[styles.sheetCell, { flex: 2.5 }]}>{item.description}</Text>
+                  <Text style={[styles.sheetCell, { flex: 1.1, textAlign: 'right' }, styles.monoText]}>
+                    ${Number(item.amount).toFixed(2)}
+                  </Text>
+                  <Text style={[styles.sheetCell, { flex: 1.2, textAlign: 'center' }, styles.monoText]}>
+                    {item.dueDate || '-'}
+                  </Text>
+                  <View style={[styles.sheetCell, { flex: 1.5, justifyContent: 'center', alignItems: 'center' }]}>
+                    {accCard ? (
+                      <View style={[styles.accBadge, accCard.isSaving ? styles.savingBadge : styles.checkingBadge]}>
+                        <Text
+                          style={[styles.accBadgeText, accCard.isSaving ? styles.savingBadgeText : styles.checkingBadgeText]}
+                          numberOfLines={1}
+                        >
+                          {accCard.name} ({accCard.isSaving ? 'Sav' : 'Chk'})
+                        </Text>
+                      </View>
+                    ) : (
+                      <Text style={[styles.monoText, { color: '#94a3b8', fontSize: 12 }]}>
+                        {item.acc || '-'}
+                      </Text>
+                    )}
+                  </View>
+                  <View style={[styles.sheetCell, { flex: 1.5, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6, paddingVertical: 2 }]}>
+                    <TouchableOpacity
+                      style={styles.btnActionExecute}
+                      onPress={() => handleExecuteBill(item)}
+                      accessibilityLabel="Execute bill"
+                      accessibilityHint="Log bill transaction into account on today's date"
+                    >
+                      <Text style={styles.btnActionExecuteText}>⚡</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.btnActionEdit}
+                      onPress={() => handleOpenEditBillModal(item)}
+                      accessibilityLabel="Edit bill"
+                    >
+                      <Text style={styles.btnActionEditText}>✏️</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.btnDangerSmall}
+                      onPress={() => handleDeleteBill(item)}
+                      accessibilityLabel="Delete bill"
+                    >
+                      <Text style={styles.btnDangerSmallText}>🗑️</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              );
+            }
+
+            // Mobile / App Multiline Card View
+            return (
+              <View key={item.id} style={styles.billMobileCard}>
+                {/* Line 1: Bill Item Name & Amount */}
+                <View style={styles.billMobileLine1}>
+                  <Text style={styles.billMobileDesc} numberOfLines={1} ellipsizeMode="tail">
+                    {item.description}
+                  </Text>
+                  <Text style={[styles.billMobileAmount, styles.monoText]}>
+                    ${Number(item.amount).toFixed(2)}
+                  </Text>
+                </View>
+
+                {/* Line 2: Due Date, Account Badge, and Actions */}
+                <View style={styles.billMobileLine2}>
+                  <View style={styles.billMobileMeta}>
+                    {item.dueDate ? (
+                      <Text style={[styles.billMobileDueDate, styles.monoText]}>
+                        Due: {item.dueDate}
+                      </Text>
+                    ) : null}
+                    {accCard ? (
+                      <View style={[styles.accBadge, accCard.isSaving ? styles.savingBadge : styles.checkingBadge]}>
+                        <Text
+                          style={[styles.accBadgeText, accCard.isSaving ? styles.savingBadgeText : styles.checkingBadgeText]}
+                          numberOfLines={1}
+                        >
+                          {accCard.name} ({accCard.isSaving ? 'Sav' : 'Chk'})
+                        </Text>
+                      </View>
+                    ) : (
+                      <Text style={[styles.monoText, { color: '#94a3b8', fontSize: 11 }]}>
+                        {item.acc || 'No Acc'}
+                      </Text>
+                    )}
+                  </View>
+                  <View style={styles.billMobileActions}>
+                    <TouchableOpacity
+                      style={styles.btnActionExecute}
+                      onPress={() => handleExecuteBill(item)}
+                      accessibilityLabel="Execute bill"
+                      accessibilityHint="Log bill transaction into account on today's date"
+                    >
+                      <Text style={styles.btnActionExecuteText}>⚡</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.btnActionEdit}
+                      onPress={() => handleOpenEditBillModal(item)}
+                      accessibilityLabel="Edit bill"
+                    >
+                      <Text style={styles.btnActionEditText}>✏️</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.btnDangerSmall}
+                      onPress={() => handleDeleteBill(item)}
+                      accessibilityLabel="Delete bill"
+                    >
+                      <Text style={styles.btnDangerSmallText}>🗑️</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
               </View>
-            </View>
-          ))
+            );
+          })
         )}
       </View>
+
+      <ScheduledBillModal
+        visible={billModalVisible}
+        onClose={() => setBillModalVisible(false)}
+        onSave={handleSaveBill}
+        initialBill={editingBill}
+        cards={cards}
+      />
 
       
     </ScrollView>
@@ -894,6 +1033,26 @@ const styles = StyleSheet.create({
   btnSmallText: { color: '#ffffff', fontSize: 12, fontWeight: '700' },
   btnDangerSmall: { backgroundColor: '#fee2e2', borderWidth: 1, borderColor: '#fca5a5', width: 28, height: 26, borderRadius: 4, alignItems: 'center', justifyContent: 'center' },
   btnDangerSmallText: { fontSize: 12 },
+  btnAddBillHeader: { backgroundColor: '#0f172a', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 4, marginRight: 6 },
+  btnAddBillHeaderText: { color: '#ffffff', fontSize: 12, fontWeight: '700' },
+  accBadge: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, maxWidth: '100%' },
+  checkingBadge: { backgroundColor: '#dcfce7' },
+  checkingBadgeText: { color: '#15803d', fontSize: 11, fontWeight: '700' },
+  savingBadge: { backgroundColor: '#dbeafe' },
+  savingBadgeText: { color: '#1e40af', fontSize: 11, fontWeight: '700' },
+  accBadgeText: { fontSize: 11, fontWeight: '700' },
+  btnActionExecute: { backgroundColor: '#fef3c7', borderWidth: 1, borderColor: '#fde047', width: 28, height: 26, borderRadius: 4, justifyContent: 'center', alignItems: 'center' },
+  btnActionExecuteText: { fontSize: 12 },
+  btnActionEdit: { backgroundColor: '#f1f5f9', borderWidth: 1, borderColor: '#cbd5e1', width: 28, height: 26, borderRadius: 4, justifyContent: 'center', alignItems: 'center' },
+  btnActionEditText: { fontSize: 12 },
+  billMobileCard: { paddingHorizontal: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#cbd5e1', backgroundColor: '#ffffff' },
+  billMobileLine1: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
+  billMobileDesc: { fontSize: 14, fontWeight: '700', color: '#0f172a', flex: 1, marginRight: 10 },
+  billMobileAmount: { fontSize: 15, fontWeight: '700', color: '#0f172a' },
+  billMobileLine2: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  billMobileMeta: { flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1, flexWrap: 'wrap' },
+  billMobileDueDate: { fontSize: 12, color: '#64748b', fontWeight: '500' },
+  billMobileActions: { flexDirection: 'row', alignItems: 'center', gap: 6, marginLeft: 8 },
   emptyWelcomeBanner: { backgroundColor: '#f0fdf4', borderWidth: 1, borderColor: '#86efac', borderRadius: 8, padding: 16, marginBottom: 16 },
   emptyWelcomeTitle: { fontSize: 16, fontWeight: '800', color: '#15803d', marginBottom: 4 },
   emptyWelcomeSub: { fontSize: 13, color: '#334155', lineHeight: 18, marginBottom: 12 },
