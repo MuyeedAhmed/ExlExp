@@ -35,6 +35,8 @@ interface ReceiptScannerModalProps {
     details: string;
     category?: string;
   }) => void;
+  onUpdateCard?: (card: CreditCard) => void;
+  onAddCard?: (card: Omit<CreditCard, 'id'>) => void;
 }
 
 /**
@@ -112,6 +114,8 @@ export const ReceiptScannerModal: React.FC<ReceiptScannerModalProps> = ({
   cards,
   onClose,
   onApplyReceipt,
+  onUpdateCard,
+  onAddCard,
 }) => {
   const [capturedImage, setCapturedImage] = useState<CapturedImage | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -124,6 +128,16 @@ export const ReceiptScannerModal: React.FC<ReceiptScannerModalProps> = ({
   const [items, setItems] = useState<ReceiptItem[]>([]);
   const [selectedCardId, setSelectedCardId] = useState<string>('');
 
+  // Card matching & in-window linking states
+  const [detectedLast4, setDetectedLast4] = useState<string>('');
+  const [isEditingLast4, setIsEditingLast4] = useState(false);
+  const [last4Input, setLast4Input] = useState('');
+  const [showAddCardInline, setShowAddCardInline] = useState(false);
+  const [newCardName, setNewCardName] = useState('');
+  const [newCardType, setNewCardType] = useState<'credit' | 'checking'>('credit');
+  const [linkedSuccessMsg, setLinkedSuccessMsg] = useState('');
+  const [showCardPickerModal, setShowCardPickerModal] = useState(false);
+
   const resetScanner = () => {
     setCapturedImage(null);
     setIsProcessing(false);
@@ -133,6 +147,13 @@ export const ReceiptScannerModal: React.FC<ReceiptScannerModalProps> = ({
     setTotalAmount('');
     setItems([]);
     setSelectedCardId('');
+    setDetectedLast4('');
+    setLast4Input('');
+    setIsEditingLast4(false);
+    setShowAddCardInline(false);
+    setNewCardName('');
+    setLinkedSuccessMsg('');
+    setShowCardPickerModal(false);
   };
 
   const handleClose = () => {
@@ -190,34 +211,117 @@ export const ReceiptScannerModal: React.FC<ReceiptScannerModalProps> = ({
       : (parseFloat(String(result.totalAmount)) || 0);
 
     const rawSubtotal = (result.items || []).reduce(
-      (sum, it) => sum + (typeof it.amount === 'number' ? it.amount : parseFloat(String(it.amount)) || 0),
+      (sum, it) =>
+        sum +
+        (typeof it.rawAmount === 'number'
+          ? it.rawAmount
+          : typeof it.amount === 'number'
+          ? it.amount
+          : parseFloat(String(it.amount)) || 0),
       0
     );
-    const hasTax = Boolean((result.tax && result.tax > 0) || (totalVal > rawSubtotal + 0.005));
+    const hasTaxDifference = Boolean((result.tax && result.tax > 0) || totalVal > rawSubtotal + 0.005);
+    const anyExplicitTax = (result.items || []).some(it => it.isTaxed === true);
 
     const initialRawItems: ReceiptItem[] = (result.items || []).map(it => {
-      const amt = typeof it.amount === 'number' ? Number(it.amount.toFixed(2)) : parseFloat(String(it.amount)) || 0;
+      const amt =
+        typeof it.rawAmount === 'number'
+          ? it.rawAmount
+          : typeof it.amount === 'number'
+          ? Number(it.amount.toFixed(2))
+          : parseFloat(String(it.amount)) || 0;
+      const isTaxed = anyExplicitTax ? Boolean(it.isTaxed) : hasTaxDifference;
       return {
         ...it,
         rawAmount: amt,
         amount: amt,
-        isTaxed: it.isTaxed !== undefined ? it.isTaxed : hasTax,
+        isTaxed,
         assignedTo: it.assignedTo ?? '',
         taxAmount: 0,
       };
     });
 
-    const { updatedItems } = recalculateItemsWithTax(initialRawItems, totalVal);
+    const finalTotal = totalVal > 0 ? totalVal : (rawSubtotal > 0 ? rawSubtotal : 0);
+    const { updatedItems } = recalculateItemsWithTax(initialRawItems, finalTotal);
     setItems(updatedItems);
-    setTotalAmount(totalVal > 0 ? totalVal.toFixed(2) : '0.00');
+    setTotalAmount(finalTotal > 0 ? finalTotal.toFixed(2) : '0.00');
 
     // Match card automatically
+    const foundLast4 = result.cardUsage?.last4 || '';
+    setDetectedLast4(foundLast4);
+    setLast4Input(foundLast4);
+    setIsEditingLast4(false);
+    setShowAddCardInline(false);
+    setLinkedSuccessMsg('');
+
     const matched = matchCardToAccount(result.cardUsage, cards);
     if (matched) {
       setSelectedCardId(matched.id);
     } else if (cards.length > 0) {
       setSelectedCardId(cards[0].id);
     }
+  };
+
+  // Check if detectedLast4 matches any card
+  const matchedCardByLast4 = useMemo(() => {
+    if (!detectedLast4 || detectedLast4 === '0000' || detectedLast4.length !== 4) return undefined;
+    return cards.find(c => c.last4 === detectedLast4);
+  }, [cards, detectedLast4]);
+
+  const isCardLinked = Boolean(matchedCardByLast4);
+
+  const handleSaveLast4Input = () => {
+    const trimmed = last4Input.replace(/\D/g, '').slice(0, 4);
+    setDetectedLast4(trimmed);
+    setLast4Input(trimmed);
+    setIsEditingLast4(false);
+    setLinkedSuccessMsg('');
+
+    if (trimmed && trimmed.length === 4 && trimmed !== '0000') {
+      const match = cards.find(c => c.last4 === trimmed);
+      if (match) {
+        setSelectedCardId(match.id);
+      }
+    }
+  };
+
+  const handleLinkToSelectedCard = () => {
+    if (!selectedCard || !detectedLast4 || detectedLast4.length !== 4) return;
+    if (onUpdateCard) {
+      onUpdateCard({
+        ...selectedCard,
+        last4: detectedLast4,
+      });
+      setLinkedSuccessMsg(`Linked ending in ${detectedLast4} to "${selectedCard.name}"!`);
+      setTimeout(() => setLinkedSuccessMsg(''), 4000);
+    }
+  };
+
+  const handleCreateNewCardInline = () => {
+    const trimmedName = newCardName.trim();
+    if (!trimmedName) {
+      if (Platform.OS === 'web') alert('Please enter a card or account name');
+      else Alert.alert('Required', 'Please enter a card or account name');
+      return;
+    }
+    const cardData: Omit<CreditCard, 'id'> = {
+      name: trimmedName,
+      isChecking: newCardType === 'checking',
+      isSaving: false,
+      isBrokerage: false,
+      isHidden: false,
+      priority: cards.length,
+      openDate: new Date().toISOString().split('T')[0],
+      last4: detectedLast4 || '0000',
+    };
+
+    if (onAddCard) {
+      onAddCard(cardData);
+      setLinkedSuccessMsg(`Created "${trimmedName}" with ending ${detectedLast4 || '0000'}!`);
+      setTimeout(() => setLinkedSuccessMsg(''), 4000);
+    }
+    setShowAddCardInline(false);
+    setNewCardName('');
   };
 
   const handleCameraCapture = async () => {
@@ -279,7 +383,18 @@ export const ReceiptScannerModal: React.FC<ReceiptScannerModalProps> = ({
           ? { ...it, rawAmount: baseVal, amount: baseVal, amountStr: valStr }
           : { ...it, amountStr: undefined }
       );
-      const { updatedItems } = recalculateItemsWithTax(nextItems, parsedTot);
+
+      let effectiveTotal = parsedTot;
+      const currentRawSubtotal = Math.round(
+        nextItems.reduce((sum, it) => sum + (it.rawAmount ?? it.amount ?? 0), 0) * 100
+      ) / 100;
+
+      if (effectiveTotal <= 0) {
+        effectiveTotal = currentRawSubtotal;
+        setTotalAmount(effectiveTotal > 0 ? effectiveTotal.toFixed(2) : '');
+      }
+
+      const { updatedItems } = recalculateItemsWithTax(nextItems, effectiveTotal);
       updatedItems[index].amountStr = valStr;
       setItems(updatedItems);
       return;
@@ -291,9 +406,12 @@ export const ReceiptScannerModal: React.FC<ReceiptScannerModalProps> = ({
   };
 
   const handleItemBlur = (index: number) => {
-    setItems(prev =>
-      prev.map((it, i) => (i === index ? { ...it, amountStr: undefined } : it))
+    const parsedTot = parseFloat(totalAmount) || 0;
+    const nextItems = items.map((it, i) =>
+      i === index ? { ...it, amountStr: undefined } : it
     );
+    const { updatedItems } = recalculateItemsWithTax(nextItems, parsedTot);
+    setItems(updatedItems);
   };
 
   const handleDeleteItem = (index: number) => {
@@ -304,6 +422,7 @@ export const ReceiptScannerModal: React.FC<ReceiptScannerModalProps> = ({
   };
 
   const handleAddItem = () => {
+    const anyTaxed = items.some(it => it.isTaxed);
     const newItem: ReceiptItem = {
       id: `custom-${Date.now()}`,
       description: 'New Item',
@@ -311,7 +430,7 @@ export const ReceiptScannerModal: React.FC<ReceiptScannerModalProps> = ({
       amount: 0.0,
       quantity: 1,
       category: 'Others',
-      isTaxed: false,
+      isTaxed: anyTaxed,
       assignedTo: '',
       taxAmount: 0,
     };
@@ -529,23 +648,181 @@ export const ReceiptScannerModal: React.FC<ReceiptScannerModalProps> = ({
                     )}
                   </View>
 
+                  {/* Detected Card Details & Editable Last 4 */}
                   <View style={styles.detectedCardDetailsRow}>
-                    <Text style={styles.cardDetailText}>
-                      Detected:{' '}
-                      <Text style={{ fontWeight: '700', color: '#0f172a' }}>
-                        {recognitionResult.cardUsage?.detectedCardText || 'Credit Card'}
+                    <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
+                      <Text style={styles.cardDetailText}>
+                        Card: <Text style={{ fontWeight: '700', color: '#0f172a' }}>{recognitionResult.cardUsage?.cardType || 'Credit Card'}</Text>
                       </Text>
-                    </Text>
-                    {recognitionResult.cardUsage?.authCode && (
-                      <Text style={styles.authCodeText}>
-                        Auth: {recognitionResult.cardUsage.authCode}
-                      </Text>
-                    )}
+                      <Text style={{ color: '#cbd5e1' }}>•</Text>
+                      <Text style={styles.cardDetailText}>Ending in:</Text>
+
+                      {isEditingLast4 ? (
+                        <View style={styles.last4EditRow}>
+                          <TextInput
+                            style={styles.last4EditInput}
+                            value={last4Input}
+                            onChangeText={setLast4Input}
+                            keyboardType="number-pad"
+                            maxLength={4}
+                            placeholder="4242"
+                            placeholderTextColor="#94a3b8"
+                            autoFocus
+                          />
+                          <TouchableOpacity style={styles.last4SaveBtn} onPress={handleSaveLast4Input}>
+                            <Text style={styles.last4SaveBtnText}>Save</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            style={styles.last4CancelBtn}
+                            onPress={() => {
+                              setLast4Input(detectedLast4);
+                              setIsEditingLast4(false);
+                            }}
+                          >
+                            <Text style={styles.last4CancelBtnText}>✕</Text>
+                          </TouchableOpacity>
+                        </View>
+                      ) : (
+                        <TouchableOpacity
+                          style={styles.last4BadgeBtn}
+                          onPress={() => setIsEditingLast4(true)}
+                          activeOpacity={0.7}
+                        >
+                          <Text style={styles.last4BadgeText}>
+                            {detectedLast4 ? `•••• ${detectedLast4}` : 'None detected'}
+                          </Text>
+                          <Text style={styles.last4EditIcon}>✏️</Text>
+                        </TouchableOpacity>
+                      )}
+
+                      {recognitionResult.cardUsage?.authCode && (
+                        <>
+                          <Text style={{ color: '#cbd5e1' }}>•</Text>
+                          <Text style={styles.authCodeText}>
+                            Auth: {recognitionResult.cardUsage.authCode}
+                          </Text>
+                        </>
+                      )}
+                    </View>
                   </View>
+
+                  {/* Linked / Unlinked Status & In-Window Linking */}
+                  {detectedLast4 && detectedLast4 !== '0000' && (
+                    <View style={{ marginTop: 8 }}>
+                      {isCardLinked ? (
+                        <View style={styles.matchedCardBanner}>
+                          <Text style={styles.matchedCardIcon}>✅</Text>
+                          <Text style={styles.matchedCardText}>
+                            Auto-matched to <Text style={{ fontWeight: '700' }}>{matchedCardByLast4?.name}</Text> (•••• {detectedLast4})
+                          </Text>
+                        </View>
+                      ) : (
+                        <View style={styles.unlinkedCardBanner}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                            <Text style={{ fontSize: 13 }}>⚠️</Text>
+                            <Text style={styles.unlinkedCardTitle}>
+                              Card ending in {detectedLast4} is not registered yet.
+                            </Text>
+                          </View>
+                          <Text style={styles.unlinkedCardSub}>
+                            Link this number to an existing card or create a new card so future scans match automatically.
+                          </Text>
+                          <View style={styles.unlinkedActionsRow}>
+                            {selectedCard && (
+                              <TouchableOpacity
+                                style={styles.linkCardBtn}
+                                onPress={handleLinkToSelectedCard}
+                                activeOpacity={0.8}
+                              >
+                                <Text style={styles.linkCardBtnText}>
+                                  🔗 Link {detectedLast4} to "{selectedCard.name}"
+                                </Text>
+                              </TouchableOpacity>
+                            )}
+                            <TouchableOpacity
+                              style={styles.addNewCardInlineBtn}
+                              onPress={() => setShowAddCardInline(true)}
+                              activeOpacity={0.8}
+                            >
+                              <Text style={styles.addNewCardInlineBtnText}>+ Add New Card</Text>
+                            </TouchableOpacity>
+                          </View>
+                        </View>
+                      )}
+                    </View>
+                  )}
+
+                  {linkedSuccessMsg.length > 0 && (
+                    <View style={styles.linkedSuccessBanner}>
+                      <Text style={styles.linkedSuccessText}>✓ {linkedSuccessMsg}</Text>
+                    </View>
+                  )}
+
+                  {/* Inline Add New Card Form */}
+                  {showAddCardInline && (
+                    <View style={styles.inlineAddCardBox}>
+                      <View style={styles.inlineAddCardHeader}>
+                        <Text style={styles.inlineAddCardTitle}>💳 Add New Account / Card</Text>
+                        <TouchableOpacity onPress={() => setShowAddCardInline(false)}>
+                          <Text style={{ fontSize: 14, color: '#64748b', fontWeight: 'bold' }}>✕</Text>
+                        </TouchableOpacity>
+                      </View>
+                      <TextInput
+                        style={styles.inlineCardNameInput}
+                        placeholder="Account / Card Name (e.g. Chase Freedom)"
+                        placeholderTextColor="#94a3b8"
+                        value={newCardName}
+                        onChangeText={setNewCardName}
+                        autoFocus
+                      />
+                      <View style={styles.inlineCardTypeRow}>
+                        <TouchableOpacity
+                          style={[
+                            styles.inlineTypeChip,
+                            newCardType === 'credit' && styles.inlineTypeChipActive,
+                          ]}
+                          onPress={() => setNewCardType('credit')}
+                        >
+                          <Text style={[styles.inlineTypeChipText, newCardType === 'credit' && styles.inlineTypeChipTextActive]}>
+                            💳 Credit Card
+                          </Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={[
+                            styles.inlineTypeChip,
+                            newCardType === 'checking' && styles.inlineTypeChipActive,
+                          ]}
+                          onPress={() => setNewCardType('checking')}
+                        >
+                          <Text style={[styles.inlineTypeChipText, newCardType === 'checking' && styles.inlineTypeChipTextActive]}>
+                            🏛️ Checking / Debit
+                          </Text>
+                        </TouchableOpacity>
+                      </View>
+                      <View style={styles.inlineCardLast4Info}>
+                        <Text style={{ fontSize: 12, color: '#64748b' }}>
+                          Card Last 4: <Text style={{ fontWeight: '700', color: '#0f172a' }}>{detectedLast4 || '0000'}</Text>
+                        </Text>
+                      </View>
+                      <View style={styles.inlineAddCardFooter}>
+                        <TouchableOpacity style={styles.inlineCancelBtn} onPress={() => setShowAddCardInline(false)}>
+                          <Text style={styles.inlineCancelBtnText}>Cancel</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity style={styles.inlineSaveBtn} onPress={handleCreateNewCardInline}>
+                          <Text style={styles.inlineSaveBtnText}>Save & Select Card</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  )}
 
                   {/* Account Selector */}
                   <View style={styles.accountSelectorBox}>
-                    <Text style={styles.accountSelectorLabel}>Log to Account / Card:</Text>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                      <Text style={styles.accountSelectorLabel}>Log to Account / Card:</Text>
+                      <TouchableOpacity onPress={() => setShowAddCardInline(true)}>
+                        <Text style={styles.inlineAddCardLink}>+ New Card</Text>
+                      </TouchableOpacity>
+                    </View>
                     {Platform.OS === 'web' ? (
                       <select
                         style={{
@@ -563,16 +840,29 @@ export const ReceiptScannerModal: React.FC<ReceiptScannerModalProps> = ({
                       >
                         {cards.map(c => (
                           <option key={c.id} value={c.id}>
-                            {c.name} {c.isChecking ? '(Checking)' : c.isSaving ? '(Saving)' : '(Credit Card)'}
+                            {c.name} {c.last4 && c.last4 !== '0000' ? `(•••• ${c.last4})` : ''} {c.isChecking ? '(Checking)' : c.isSaving ? '(Saving)' : '(Credit Card)'}
                           </option>
                         ))}
                       </select>
                     ) : (
-                      <View style={styles.nativeCardBadge}>
-                        <Text style={styles.nativeCardBadgeText}>
-                          {selectedCard?.name || 'Selected Card'}
-                        </Text>
-                      </View>
+                      <TouchableOpacity
+                        style={styles.nativeCardSelector}
+                        onPress={() => setShowCardPickerModal(true)}
+                        activeOpacity={0.7}
+                      >
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.nativeCardSelectorName}>
+                            {selectedCard?.name || 'Select an account'}
+                          </Text>
+                          <Text style={styles.nativeCardSelectorSub}>
+                            {selectedCard?.last4 && selectedCard.last4 !== '0000'
+                              ? `•••• ${selectedCard.last4}  •  `
+                              : ''}
+                            {selectedCard?.isChecking ? 'Checking' : selectedCard?.isSaving ? 'Saving' : 'Credit Card'}
+                          </Text>
+                        </View>
+                        <Text style={styles.nativeCardSelectorArrow}>▾</Text>
+                      </TouchableOpacity>
                     )}
                   </View>
                 </View>
@@ -657,7 +947,7 @@ export const ReceiptScannerModal: React.FC<ReceiptScannerModalProps> = ({
                     <View style={styles.itemsTableHeader}>
                       <Text style={[styles.columnHeader, { flex: 1 }]}>Item Description</Text>
                       <Text style={[styles.columnHeader, { width: 90, textAlign: 'right' }]}>Amount</Text>
-                      <Text style={[styles.columnHeader, { width: 65, textAlign: 'center' }]}>Tax</Text>
+                      <Text style={[styles.columnHeader, { width: 85, textAlign: 'center' }]}>Tax</Text>
                       <Text style={[styles.columnHeader, { width: 90, textAlign: 'left', paddingLeft: 4 }]}>Assigned To</Text>
                       <View style={{ width: 32 }} />
                     </View>
@@ -666,13 +956,18 @@ export const ReceiptScannerModal: React.FC<ReceiptScannerModalProps> = ({
                   {items.map((item, idx) =>
                     isCompactScreen ? (
                       <View key={item.id || idx} style={styles.compactItemCard}>
-                        <View style={styles.compactRowTop}>
-                          <TextInput
-                            style={styles.itemDescInput}
-                            value={item.description}
-                            onChangeText={val => handleItemChange(idx, 'description', val)}
-                            placeholder="Item description"
-                          />
+                        {/* Row 1: Full-width Description */}
+                        <TextInput
+                          style={styles.compactDescInput}
+                          textAlign="left"
+                          value={item.description}
+                          onChangeText={val => handleItemChange(idx, 'description', val)}
+                          placeholder="Item description"
+                          placeholderTextColor="#94a3b8"
+                        />
+
+                        {/* Row 2: Amount, Tax, Assignee, Delete */}
+                        <View style={styles.compactRowBottom}>
                           <View style={styles.itemAmountWrapper}>
                             <Text style={styles.smallCurrency}>$</Text>
                             <TextInput
@@ -689,14 +984,7 @@ export const ReceiptScannerModal: React.FC<ReceiptScannerModalProps> = ({
                               keyboardType="decimal-pad"
                             />
                           </View>
-                          <TouchableOpacity
-                            style={styles.deleteItemBtn}
-                            onPress={() => handleDeleteItem(idx)}
-                          >
-                            <Text style={styles.deleteItemBtnText}>✕</Text>
-                          </TouchableOpacity>
-                        </View>
-                        <View style={styles.compactRowBottom}>
+
                           <TouchableOpacity
                             style={[
                               styles.taxToggleBtn,
@@ -706,19 +994,32 @@ export const ReceiptScannerModal: React.FC<ReceiptScannerModalProps> = ({
                             activeOpacity={0.7}
                           >
                             <Text style={[styles.taxCheckmark, item.isTaxed ? styles.taxTextActive : styles.taxTextInactive]}>
-                              {item.isTaxed ? '☑ Taxed' : '☐ Tax'}
+                              {item.isTaxed
+                                ? item.taxAmount && item.taxAmount > 0
+                                  ? `☑ +$${item.taxAmount.toFixed(2)}`
+                                  : '☑ Taxed'
+                                : '☐ Tax'}
                             </Text>
                           </TouchableOpacity>
+
                           <View style={[styles.assigneeWrapper, { flex: 1, width: undefined }]}>
                             <Text style={styles.assigneeIcon}>👤</Text>
                             <TextInput
                               style={styles.assigneeInput}
+                              textAlign="left"
                               value={item.assignedTo ?? ''}
                               onChangeText={val => handleItemChange(idx, 'assignedTo', val)}
-                              placeholder="Assigned to (e.g. Me, Alex)"
+                              placeholder="Me"
                               placeholderTextColor="#94a3b8"
                             />
                           </View>
+
+                          <TouchableOpacity
+                            style={styles.deleteItemBtn}
+                            onPress={() => handleDeleteItem(idx)}
+                          >
+                            <Text style={styles.deleteItemBtnText}>✕</Text>
+                          </TouchableOpacity>
                         </View>
                       </View>
                     ) : (
@@ -726,6 +1027,7 @@ export const ReceiptScannerModal: React.FC<ReceiptScannerModalProps> = ({
                         {/* 1. Description */}
                         <TextInput
                           style={styles.itemDescInput}
+                          textAlign="left"
                           value={item.description}
                           onChangeText={val => handleItemChange(idx, 'description', val)}
                           placeholder="Item description"
@@ -759,7 +1061,11 @@ export const ReceiptScannerModal: React.FC<ReceiptScannerModalProps> = ({
                           activeOpacity={0.7}
                         >
                           <Text style={[styles.taxCheckmark, item.isTaxed ? styles.taxTextActive : styles.taxTextInactive]}>
-                            {item.isTaxed ? '☑ Tax' : '☐ Tax'}
+                            {item.isTaxed
+                              ? item.taxAmount && item.taxAmount > 0
+                                ? `☑ +$${item.taxAmount.toFixed(2)}`
+                                : '☑ Tax'
+                              : '☐ Tax'}
                           </Text>
                         </TouchableOpacity>
 
@@ -768,6 +1074,7 @@ export const ReceiptScannerModal: React.FC<ReceiptScannerModalProps> = ({
                           <Text style={styles.assigneeIcon}>👤</Text>
                           <TextInput
                             style={styles.assigneeInput}
+                            textAlign="left"
                             value={item.assignedTo ?? ''}
                             onChangeText={val => handleItemChange(idx, 'assignedTo', val)}
                             placeholder="Me"
@@ -830,6 +1137,63 @@ export const ReceiptScannerModal: React.FC<ReceiptScannerModalProps> = ({
               </TouchableOpacity>
             </View>
           )}
+          {/* Card Picker Modal for Mobile */}
+          <Modal
+            visible={showCardPickerModal}
+            transparent
+            animationType="fade"
+            onRequestClose={() => setShowCardPickerModal(false)}
+          >
+            <TouchableOpacity
+              style={styles.pickerBackdrop}
+              activeOpacity={1}
+              onPress={() => setShowCardPickerModal(false)}
+            >
+              <View style={styles.pickerContainer}>
+                <View style={styles.pickerHeader}>
+                  <Text style={styles.pickerTitle}>Select Account / Card</Text>
+                  <TouchableOpacity onPress={() => setShowCardPickerModal(false)}>
+                    <Text style={{ fontSize: 16, color: '#64748b', fontWeight: 'bold' }}>✕</Text>
+                  </TouchableOpacity>
+                </View>
+                <ScrollView style={{ maxHeight: 300 }}>
+                  {cards.map(c => {
+                    const isSelected = c.id === selectedCardId;
+                    return (
+                      <TouchableOpacity
+                        key={c.id}
+                        style={[styles.pickerItem, isSelected && styles.pickerItemActive]}
+                        onPress={() => {
+                          setSelectedCardId(c.id);
+                          setShowCardPickerModal(false);
+                        }}
+                      >
+                        <View style={{ flex: 1 }}>
+                          <Text style={[styles.pickerItemName, isSelected && styles.pickerItemNameActive]}>
+                            {c.name}
+                          </Text>
+                          <Text style={styles.pickerItemSub}>
+                            {c.last4 && c.last4 !== '0000' ? `•••• ${c.last4}  •  ` : ''}
+                            {c.isChecking ? 'Checking' : c.isSaving ? 'Savings' : 'Credit Card'}
+                          </Text>
+                        </View>
+                        {isSelected && <Text style={styles.pickerItemCheckmark}>✓</Text>}
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+                <TouchableOpacity
+                  style={styles.pickerAddBtn}
+                  onPress={() => {
+                    setShowCardPickerModal(false);
+                    setShowAddCardInline(true);
+                  }}
+                >
+                  <Text style={styles.pickerAddBtnText}>+ Add New Account or Card</Text>
+                </TouchableOpacity>
+              </View>
+            </TouchableOpacity>
+          </Modal>
         </View>
       </View>
     </Modal>
@@ -1064,6 +1428,342 @@ const styles = StyleSheet.create({
     color: '#64748b',
     fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
   },
+  last4BadgeBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ffedd5',
+    borderWidth: 1,
+    borderColor: '#fed7aa',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
+    gap: 4,
+  },
+  last4BadgeText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#9a3412',
+  },
+  last4EditIcon: {
+    fontSize: 10,
+  },
+  last4EditRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  last4EditInput: {
+    height: 28,
+    width: 60,
+    backgroundColor: '#ffffff',
+    borderWidth: 1.5,
+    borderColor: '#ea580c',
+    borderRadius: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#0f172a',
+    textAlign: 'center',
+  },
+  last4SaveBtn: {
+    backgroundColor: '#ea580c',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  last4SaveBtnText: {
+    color: '#ffffff',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  last4CancelBtn: {
+    paddingHorizontal: 6,
+    paddingVertical: 4,
+  },
+  last4CancelBtnText: {
+    color: '#64748b',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  matchedCardBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ecfdf5',
+    borderWidth: 1,
+    borderColor: '#a7f3d0',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    gap: 6,
+  },
+  matchedCardIcon: {
+    fontSize: 13,
+  },
+  matchedCardText: {
+    fontSize: 12,
+    color: '#065f46',
+    flex: 1,
+  },
+  unlinkedCardBanner: {
+    backgroundColor: '#fffbeb',
+    borderWidth: 1,
+    borderColor: '#fef3c7',
+    borderRadius: 8,
+    padding: 10,
+    gap: 6,
+  },
+  unlinkedCardTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#92400e',
+    flex: 1,
+  },
+  unlinkedCardSub: {
+    fontSize: 11,
+    color: '#78350f',
+    lineHeight: 15,
+  },
+  unlinkedActionsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginTop: 4,
+  },
+  linkCardBtn: {
+    backgroundColor: '#f59e0b',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 6,
+  },
+  linkCardBtnText: {
+    color: '#ffffff',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  addNewCardInlineBtn: {
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#d97706',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 6,
+  },
+  addNewCardInlineBtnText: {
+    color: '#d97706',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  linkedSuccessBanner: {
+    backgroundColor: '#f0fdf4',
+    borderWidth: 1,
+    borderColor: '#86efac',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    marginTop: 8,
+  },
+  linkedSuccessText: {
+    fontSize: 12,
+    color: '#166534',
+    fontWeight: '600',
+  },
+  inlineAddCardBox: {
+    backgroundColor: '#ffffff',
+    borderWidth: 1.5,
+    borderColor: '#38bdf8',
+    borderRadius: 10,
+    padding: 12,
+    marginTop: 8,
+    gap: 8,
+  },
+  inlineAddCardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  inlineAddCardTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#0369a1',
+  },
+  inlineCardNameInput: {
+    backgroundColor: '#f8fafc',
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
+    borderRadius: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    fontSize: 13,
+    color: '#0f172a',
+  },
+  inlineCardTypeRow: {
+    flexDirection: 'row',
+    gap: 6,
+  },
+  inlineTypeChip: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    backgroundColor: '#f1f5f9',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  inlineTypeChipActive: {
+    backgroundColor: '#e0f2fe',
+    borderColor: '#0284c7',
+  },
+  inlineTypeChipText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#64748b',
+  },
+  inlineTypeChipTextActive: {
+    color: '#0284c7',
+  },
+  inlineCardLast4Info: {
+    paddingHorizontal: 2,
+  },
+  inlineAddCardFooter: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 8,
+    marginTop: 4,
+  },
+  inlineCancelBtn: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 6,
+  },
+  inlineCancelBtnText: {
+    fontSize: 12,
+    color: '#64748b',
+    fontWeight: '600',
+  },
+  inlineSaveBtn: {
+    backgroundColor: '#0284c7',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+  },
+  inlineSaveBtnText: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  inlineAddCardLink: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#0284c7',
+  },
+  nativeCardSelector: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: '#ffffff',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
+  },
+  nativeCardSelectorName: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#0f172a',
+  },
+  nativeCardSelectorSub: {
+    fontSize: 11,
+    color: '#64748b',
+    marginTop: 1,
+  },
+  nativeCardSelectorArrow: {
+    fontSize: 16,
+    color: '#64748b',
+    paddingLeft: 8,
+  },
+  pickerBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(15, 23, 42, 0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  pickerContainer: {
+    width: '100%',
+    maxWidth: 400,
+    backgroundColor: '#ffffff',
+    borderRadius: 14,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  pickerHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+    paddingBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f9',
+  },
+  pickerTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#0f172a',
+  },
+  pickerItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+    marginBottom: 4,
+  },
+  pickerItemActive: {
+    backgroundColor: '#f0fdf4',
+    borderWidth: 1,
+    borderColor: '#86efac',
+  },
+  pickerItemName: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#0f172a',
+  },
+  pickerItemNameActive: {
+    color: '#166534',
+    fontWeight: '700',
+  },
+  pickerItemSub: {
+    fontSize: 11,
+    color: '#64748b',
+    marginTop: 1,
+  },
+  pickerItemCheckmark: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#16a34a',
+    marginLeft: 8,
+  },
+  pickerAddBtn: {
+    marginTop: 10,
+    paddingVertical: 10,
+    borderRadius: 8,
+    borderWidth: 1.5,
+    borderColor: '#0284c7',
+    borderStyle: 'dashed',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#f0f9ff',
+  },
+  pickerAddBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#0284c7',
+  },
   accountSelectorBox: {
     marginTop: 6,
   },
@@ -1071,7 +1771,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
     color: '#475569',
-    marginBottom: 6,
   },
   nativeCardBadge: {
     padding: 10,
@@ -1187,7 +1886,26 @@ const styles = StyleSheet.create({
     borderColor: '#e2e8f0',
     padding: 8,
     marginBottom: 8,
-    gap: 6,
+  },
+  compactDescInput: {
+    width: '100%',
+    height: 38,
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderRadius: 6,
+    paddingHorizontal: 10,
+    fontSize: 13,
+    color: '#0f172a',
+    textAlign: 'left',
+    marginBottom: 6,
+    ...(Platform.OS === 'web'
+      ? ({
+          outlineStyle: 'none',
+          textAlign: 'left',
+          direction: 'ltr',
+        } as any)
+      : {}),
   },
   compactRowTop: {
     flexDirection: 'row',
@@ -1249,7 +1967,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     fontSize: 13,
     color: '#0f172a',
-    ...(Platform.OS === 'web' ? ({ outlineStyle: 'none' } as any) : {}),
+    textAlign: 'left',
+    ...(Platform.OS === 'web'
+      ? ({
+          outlineStyle: 'none',
+          textAlign: 'left',
+          direction: 'ltr',
+        } as any)
+      : {}),
   },
   itemAmountWrapper: {
     position: 'relative',
@@ -1287,7 +2012,7 @@ const styles = StyleSheet.create({
       : {}),
   },
   taxToggleBtn: {
-    width: 65,
+    width: 85,
     height: 38,
     borderRadius: 6,
     borderWidth: 1,

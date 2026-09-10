@@ -838,6 +838,8 @@ function MainApp() {
               editingExpense={editingExpense}
               onCancelEditing={handleCancelEditing}
               onNavigateToSettings={() => navigateToTab('settings')}
+              onUpdateCard={handleCardUpdate}
+              onAddCard={handleCardAdd}
             />
           </View>
         )}

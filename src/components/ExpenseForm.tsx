@@ -32,6 +32,8 @@ interface ExpenseFormProps {
   editingExpense?: Expense | null;
   onCancelEditing?: () => void;
   onNavigateToSettings?: () => void;
+  onUpdateCard?: (card: CreditCard) => void;
+  onAddCard?: (card: Omit<CreditCard, 'id'>) => void;
 }
 
 const parseZelleDetails = (detailsStr: string, fromToStr?: string, descStr?: string) => {
@@ -225,6 +227,8 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = React.memo(({
   editingExpense,
   onCancelEditing,
   onNavigateToSettings,
+  onUpdateCard,
+  onAddCard,
 }) => {
   const [logType, setLogType] = useState<'transaction' | 'transfer'>('transaction');
   const [showToast, setShowToast] = useState(false);
@@ -1838,6 +1842,8 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = React.memo(({
         cards={cards}
         onClose={() => setReceiptModalVisible(false)}
         onApplyReceipt={handleApplyReceipt}
+        onUpdateCard={onUpdateCard}
+        onAddCard={onAddCard}
       />
       </ScrollView>
     </KeyboardAvoidingView>
