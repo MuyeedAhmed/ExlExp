@@ -34,6 +34,7 @@ interface ExpenseFormProps {
   onNavigateToSettings?: () => void;
   onUpdateCard?: (card: CreditCard) => void;
   onAddCard?: (card: Omit<CreditCard, 'id'>) => void;
+  defaultAccountId?: string;
 }
 
 const parseZelleDetails = (detailsStr: string, fromToStr?: string, descStr?: string) => {
@@ -229,6 +230,7 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = React.memo(({
   onNavigateToSettings,
   onUpdateCard,
   onAddCard,
+  defaultAccountId,
 }) => {
   const [logType, setLogType] = useState<'transaction' | 'transfer'>('transaction');
   const [showToast, setShowToast] = useState(false);
@@ -255,7 +257,28 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = React.memo(({
   const [date, setDate] = useState(getTodayString());
 
   // Transaction States (Standard Card/Account spends)
-  const [selectedCardId, setSelectedCardId] = useState('');
+  const [selectedCardId, setSelectedCardId] = useState<string>(() => {
+    if (defaultAccountId && cards.some(c => c.id === defaultAccountId && !isClosedCard(c) && !c.isHidden)) {
+      return defaultAccountId;
+    }
+    const activeCards = cards.filter(c => !isClosedCard(c) && !c.isHidden);
+    const standardCards = activeCards.filter(c => !c.isBrokerage);
+    return standardCards[0]?.id || activeCards[0]?.id || '';
+  });
+  const lastAppliedDefaultAccountIdRef = useRef<string | null>(defaultAccountId || null);
+
+  // Sync selectedCardId when defaultAccountId changes externally
+  useEffect(() => {
+    if (defaultAccountId && defaultAccountId !== lastAppliedDefaultAccountIdRef.current && !editingExpense) {
+      lastAppliedDefaultAccountIdRef.current = defaultAccountId;
+      const cardExists = cards.some(c => c.id === defaultAccountId && !isClosedCard(c) && !c.isHidden);
+      if (cardExists) {
+        setSelectedCardId(defaultAccountId);
+        setLogType('transaction');
+      }
+    }
+  }, [defaultAccountId, editingExpense, cards]);
+
   const [description, setDescription] = useState('');
 
   // Checking/Saving specific states
@@ -336,7 +359,7 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = React.memo(({
       };
 
       onSubmit(expensePayload, data.selectedCardId);
-      resetForm();
+      resetForm(true);
       setShowToast(true);
       setTimeout(() => setShowToast(false), 3000);
       if (Platform.OS === 'web') {
@@ -529,9 +552,19 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = React.memo(({
         }
       }
     } else {
-      resetForm();
+      resetForm(true);
     }
-  }, [editingExpense, cards]);
+  }, [editingExpense]);
+
+  // Keep selectedCardId valid if cards list changes
+  useEffect(() => {
+    if (!editingExpense && selectedCardId) {
+      const stillExists = cards.some(c => c.id === selectedCardId && !isClosedCard(c) && !c.isHidden);
+      if (!stillExists) {
+        resetForm(false);
+      }
+    }
+  }, [cards]);
 
   // Set From / To to "Zelle" automatically when Zelle is enabled
   useEffect(() => {
@@ -559,16 +592,22 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = React.memo(({
     }
   };
 
-  const resetForm = () => {
+  const resetForm = (keepCurrentAccount = true) => {
     setAmount('');
     setDate(getTodayString());
 
     const activeCards = cards.filter(c => !isClosedCard(c) && !c.isHidden);
     const standardCards = activeCards.filter(c => !c.isBrokerage);
-    
-    // Default to the first active standard card (highest priority from Settings)
-    const initialCardId = standardCards[0]?.id || '';
-    setSelectedCardId(initialCardId);
+
+    setSelectedCardId(prevCardId => {
+      if (keepCurrentAccount && prevCardId && activeCards.some(c => c.id === prevCardId)) {
+        return prevCardId;
+      }
+      if (defaultAccountId && activeCards.some(c => c.id === defaultAccountId)) {
+        return defaultAccountId;
+      }
+      return standardCards[0]?.id || activeCards[0]?.id || '';
+    });
 
     // Transaction resets
     setDescription('');
@@ -587,8 +626,18 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = React.memo(({
 
     // Transfer resets
     const depositAccs = activeCards.filter(c => c.isChecking || c.isSaving || c.isBrokerage);
-    setSelectedSourceCardId(depositAccs[0]?.id || initialCardId);
-    setSelectedTargetCardId(activeCards.find(c => c.id !== depositAccs[0]?.id)?.id || initialCardId);
+    setSelectedSourceCardId(prevSource => {
+      if (keepCurrentAccount && prevSource && activeCards.some(c => c.id === prevSource)) {
+        return prevSource;
+      }
+      return depositAccs[0]?.id || activeCards[0]?.id || '';
+    });
+    setSelectedTargetCardId(prevTarget => {
+      if (keepCurrentAccount && prevTarget && activeCards.some(c => c.id === prevTarget)) {
+        return prevTarget;
+      }
+      return activeCards.find(c => c.id !== depositAccs[0]?.id)?.id || activeCards[0]?.id || '';
+    });
     setTransferDetails('');
     setIsCcBillPay(false);
   };
@@ -656,7 +705,7 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = React.memo(({
       };
 
       onSubmit([sourceTx, targetTx], selectedTargetCardId, keepInLogPage);
-      resetForm();
+      resetForm(true);
       setShowToast(true);
       setTimeout(() => setShowToast(false), 2000);
     } else {
@@ -767,7 +816,7 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = React.memo(({
         isInterest: isCheckingSelected && selectedCard?.isSaving ? isInterest : undefined,
       }, selectedCardId, keepInLogPage);
 
-      resetForm();
+      resetForm(true);
       setShowToast(true);
       setTimeout(() => setShowToast(false), 3000);
     }

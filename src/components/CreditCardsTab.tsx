@@ -63,6 +63,7 @@ interface CreditCardsTabProps {
   onSelectCard?: (id: string) => void;
   onUpdateCard?: (updatedCard: CreditCard) => void;
   onNavigateToSettings?: () => void;
+  onNavigateToAdd?: (cardId?: string) => void;
 }
 
 interface CreditCardRowItemProps {
@@ -183,6 +184,7 @@ export const CreditCardsTab: React.FC<CreditCardsTabProps> = React.memo(({
   onSelectCard,
   onUpdateCard,
   onNavigateToSettings,
+  onNavigateToAdd,
 }) => {
   const isWeb = Platform.OS === 'web';
   const todayStr = useMemo(() => new Date().toISOString().split('T')[0], []);
@@ -679,23 +681,34 @@ export const CreditCardsTab: React.FC<CreditCardsTabProps> = React.memo(({
         /* 2. INDIVIDUAL CARD VIEW                                    */
         /* ========================================================= */
         <View style={styles.individualCardContainer}>
-          {/* Card Header Banner (Only Current Balance kept as requested!) */}
+          {/* Card Header Banner (Consistent 2-line layout: Name on top, Balance below, Log button on right) */}
           <View style={styles.headerBanner}>
-            <View style={styles.bannerLeftRow}>
-              <Text style={styles.headerLabel}>
+            <View style={styles.bannerInfoCol}>
+              <Text style={styles.headerLabel} numberOfLines={1}>
                 {activeCard.name}
+              </Text>
+              <Text style={styles.headerBalance}>
+                Current Balance:{' '}
+                <Text
+                  style={[
+                    styles.monoBalance,
+                    activeCardStats.due > 0.005 ? { color: '#dc2626' } : { color: '#16a34a' },
+                  ]}
+                >
+                  ${formatCurrency(activeCardStats.due)}
+                </Text>
               </Text>
             </View>
 
-            <View style={styles.balanceOnlyContainer}>
-              <Text style={styles.balanceLabel}>Current Balance:</Text>
-              <Text style={[
-                styles.balanceValue,
-                activeCardStats.due > 0.005 ? { color: '#dc2626' } : { color: '#16a34a' }
-              ]}>
-                ${formatCurrency(activeCardStats.due)}
-              </Text>
-            </View>
+            {onNavigateToAdd && (
+              <TouchableOpacity
+                style={styles.bannerAddLogBtn}
+                onPress={() => onNavigateToAdd(activeCard.id)}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.bannerAddLogBtnText}>➕ Log Expense</Text>
+              </TouchableOpacity>
+            )}
           </View>
 
           {/* 2-line vertical transactions list for Credit Card */}
@@ -1152,44 +1165,47 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#cbd5e1',
     backgroundColor: '#f8fafc',
-    gap: 8,
+    gap: 12,
     width: '100%',
   },
-  bannerLeftRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
+  bannerInfoCol: {
+    flex: 1,
+    justifyContent: 'center',
   },
   headerLabel: {
     fontSize: 15,
     fontWeight: 'bold',
     color: '#0f172a',
+    marginBottom: 2,
   },
-  balanceOnlyContainer: {
+  headerBalance: {
+    fontSize: 13,
+    color: '#475569',
+    fontWeight: '500',
+  },
+  monoBalance: {
+    fontFamily: Platform.OS === 'ios' ? 'Courier New' : 'monospace',
+    fontWeight: 'bold',
+  },
+  bannerAddLogBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    backgroundColor: '#ffffff',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 4,
-    borderWidth: 1,
-    borderColor: '#cbd5e1',
+    backgroundColor: '#0f172a',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 6,
+    gap: 4,
+    flexShrink: 0,
   },
-  balanceLabel: {
-    fontSize: 12,
+  bannerAddLogBtnText: {
+    color: '#ffffff',
+    fontSize: 13,
     fontWeight: '700',
-    color: '#64748b',
-    textTransform: 'uppercase',
-  },
-  balanceValue: {
-    fontSize: 15,
-    fontWeight: '800',
-    fontFamily: Platform.OS === 'ios' ? 'Courier New' : 'monospace',
   },
   tableContainerWeb: {
     flexDirection: 'column',

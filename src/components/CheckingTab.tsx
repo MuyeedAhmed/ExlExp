@@ -12,6 +12,7 @@ interface CheckingTabProps {
   selectedAccountId?: string;
   onSelectAccount?: (id: string) => void;
   onNavigateToSettings?: () => void;
+  onNavigateToAdd?: (accountId?: string) => void;
 }
 
 interface CheckingRowItemProps {
@@ -96,6 +97,7 @@ export const CheckingTab: React.FC<CheckingTabProps> = React.memo(({
   selectedAccountId: propSelectedAccountId,
   onSelectAccount,
   onNavigateToSettings,
+  onNavigateToAdd,
 }) => {
   // Filter cards to get checking, saving, and brokerage accounts
   const checkingOnly = useMemo(() => {
@@ -326,22 +328,51 @@ export const CheckingTab: React.FC<CheckingTabProps> = React.memo(({
       {/* Account Balance Banner */}
       {activeAccount && (
         <View style={styles.headerBanner}>
-          <Text style={styles.headerLabel}>
-            Account: {activeAccount.name}
-          </Text>
-          <Text style={styles.headerBalance}>
-            Current Balance: <Text style={styles.monoBalance}>${balance.toFixed(2)}</Text>
-          </Text>
+          <View style={styles.bannerInfoCol}>
+            <Text style={styles.headerLabel} numberOfLines={1}>
+              {activeAccount.name}
+              {activeAccount.isSaving && ' (HYSA)'}
+            </Text>
+            <Text style={styles.headerBalance}>
+              Current Balance:{' '}
+              <Text style={[styles.monoBalance, { color: balance >= 0 ? '#16a34a' : '#dc2626' }]}>
+                ${balance.toFixed(2)}
+              </Text>
+            </Text>
+          </View>
+          {onNavigateToAdd && (
+            <TouchableOpacity
+              style={styles.bannerAddLogBtn}
+              onPress={() => onNavigateToAdd(activeAccount.id)}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.bannerAddLogBtnText}>➕ Log Expense</Text>
+            </TouchableOpacity>
+          )}
         </View>
       )}
       {selectedAccountId === 'brokerage' && (
         <View style={styles.headerBanner}>
-          <Text style={styles.headerLabel}>
-            Account: Brokerage Portfolio
-          </Text>
-          <Text style={styles.headerBalance}>
-            Current Balance: <Text style={styles.monoBalance}>${totalBrokerageBalance.toFixed(2)}</Text>
-          </Text>
+          <View style={styles.bannerInfoCol}>
+            <Text style={styles.headerLabel} numberOfLines={1}>
+              Brokerage Portfolio
+            </Text>
+            <Text style={styles.headerBalance}>
+              Current Balance:{' '}
+              <Text style={[styles.monoBalance, { color: totalBrokerageBalance >= 0 ? '#16a34a' : '#dc2626' }]}>
+                ${totalBrokerageBalance.toFixed(2)}
+              </Text>
+            </Text>
+          </View>
+          {onNavigateToAdd && (
+            <TouchableOpacity
+              style={styles.bannerAddLogBtn}
+              onPress={() => onNavigateToAdd()}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.bannerAddLogBtnText}>➕ Log Expense</Text>
+            </TouchableOpacity>
+          )}
         </View>
       )}
 
@@ -542,24 +573,47 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#cbd5e1',
     backgroundColor: '#f8fafc',
+    gap: 12,
+    width: '100%',
+  },
+  bannerInfoCol: {
+    flex: 1,
+    justifyContent: 'center',
   },
   headerLabel: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: 'bold',
     color: '#0f172a',
+    marginBottom: 2,
   },
   headerBalance: {
-    fontSize: 14,
+    fontSize: 13,
     color: '#475569',
+    fontWeight: '500',
   },
   monoBalance: {
     fontFamily: Platform.OS === 'ios' ? 'Courier New' : 'monospace',
     fontWeight: 'bold',
-    color: '#0f172a',
+  },
+  bannerAddLogBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#0f172a',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 6,
+    gap: 4,
+    flexShrink: 0,
+  },
+  bannerAddLogBtnText: {
+    color: '#ffffff',
+    fontSize: 13,
+    fontWeight: '700',
   },
   tableScroll: {
     flex: 1,
