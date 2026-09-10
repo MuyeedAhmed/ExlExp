@@ -457,7 +457,12 @@ export const saveFutureExpenses = async (futureExpenses: FutureExpense[], userna
     if (futureExpenses.length > 0) {
       const mapped = futureExpenses.map(f => ({ ...f, username }));
       const { error: insError } = await supabase.from('future_expenses').insert(mapped);
-      if (insError) throw insError;
+      if (insError) {
+        console.warn('Supabase future_expenses insert error, retrying without acc field fallback:', insError);
+        const fallbackMapped = futureExpenses.map(({ acc, ...rest }) => ({ ...rest, username }));
+        const { error: fallbackError } = await supabase.from('future_expenses').insert(fallbackMapped);
+        if (fallbackError) throw fallbackError;
+      }
     }
   } catch (error) {
     console.log('Supabase offline or error, could not sync future expenses to cloud database:', error);

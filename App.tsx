@@ -580,6 +580,52 @@ function MainApp() {
     await saveFutureExpenses(updated, currentUser!);
   };
 
+  const handleFutureExpenseUpdate = async (updatedItem: FutureExpense) => {
+    const updated = futureExpenses.map(f => f.id === updatedItem.id ? updatedItem : f);
+    setFutureExpenses(updated);
+    await saveFutureExpenses(updated, currentUser!);
+  };
+
+  const handleFutureExpenseExecute = async (bill: FutureExpense) => {
+    // 1. Identify target account
+    let targetCard = cards.find(c => c.id === bill.acc);
+    if (!targetCard) {
+      // Fallback: look for first checking account or first available card
+      targetCard = cards.find(c => c.isChecking) || cards.find(c => c.isSaving) || cards[0];
+    }
+    const targetAccountId = targetCard ? targetCard.id : (bill.acc || '');
+
+    // 2. Format today's date (YYYY-MM-DD)
+    const now = new Date();
+    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+
+    // 3. Determine amount (for checking/saving debit, amount is negative)
+    const isDepositAcc = !!(targetCard?.isChecking || targetCard?.isSaving || targetCard?.isBrokerage);
+    const finalAmount = isDepositAcc ? -Math.abs(bill.amount) : Math.abs(bill.amount);
+
+    // 4. Create new Expense transaction
+    const newExpense: Expense = {
+      id: 'exp-' + Math.random().toString(36).substr(2, 9) + Date.now().toString(36),
+      description: bill.description,
+      amount: finalAmount,
+      creditCardId: targetAccountId,
+      date: todayStr,
+      category: 'Bills',
+      fromTo: isDepositAcc ? bill.description : undefined,
+      details: isDepositAcc ? 'Scheduled Bill' : undefined,
+      username: currentUser || undefined,
+    };
+
+    const updatedExpenses = [newExpense, ...expenses];
+    setExpenses(updatedExpenses);
+    await saveExpenses(updatedExpenses, currentUser!);
+
+    // 5. Remove the bill from future expenses upon execution
+    const updatedFuture = futureExpenses.filter(f => f.id !== bill.id);
+    setFutureExpenses(updatedFuture);
+    await saveFutureExpenses(updatedFuture, currentUser!);
+  };
+
   const handleFutureExpenseDelete = async (id: string) => {
     const updated = futureExpenses.filter(f => f.id !== id);
     setExpenses(expenses); // force reload dependencies if needed
@@ -843,7 +889,9 @@ function MainApp() {
               cards={cards}
               futureExpenses={futureExpenses}
               onAddFutureExpense={handleFutureExpenseAdd}
+              onEditFutureExpense={handleFutureExpenseUpdate}
               onDeleteFutureExpense={handleFutureExpenseDelete}
+              onExecuteFutureExpense={handleFutureExpenseExecute}
               onNavigateToSettings={() => navigateToTab('settings')}
               onEditExpense={handleExpenseEditRequest}
               onDeleteExpense={handleExpenseDelete}

@@ -35,6 +35,7 @@ export interface FutureExpense {
   description: string;
   amount: number;
   dueDate?: string; // YYYY-MM-DD (optional)
+  acc?: string; // Account ID (Checking/Saving account)
   username?: string; // foreign key referencing users.username
 }
 
