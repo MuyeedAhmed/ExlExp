@@ -62,7 +62,7 @@ interface CreditCardsTabProps {
   selectedCardId?: string;
   onSelectCard?: (id: string) => void;
   onUpdateCard?: (updatedCard: CreditCard) => void;
-  onNavigateToSettings?: () => void;
+  onNavigateToSettings?: (subpage?: 'main' | 'accounts' | 'add_account' | 'user') => void;
   onNavigateToAdd?: (cardId?: string) => void;
 }
 
@@ -449,14 +449,6 @@ export const CreditCardsTab: React.FC<CreditCardsTabProps> = React.memo(({
               </TouchableOpacity>
             );
           })}
-          {onNavigateToSettings && (
-            <TouchableOpacity
-              style={styles.addCardTabBtn}
-              onPress={onNavigateToSettings}
-            >
-              <Text style={styles.addCardTabBtnText}>➕ Add Card</Text>
-            </TouchableOpacity>
-          )}
         </ScrollView>
       </View>
 
@@ -522,7 +514,20 @@ export const CreditCardsTab: React.FC<CreditCardsTabProps> = React.memo(({
           {/* Credit Cards Summary Table */}
           <View style={styles.tableSection}>
             <View style={styles.tableSectionHeader}>
-              <Text style={styles.tableSectionTitle}>All Credit Cards Summary</Text>
+              <View style={styles.tableSectionHeaderRow}>
+                <Text style={styles.tableSectionTitle}>All Credit Cards Summary</Text>
+                {onNavigateToSettings && (
+                  <TouchableOpacity
+                    style={styles.addCardHeaderBtn}
+                    onPress={() => onNavigateToSettings('accounts')}
+                    activeOpacity={0.7}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    accessibilityLabel="Add new credit card"
+                  >
+                    <Text style={styles.addCardHeaderBtnText}>➕</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
             </View>
 
             {creditCardsOnly.length === 0 ? (
@@ -532,7 +537,7 @@ export const CreditCardsTab: React.FC<CreditCardsTabProps> = React.memo(({
                   You don't have any credit cards configured yet. Add your credit cards to track credit age, balances, spent, paid, rewards, and annual fees.
                 </Text>
                 {onNavigateToSettings && (
-                  <TouchableOpacity style={styles.emptyActionBtn} onPress={onNavigateToSettings}>
+                  <TouchableOpacity style={styles.emptyActionBtn} onPress={() => onNavigateToSettings('accounts')}>
                     <Text style={styles.emptyActionBtnText}>➕ Add Credit Card</Text>
                   </TouchableOpacity>
                 )}
@@ -973,12 +978,30 @@ const styles = StyleSheet.create({
     borderBottomColor: '#e2e8f0',
     backgroundColor: '#f8fafc',
   },
+  tableSectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
   tableSectionTitle: {
     fontSize: 14,
     fontWeight: '800',
     color: '#0f172a',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
+  },
+  addCardHeaderBtn: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    backgroundColor: '#0f172a',
+    borderRadius: 6,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  addCardHeaderBtnText: {
+    fontSize: 12,
+    lineHeight: 14,
+    color: '#ffffff',
   },
   tableSectionSub: {
     fontSize: 12,

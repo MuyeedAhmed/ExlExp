@@ -145,6 +145,15 @@ function MainApp() {
     navigateToTab('add');
   };
 
+  const [settingsSubpage, setSettingsSubpage] = useState<'main' | 'accounts' | 'add_account' | 'user'>('main');
+
+  const handleNavigateToSettings = (subpage: 'main' | 'accounts' | 'add_account' | 'user' = 'main') => {
+    Keyboard.dismiss();
+    setEditingExpense(null);
+    setSettingsSubpage(subpage);
+    navigateToTab('settings');
+  };
+
   const navigationStateRef = useRef({
     tabHistory,
     activeTab,
@@ -784,9 +793,7 @@ function MainApp() {
             <TouchableOpacity
               style={[styles.webNavItem, activeTab === 'settings' && styles.webNavItemActive]}
               onPress={() => {
-                Keyboard.dismiss();
-                setEditingExpense(null);
-                navigateToTab('settings');
+                handleNavigateToSettings('main');
               }}
             >
               <Text style={styles.webNavIcon}>⚙️</Text>
@@ -800,9 +807,7 @@ function MainApp() {
           <TouchableOpacity
             style={styles.webSidebarFooter}
             onPress={() => {
-              Keyboard.dismiss();
-              setEditingExpense(null);
-              navigateToTab('settings');
+              handleNavigateToSettings('user');
             }}
           >
             <View style={styles.webSidebarUserAvatar}>
@@ -872,7 +877,7 @@ function MainApp() {
               selectedCardId={selectedCreditCardId}
               onSelectCard={setSelectedCreditCardId}
               onUpdateCard={handleCardUpdate}
-              onNavigateToSettings={() => navigateToTab('settings')}
+              onNavigateToSettings={handleNavigateToSettings}
               onNavigateToAdd={handleNavigateToAdd}
             />
           </View>
@@ -882,6 +887,7 @@ function MainApp() {
           <View style={[styles.tabContentContainer, { display: activeTab === 'settings' ? 'flex' : 'none' }]}>
             <Settings
               cards={cards}
+              initialSubpage={settingsSubpage}
               onAddCard={handleCardAdd}
               onDeleteCard={handleCardDelete}
               onRenameCard={handleCardRename}
@@ -971,9 +977,7 @@ function MainApp() {
           <TouchableOpacity
             style={[styles.tabButton, activeTab === 'settings' && styles.activeTabButton]}
             onPress={() => {
-              Keyboard.dismiss();
-              setEditingExpense(null);
-              navigateToTab('settings');
+              handleNavigateToSettings('main');
             }}
           >
             <Text style={[styles.tabText, activeTab === 'settings' && styles.activeTabText]}>Settings</Text>
