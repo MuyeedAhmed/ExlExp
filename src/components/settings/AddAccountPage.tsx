@@ -29,6 +29,7 @@ export const AddAccountPage: React.FC<AddAccountPageProps> = ({
   const [selectedType, setSelectedType] = useState<AccountTypeOption>('checking');
   const [name, setName] = useState('');
   const [openDate, setOpenDate] = useState(todayStr);
+  const [last4, setLast4] = useState('0000');
 
   const isCredit = selectedType === 'credit';
 
@@ -47,6 +48,8 @@ export const AddAccountPage: React.FC<AddAccountPageProps> = ({
       return;
     }
 
+    const cleanedLast4 = last4.replace(/\D/g, '').slice(0, 4) || '0000';
+
     if (isCredit) {
       onAddCard({
         name: trimmedName,
@@ -54,6 +57,7 @@ export const AddAccountPage: React.FC<AddAccountPageProps> = ({
         isSaving: false,
         isBrokerage: false,
         openDate: openDate.trim() || todayStr,
+        last4: cleanedLast4,
       });
     } else {
       onAddCard({
@@ -61,6 +65,7 @@ export const AddAccountPage: React.FC<AddAccountPageProps> = ({
         isChecking: selectedType === 'checking',
         isSaving: selectedType === 'saving',
         isBrokerage: selectedType === 'brokerage',
+        last4: cleanedLast4,
       });
     }
 
@@ -217,6 +222,22 @@ export const AddAccountPage: React.FC<AddAccountPageProps> = ({
             </Text>
           </View>
         )}
+
+        <View style={styles.formGroup}>
+          <Text style={styles.fieldLabel}>Card Last 4 Digits (Optional)</Text>
+          <TextInput
+            style={[styles.input, { width: 100, textAlign: 'center' }]}
+            value={last4}
+            onChangeText={setLast4}
+            placeholder="0000"
+            placeholderTextColor="#94a3b8"
+            maxLength={4}
+            keyboardType="number-pad"
+          />
+          <Text style={styles.helperText}>
+            Used for automatic card matching when scanning receipts.
+          </Text>
+        </View>
       </View>
 
       {/* Action Buttons */}

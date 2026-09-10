@@ -83,6 +83,14 @@ Manage all bank accounts (Checking, Savings, Brokerage) and Credit Cards. Easily
   - Inter-account balance transfers and Zelle split-logging.
   - Mobile-friendly date picker and keyboard-avoiding controls.
 
+- **📸 AI Receipt Recognition Engine (AWS SageMaker & Lambda)**:
+  - Instant image capture via camera or photo gallery upload on web and mobile devices.
+  - Serverless architecture utilizing **AWS Lambda** orchestrating an **Amazon SageMaker** inference endpoint.
+  - Automatic extraction of **Card Usage** (card brand, last 4 digits, authorization code) with intelligent matching against user's registered cards.
+  - Automatic extraction of **Total Amount**, subtotal, sales tax, and transaction date.
+  - Interactive **Itemwise Breakdown** with editable line items, item pricing, and category tagging.
+  - One-tap pre-fill into the expense logging engine.
+
 - ** Security & User Management**:
   - Multi-user authentication support.
   - In-app username and password updates.

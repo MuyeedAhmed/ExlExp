@@ -1,0 +1,91 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  ExlExp Receipt Recognition Engine
+  Serverless HTTP API and AWS Lambda function invoking Amazon SageMaker
+  for receipt recognition, card usage extraction, and itemwise breakdown.
+
+Globals:
+  Function:
+    Timeout: 30
+    MemorySize: 512
+    Runtime: python3.11
+    Tracing: Active
+  Api:
+    Cors:
+      AllowMethods: "'POST,OPTIONS'"
+      AllowHeaders: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+      AllowOrigin: "'*'"
+
+Parameters:
+  SageMakerEndpointName:
+    Type: String
+    Default: receipt-recognition-endpoint
+    Description: Name of the SageMaker endpoint to invoke.
+
+  EnableFallback:
+    Type: String
+    Default: "true"
+    AllowedValues: ["true", "false"]
+    Description: Whether to enable fallback heuristic parsing when SageMaker is offline.
+
+Resources:
+  ReceiptRecognitionApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      StageName: prod
+      CorsConfiguration:
+        AllowOrigins:
+          - "*"
+        AllowMethods:
+          - POST
+          - OPTIONS
+        AllowHeaders:
+          - Content-Type
+          - Authorization
+          - X-Amz-Date
+          - X-Api-Key
+
+  ReceiptRecognitionFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: lambda/
+      Handler: handler.lambda_handler
+      Description: Processes receipt images and coordinates SageMaker model inference
+      Environment:
+        Variables:
+          SAGEMAKER_ENDPOINT_NAME: !Ref SageMakerEndpointName
+          ENABLE_MOCK_FALLBACK: !Ref EnableFallback
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action:
+                - sagemaker:InvokeEndpoint
+              Resource: !Sub 'arn:aws:sagemaker:${AWS::Region}:${AWS::AccountId}:endpoint/${SageMakerEndpointName}'
+            - Effect: Allow
+              Action:
+                - logs:CreateLogGroup
+                - logs:CreateLogStream
+                - logs:PutLogEvents
+              Resource: '*'
+      Events:
+        RecognizeReceipt:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref ReceiptRecognitionApi
+            Path: /recognize-receipt
+            Method: POST
+        PreflightCors:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref ReceiptRecognitionApi
+            Path: /recognize-receipt
+            Method: OPTIONS
+
+Outputs:
+  ReceiptApiEndpoint:
+    Description: HTTP API Gateway endpoint URL for receipt recognition
+    Value: !Sub 'https://${ReceiptRecognitionApi}.execute-api.${AWS::Region}.amazonaws.com/prod/recognize-receipt'
+  LambdaFunctionArn:
+    Description: Receipt Recognition Lambda Function ARN
+    Value: !GetAtt ReceiptRecognitionFunction.Arn

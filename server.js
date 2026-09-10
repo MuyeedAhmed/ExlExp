@@ -195,6 +195,31 @@ app.post('/api/future-expenses/sync', (req, res) => {
   }
 });
 
+// Receipt Recognition Endpoint (Proxies to AWS Lambda or processes locally)
+app.post('/api/scan-receipt', async (req, res) => {
+  const { image } = req.body;
+  if (!image) {
+    return res.status(400).json({ error: 'Missing image in request body' });
+  }
+
+  const lambdaUrl = process.env.AWS_RECEIPT_LAMBDA_URL;
+  if (lambdaUrl) {
+    try {
+      const response = await fetch(lambdaUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ image }),
+      });
+      const data = await response.json();
+      return res.json(data);
+    } catch (err) {
+      return res.status(502).json({ error: 'AWS Lambda proxy request failed' });
+    }
+  }
+
+  res.status(400).json({ error: 'AWS_RECEIPT_LAMBDA_URL is not configured' });
+});
+
 // Start Server
 app.listen(PORT, () => {
   console.log(`ExlExp API server running at http://localhost:${PORT}`);

@@ -54,11 +54,13 @@ export const AccountsPage: React.FC<AccountsPageProps> = ({
   const [editingCardId, setEditingCardId] = useState<string | null>(null);
   const [editingCardName, setEditingCardName] = useState<string>('');
   const [editingCardOpenDate, setEditingCardOpenDate] = useState<string>(todayStr);
+  const [editingCardLast4, setEditingCardLast4] = useState<string>('0000');
 
   const handleStartRename = (card: CreditCard) => {
     setEditingCardId(card.id);
     setEditingCardName(card.name);
     setEditingCardOpenDate(card.openDate || todayStr);
+    setEditingCardLast4(card.last4 || '0000');
   };
 
   const handleSaveRename = (id: string) => {
@@ -67,11 +69,13 @@ export const AccountsPage: React.FC<AccountsPageProps> = ({
       return;
     }
     const card = cards.find(c => c.id === id);
+    const cleanedLast4 = editingCardLast4.replace(/\D/g, '').slice(0, 4) || '0000';
     if (card && onUpdateCard) {
       onUpdateCard({
         ...card,
         name: editingCardName.trim(),
         openDate: editingCardOpenDate || card.openDate || todayStr,
+        last4: cleanedLast4,
       });
     } else {
       onRenameCard(id, editingCardName.trim());
@@ -245,15 +249,27 @@ export const AccountsPage: React.FC<AccountsPageProps> = ({
                           placeholderTextColor="#94a3b8"
                           autoFocus
                         />
-                        {isCredit && (
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 }}>
+                          <Text style={{ fontSize: 11, color: '#64748b', fontWeight: '600' }}>Last 4:</Text>
                           <TextInput
-                            style={[styles.editInput, styles.dateEditInput]}
-                            value={editingCardOpenDate}
-                            onChangeText={setEditingCardOpenDate}
-                            placeholder="YYYY-MM-DD"
+                            style={[styles.editInput, { width: 65, textAlign: 'center', height: 32, paddingVertical: 2 }]}
+                            value={editingCardLast4}
+                            onChangeText={setEditingCardLast4}
+                            placeholder="0000"
                             placeholderTextColor="#94a3b8"
+                            maxLength={4}
+                            keyboardType="number-pad"
                           />
-                        )}
+                          {isCredit && (
+                            <TextInput
+                              style={[styles.editInput, styles.dateEditInput, { flex: 1, height: 32, paddingVertical: 2 }]}
+                              value={editingCardOpenDate}
+                              onChangeText={setEditingCardOpenDate}
+                              placeholder="YYYY-MM-DD"
+                              placeholderTextColor="#94a3b8"
+                            />
+                          )}
+                        </View>
                       </View>
                     ) : (
                       <View style={styles.cardItemRow}>
@@ -271,6 +287,11 @@ export const AccountsPage: React.FC<AccountsPageProps> = ({
                             <View style={styles.typeBadge}>
                               <Text style={styles.typeBadgeText}>
                                 {getAccountTypeLabel(card)}
+                              </Text>
+                            </View>
+                            <View style={[styles.typeBadge, { backgroundColor: '#f1f5f9' }]}>
+                              <Text style={[styles.typeBadgeText, { color: '#475569', fontWeight: '600' }]}>
+                                •••• {card.last4 || '0000'}
                               </Text>
                             </View>
                             {card.isHidden && (

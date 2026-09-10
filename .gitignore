@@ -30,7 +30,8 @@ yarn-error.*
 .DS_Store
 *.pem
 
-# local env files
+# env files
+.env
 .env*.local
 
 # typescript
@@ -62,3 +63,14 @@ Bank Log.xlsx
 Imported_Data_For_Verification.xlsx
 secret.txt
 db.json
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# AWS SAM / Deployment
+.aws-sam/
+samconfig.toml
+*.tar.gz
+

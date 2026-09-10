@@ -184,7 +184,8 @@ export const getCreditCards = async (username: string): Promise<CreditCard[]> =>
         ...c,
         isHidden: !!c.isHidden,
         openDate: c.openDate || todayStr,
-        priority: typeof c.priority === 'number' ? c.priority : index
+        priority: typeof c.priority === 'number' ? c.priority : index,
+        last4: c.last4 || '0000',
       }));
       return sorted.sort((a, b) => a.priority - b.priority);
     } catch (e) {
@@ -204,7 +205,7 @@ export const getCreditCards = async (username: string): Promise<CreditCard[]> =>
     // Return empty if user has no cards configured yet
     const cardsData = (data && data.length > 0) ? data : [];
 
-    // Fetch local user settings (priority order & visibility & openDate) from AsyncStorage
+    // Fetch local user settings (priority order & visibility & openDate & last4) from AsyncStorage
     let localCards: CreditCard[] = [];
     try {
       const localData = await AsyncStorage.getItem(`@ExlExp:${username}:credit_cards`);
@@ -228,7 +229,8 @@ export const getCreditCards = async (username: string): Promise<CreditCard[]> =>
         openDate: c.openDate || c.opendate || c.open_date || (local && local.openDate) || todayStr,
         priority: local && typeof local.priority === 'number'
           ? local.priority
-          : (typeof c.priority === 'number' ? c.priority : 9999)
+          : (typeof c.priority === 'number' ? c.priority : 9999),
+        last4: c.last4 || (local && local.last4) || '0000',
       };
     });
 
@@ -246,7 +248,8 @@ export const getCreditCards = async (username: string): Promise<CreditCard[]> =>
         ...c,
         isHidden: !!c.isHidden,
         openDate: c.openDate || todayStr,
-        priority: typeof c.priority === 'number' ? c.priority : index
+        priority: typeof c.priority === 'number' ? c.priority : index,
+        last4: c.last4 || '0000',
       }));
       return sorted.sort((a, b) => a.priority - b.priority);
     } catch (e) {
@@ -265,6 +268,7 @@ export const saveCreditCards = async (cards: CreditCard[], username: string): Pr
       priority: index,
       isHidden: !!c.isHidden,
       openDate: c.openDate || todayStr,
+      last4: c.last4 || '0000',
     }));
     await AsyncStorage.setItem(`@ExlExp:${username}:credit_cards`, JSON.stringify(mapped));
   } catch (e) {
@@ -543,6 +547,7 @@ export const DEFAULT_LOCAL_CARDS: CreditCard[] = [
     isHidden: false,
     priority: 0,
     openDate: new Date().toISOString().split('T')[0],
+    last4: '0000',
   },
   {
     id: 'card-credit-default',
@@ -553,6 +558,7 @@ export const DEFAULT_LOCAL_CARDS: CreditCard[] = [
     isHidden: false,
     priority: 1,
     openDate: new Date().toISOString().split('T')[0],
+    last4: '0000',
   },
 ];
 

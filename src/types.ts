@@ -27,6 +27,7 @@ export interface CreditCard {
   priority?: number; // Optional flag to save priority order of cards
   openDate?: string; // Date of account opening in YYYY-MM-DD format
   username?: string; // foreign key referencing users.username
+  last4?: string; // Last 4 digits of card (e.g. '4242', defaults to '0000')
 }
 
 export interface FutureExpense {

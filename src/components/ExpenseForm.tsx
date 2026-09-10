@@ -16,6 +16,8 @@ import {
 } from 'react-native';
 import { Expense, CreditCard } from '../types';
 import { formatCurrencyInput } from '../transactionUtils';
+import { ReceiptScannerModal } from './ReceiptScannerModal';
+import { ReceiptItem } from '../services/receiptRecognition';
 
 interface ExpenseFormProps {
   cards: CreditCard[];
@@ -30,6 +32,8 @@ interface ExpenseFormProps {
   editingExpense?: Expense | null;
   onCancelEditing?: () => void;
   onNavigateToSettings?: () => void;
+  onUpdateCard?: (card: CreditCard) => void;
+  onAddCard?: (card: Omit<CreditCard, 'id'>) => void;
 }
 
 const parseZelleDetails = (detailsStr: string, fromToStr?: string, descStr?: string) => {
@@ -223,6 +227,8 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = React.memo(({
   editingExpense,
   onCancelEditing,
   onNavigateToSettings,
+  onUpdateCard,
+  onAddCard,
 }) => {
   const [logType, setLogType] = useState<'transaction' | 'transfer'>('transaction');
   const [showToast, setShowToast] = useState(false);
@@ -287,8 +293,33 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = React.memo(({
   const [targetModalVisible, setTargetModalVisible] = useState(false);
   const [categoryModalVisible, setCategoryModalVisible] = useState(false);
   const [datePickerVisible, setDatePickerVisible] = useState(false);
+  const [receiptModalVisible, setReceiptModalVisible] = useState(false);
   const [calendarYear, setCalendarYear] = useState(() => new Date().getFullYear());
   const [calendarMonth, setCalendarMonth] = useState(() => new Date().getMonth());
+
+  const handleApplyReceipt = (data: {
+    selectedCardId: string;
+    amount: number;
+    description: string;
+    date: string;
+    items: ReceiptItem[];
+    details: string;
+    category?: string;
+  }) => {
+    setLogType('transaction');
+    setAmount(data.amount.toFixed(2));
+    setDescription(data.description);
+    setDate(data.date);
+    if (data.selectedCardId) {
+      setSelectedCardId(data.selectedCardId);
+    }
+    if (data.details) {
+      setDetails(data.details);
+    }
+    if (data.category && CATEGORIES.includes(data.category)) {
+      setCategory(data.category);
+    }
+  };
 
   const MONTH_NAMES = [
     'January', 'February', 'March', 'April', 'May', 'June',
@@ -800,6 +831,30 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = React.memo(({
                   <Text style={styles.formTitle}>
                     {editingExpense ? 'Edit Log Entry' : 'Log New Entry'}
                   </Text>
+
+        {/* AI Receipt Recognition Engine Banner */}
+        {!editingExpense && (
+          <TouchableOpacity
+            style={styles.scanReceiptBanner}
+            onPress={() => setReceiptModalVisible(true)}
+            activeOpacity={0.85}
+          >
+            <View style={styles.scanReceiptBannerLeft}>
+              <View style={styles.scanReceiptIconCircle}>
+                <Text style={styles.scanReceiptBannerIcon}>📸</Text>
+              </View>
+              <View style={styles.scanReceiptTextGroup}>
+                <Text style={styles.scanReceiptBannerTitle}>Scan Receipt</Text>
+                {/* <Text style={styles.scanReceiptBannerSub}>
+                  Auto-fill card, total & items with AWS SageMaker
+                </Text> */}
+              </View>
+            </View>
+            <View style={styles.scanReceiptBadge}>
+              <Text style={styles.scanReceiptBadgeText}>AUTO-FILL</Text>
+            </View>
+          </TouchableOpacity>
+        )}
 
         {/* Toggle Log Type (Disabled in edit mode to prevent structure mismatch) */}
         {(!editingExpense || editingExpense.isTransfer) && (
@@ -1780,6 +1835,16 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = React.memo(({
           </View>
         </View>
       </Modal>
+
+      {/* AI Receipt Recognition Engine Modal */}
+      <ReceiptScannerModal
+        visible={receiptModalVisible}
+        cards={cards}
+        onClose={() => setReceiptModalVisible(false)}
+        onApplyReceipt={handleApplyReceipt}
+        onUpdateCard={onUpdateCard}
+        onAddCard={onAddCard}
+      />
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -1822,6 +1887,65 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     textTransform: 'uppercase',
     letterSpacing: 0.75,
+  },
+  scanReceiptBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#f0f9ff',
+    borderWidth: 1.5,
+    borderColor: '#bae6fd',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 18,
+    shadowColor: '#0284c7',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 1,
+  },
+  scanReceiptBannerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    marginRight: 8,
+  },
+  scanReceiptIconCircle: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: '#0284c7',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+  },
+  scanReceiptBannerIcon: {
+    fontSize: 18,
+  },
+  scanReceiptTextGroup: {
+    flex: 1,
+  },
+  scanReceiptBannerTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#0369a1',
+  },
+  scanReceiptBannerSub: {
+    fontSize: 11,
+    color: '#0284c7',
+    marginTop: 2,
+  },
+  scanReceiptBadge: {
+    backgroundColor: '#0284c7',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  scanReceiptBadgeText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#ffffff',
+    letterSpacing: 0.5,
   },
   logTypeToggleRow: {
     flexDirection: 'row',

@@ -8,10 +8,19 @@
     "userInterfaceStyle": "light",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.muyeedahmed.exlexp"
+      "bundleIdentifier": "com.muyeedahmed.exlexp",
+      "infoPlist": {
+        "NSCameraUsageDescription": "The app needs access to your camera to scan receipts.",
+        "NSPhotoLibraryUsageDescription": "The app needs access to your photo library to select receipt images."
+      }
     },
     "android": {
       "package": "com.muyeedahmed.exlexp",
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.READ_MEDIA_IMAGES"
+      ],
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -20,6 +29,15 @@
       },
       "predictiveBackGestureEnabled": false
     },
+    "plugins": [
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "The app accesses your photos to let you select receipt images.",
+          "cameraPermission": "The app accesses your camera to let you photograph receipts."
+        }
+      ]
+    ],
     "web": {
       "favicon": "./assets/favicon.png"
     }
