@@ -915,8 +915,8 @@ function MainApp() {
         )}
       </View>
 
-      {/* Floating Action Button for Mobile App (hidden on Add and on account/card pages that already feature a header Log Expense button) */}
-      {!isWeb && activeTab !== 'add' && activeTab !== 'checking' && activeTab !== 'credit_cards' && !isKeyboardVisible && (
+      {/* Floating Action Button for Mobile App (only shown on Dashboard) */}
+      {!isWeb && activeTab === 'dashboard' && !isKeyboardVisible && (
         <View style={styles.floatingButtonContainer} pointerEvents="box-none">
           <TouchableOpacity
             style={styles.floatingLogButton}
