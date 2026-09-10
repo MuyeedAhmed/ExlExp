@@ -28,7 +28,7 @@ import {
 import { Dashboard } from './src/components/Dashboard';
 import { ExpenseForm } from './src/components/ExpenseForm';
 import { CheckingTab } from './src/components/CheckingTab';
-import { CreditCardsTab } from './src/components/CreditCardsTab';
+import { CreditCardsTab, isClosedCard } from './src/components/CreditCardsTab';
 import { Settings } from './src/components/Settings';
 import { LoginScreen } from './src/components/LoginScreen';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -101,6 +101,8 @@ function MainApp() {
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [selectedCheckingAccountId, setSelectedCheckingAccountId] = useState<string>('');
   const [selectedCreditCardId, setSelectedCreditCardId] = useState<string>('');
+  const [lastLoggedAccountId, setLastLoggedAccountId] = useState<string>('');
+  const [activeAccountForAdd, setActiveAccountForAdd] = useState<string>('');
   const [showAuthScreen, setShowAuthScreen] = useState(false);
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
 
@@ -122,6 +124,34 @@ function MainApp() {
       const updated = [...prev, nextTab];
       return updated.length > 25 ? updated.slice(updated.length - 25) : updated;
     });
+  };
+
+  const handleNavigateToAdd = (specificAccountId?: string) => {
+    Keyboard.dismiss();
+    setEditingExpense(null);
+    let targetAccId = specificAccountId;
+    if (!targetAccId) {
+      if (activeTab === 'checking' && selectedCheckingAccountId && selectedCheckingAccountId !== 'brokerage') {
+        targetAccId = selectedCheckingAccountId;
+      } else if (activeTab === 'credit_cards' && selectedCreditCardId && selectedCreditCardId !== 'all') {
+        targetAccId = selectedCreditCardId;
+      } else if (lastLoggedAccountId) {
+        targetAccId = lastLoggedAccountId;
+      }
+    }
+    if (targetAccId) {
+      setActiveAccountForAdd(targetAccId);
+    }
+    navigateToTab('add');
+  };
+
+  const [settingsSubpage, setSettingsSubpage] = useState<'main' | 'accounts' | 'add_account' | 'user'>('main');
+
+  const handleNavigateToSettings = (subpage: 'main' | 'accounts' | 'add_account' | 'user' = 'main') => {
+    Keyboard.dismiss();
+    setEditingExpense(null);
+    setSettingsSubpage(subpage);
+    navigateToTab('settings');
   };
 
   const navigationStateRef = useRef({
@@ -154,7 +184,13 @@ function MainApp() {
   useEffect(() => {
     async function checkSession() {
       try {
-        const storedUser = await AsyncStorage.getItem('@ExlExp:currentUser');
+        const [storedUser, storedLastAccount] = await Promise.all([
+          AsyncStorage.getItem('@ExlExp:currentUser'),
+          AsyncStorage.getItem('@ExlExp:lastLoggedAccountId'),
+        ]);
+        if (storedLastAccount) {
+          setLastLoggedAccountId(storedLastAccount);
+        }
         if (storedUser) {
           setCurrentUser(storedUser);
         } else {
@@ -216,8 +252,24 @@ function MainApp() {
             getFutureExpenses('local'),
           ]);
           setExpenses(localExpenses);
-          setCards(localCards.length > 0 ? localCards : DEFAULT_LOCAL_CARDS);
+          const finalLocalCards = localCards.length > 0 ? localCards : DEFAULT_LOCAL_CARDS;
+          setCards(finalLocalCards);
           setFutureExpenses(localFuture);
+
+          try {
+            const savedAcc = await AsyncStorage.getItem('@ExlExp:lastLoggedAccountId');
+            if (savedAcc && finalLocalCards.some(c => c.id === savedAcc)) {
+              setLastLoggedAccountId(savedAcc);
+            } else if (localExpenses.length > 0) {
+              const sorted = [...localExpenses].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+              const recent = sorted.find(e => finalLocalCards.some(c => c.id === e.creditCardId && !isClosedCard(c) && !c.isHidden));
+              if (recent) {
+                setLastLoggedAccountId(recent.creditCardId);
+              }
+            }
+          } catch (e) {
+            // ignore
+          }
         } catch (e) {
           console.error('Error loading local data:', e);
         } finally {
@@ -266,6 +318,21 @@ function MainApp() {
         setExpenses(freshExpenses);
         setCards(freshCards);
         setFutureExpenses(freshFutureExpenses);
+
+        try {
+          const savedAcc = await AsyncStorage.getItem('@ExlExp:lastLoggedAccountId');
+          if (savedAcc && freshCards.some(c => c.id === savedAcc)) {
+            setLastLoggedAccountId(savedAcc);
+          } else if (freshExpenses.length > 0) {
+            const sorted = [...freshExpenses].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+            const recent = sorted.find(e => freshCards.some(c => c.id === e.creditCardId && !isClosedCard(c) && !c.isHidden));
+            if (recent) {
+              setLastLoggedAccountId(recent.creditCardId);
+            }
+          }
+        } catch (e) {
+          // ignore
+        }
 
         // Update local cache
         await Promise.all([
@@ -360,6 +427,16 @@ function MainApp() {
 
     setExpenses(updatedExpenses);
     await saveExpenses(updatedExpenses, currentUser!);
+
+    // Remember the account of the newly logged expense as the default for future logs
+    const loggedAccountId = targetAccountCardId || (isArray ? (expenseData as any)[0]?.creditCardId : (expenseData as any).creditCardId);
+    if (loggedAccountId) {
+      setLastLoggedAccountId(loggedAccountId);
+      setActiveAccountForAdd(loggedAccountId);
+      AsyncStorage.setItem('@ExlExp:lastLoggedAccountId', loggedAccountId).catch(err =>
+        console.warn('Failed to persist lastLoggedAccountId:', err)
+      );
+    }
 
     // If multiple log creation is NOT requested, navigate to the target account
     if (!stayInLogPage && targetAccountCardId) {
@@ -656,8 +733,7 @@ function MainApp() {
               activeTab === 'add' && styles.webLogButtonActive,
             ]}
             onPress={() => {
-              Keyboard.dismiss();
-              navigateToTab('add');
+              handleNavigateToAdd();
             }}
             activeOpacity={0.85}
             accessibilityLabel="Log Expense"
@@ -717,9 +793,7 @@ function MainApp() {
             <TouchableOpacity
               style={[styles.webNavItem, activeTab === 'settings' && styles.webNavItemActive]}
               onPress={() => {
-                Keyboard.dismiss();
-                setEditingExpense(null);
-                navigateToTab('settings');
+                handleNavigateToSettings('main');
               }}
             >
               <Text style={styles.webNavIcon}>⚙️</Text>
@@ -733,9 +807,7 @@ function MainApp() {
           <TouchableOpacity
             style={styles.webSidebarFooter}
             onPress={() => {
-              Keyboard.dismiss();
-              setEditingExpense(null);
-              navigateToTab('settings');
+              handleNavigateToSettings('user');
             }}
           >
             <View style={styles.webSidebarUserAvatar}>
@@ -790,6 +862,7 @@ function MainApp() {
               selectedAccountId={selectedCheckingAccountId}
               onSelectAccount={setSelectedCheckingAccountId}
               onNavigateToSettings={() => navigateToTab('settings')}
+              onNavigateToAdd={handleNavigateToAdd}
             />
           </View>
         )}
@@ -804,7 +877,8 @@ function MainApp() {
               selectedCardId={selectedCreditCardId}
               onSelectCard={setSelectedCreditCardId}
               onUpdateCard={handleCardUpdate}
-              onNavigateToSettings={() => navigateToTab('settings')}
+              onNavigateToSettings={handleNavigateToSettings}
+              onNavigateToAdd={handleNavigateToAdd}
             />
           </View>
         )}
@@ -813,6 +887,7 @@ function MainApp() {
           <View style={[styles.tabContentContainer, { display: activeTab === 'settings' ? 'flex' : 'none' }]}>
             <Settings
               cards={cards}
+              initialSubpage={settingsSubpage}
               onAddCard={handleCardAdd}
               onDeleteCard={handleCardDelete}
               onRenameCard={handleCardRename}
@@ -840,20 +915,19 @@ function MainApp() {
               onNavigateToSettings={() => navigateToTab('settings')}
               onUpdateCard={handleCardUpdate}
               onAddCard={handleCardAdd}
+              defaultAccountId={activeAccountForAdd || lastLoggedAccountId}
             />
           </View>
         )}
       </View>
 
-      {/* Floating Action Button for Mobile App */}
-      {!isWeb && activeTab !== 'add' && !isKeyboardVisible && (
+      {/* Floating Action Button for Mobile App (only shown on Dashboard) */}
+      {!isWeb && activeTab === 'dashboard' && !isKeyboardVisible && (
         <View style={styles.floatingButtonContainer} pointerEvents="box-none">
           <TouchableOpacity
             style={styles.floatingLogButton}
             onPress={() => {
-              Keyboard.dismiss();
-              setEditingExpense(null);
-              navigateToTab('add');
+              handleNavigateToAdd();
             }}
             activeOpacity={0.85}
             accessibilityLabel="Log Expense"
@@ -903,9 +977,7 @@ function MainApp() {
           <TouchableOpacity
             style={[styles.tabButton, activeTab === 'settings' && styles.activeTabButton]}
             onPress={() => {
-              Keyboard.dismiss();
-              setEditingExpense(null);
-              navigateToTab('settings');
+              handleNavigateToSettings('main');
             }}
           >
             <Text style={[styles.tabText, activeTab === 'settings' && styles.activeTabText]}>Settings</Text>

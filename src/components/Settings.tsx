@@ -57,6 +57,12 @@ export const Settings: React.FC<SettingsProps> = React.memo(({
 }) => {
   const [currentSubpage, setCurrentSubpage] = useState<Subpage>(initialSubpage);
 
+  useEffect(() => {
+    if (initialSubpage) {
+      setCurrentSubpage(initialSubpage);
+    }
+  }, [initialSubpage]);
+
   // Handle Android hardware back button inside Settings subpages
   useEffect(() => {
     if (Platform.OS !== 'android') return;
