@@ -159,7 +159,7 @@ async function pickImageNative(mode: 'camera' | 'gallery'): Promise<CapturedImag
       result = await ImagePicker.launchCameraAsync({
         mediaTypes: ['images'],
         allowsEditing: false,
-        quality: 0.35,
+        quality: 0.65,
         base64: true,
       });
     } else {
@@ -175,7 +175,7 @@ async function pickImageNative(mode: 'camera' | 'gallery'): Promise<CapturedImag
       result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images'],
         allowsEditing: false,
-        quality: 0.35,
+        quality: 0.65,
         base64: true,
       });
     }

@@ -169,14 +169,16 @@ export const ReceiptScannerModal: React.FC<ReceiptScannerModalProps> = ({
       const result = await recognizeReceipt(image.base64, { rawUri: image.uri });
       populateFromRecognition(result);
 
-      if (!result.success || (result.items.length === 0 && (!result.totalAmount || result.totalAmount <= 0))) {
+      const hasAnyExtractedData = (result.totalAmount && result.totalAmount > 0) || (result.items && result.items.length > 0);
+      if (!hasAnyExtractedData) {
+        const errorMsg =
+          (result.warning && !result.warning.includes('FormDataPart') && !result.warning.includes('Network request'))
+            ? result.warning
+            : 'Could not clearly read details from this receipt image. You can manually enter the total and items below, or try retaking the photo closer to the receipt.';
         if (Platform.OS === 'web') {
-          alert('Could not clearly detect line items or total from this photo. You can manually enter items or upload a clearer, well-lit image.');
+          alert(errorMsg);
         } else {
-          Alert.alert(
-            'Scan Incomplete',
-            'Could not clearly detect line items or total from this photo. You can manually enter items or upload a clearer, well-lit image.'
-          );
+          Alert.alert('Scan Incomplete', errorMsg);
         }
       }
     } catch (err: any) {
