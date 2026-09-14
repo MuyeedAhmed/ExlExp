@@ -185,24 +185,42 @@ async function pickImageNative(mode: 'camera' | 'gallery'): Promise<CapturedImag
     }
 
     const asset = result.assets[0];
-    let base64 = asset.base64 || '';
+    let finalUri = asset.uri;
+    let finalBase64 = asset.base64 || '';
 
-    // If base64 is missing, convert asset.uri using expo-file-system
-    if (!base64 && asset.uri) {
-      try {
-        base64 = await FileSystem.readAsStringAsync(asset.uri, {
-          encoding: FileSystem.EncodingType.Base64,
-        });
-      } catch (fsErr) {
-        console.warn('Failed to read image as base64 via FileSystem:', fsErr);
+    // Downscale large camera photos to width <= 1600px to ensure file size is under 500KB (OCR.space limit is 1MB)
+    try {
+      const { manipulateAsync, SaveFormat } = await import('expo-image-manipulator');
+      const manipResult = await manipulateAsync(
+        asset.uri,
+        [{ resize: { width: 1600 } }],
+        { compress: 0.65, format: SaveFormat.JPEG, base64: true }
+      );
+      if (manipResult.uri) {
+        finalUri = manipResult.uri;
+      }
+      if (manipResult.base64) {
+        finalBase64 = manipResult.base64;
+      }
+      console.log(`[ImageCapture] Downscaled image to ${manipResult.width}x${manipResult.height}, base64 size: ~${Math.round(finalBase64.length * 0.75 / 1024)} KB`);
+    } catch (manipErr) {
+      console.log('[ImageCapture] Image manipulation fallback:', manipErr);
+      if (!finalBase64 && asset.uri) {
+        try {
+          finalBase64 = await FileSystem.readAsStringAsync(asset.uri, {
+            encoding: FileSystem.EncodingType.Base64,
+          });
+        } catch (fsErr) {
+          console.warn('Failed to read image as base64 via FileSystem:', fsErr);
+        }
       }
     }
 
     return {
-      base64,
-      uri: asset.uri,
+      base64: finalBase64,
+      uri: finalUri,
       fileName: asset.fileName || (mode === 'camera' ? 'camera_receipt.jpg' : 'gallery_receipt.jpg'),
-      mimeType: asset.mimeType || 'image/jpeg',
+      mimeType: 'image/jpeg',
     };
   } catch (err: any) {
     console.error('Native image picker error:', err);
