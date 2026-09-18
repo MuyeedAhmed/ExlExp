@@ -141,6 +141,9 @@ function MainApp() {
     if (!targetAccId) {
       if (activeTab === 'checking' && selectedCheckingAccountId && selectedCheckingAccountId !== 'brokerage') {
         targetAccId = selectedCheckingAccountId;
+      } else if (activeTab === 'checking' && selectedCheckingAccountId === 'brokerage') {
+        const brokCard = cards.find(c => c.isBrokerage && !isClosedCard(c) && !c.isHidden);
+        if (brokCard) targetAccId = brokCard.id;
       } else if (activeTab === 'credit_cards' && selectedCreditCardId && selectedCreditCardId !== 'all') {
         targetAccId = selectedCreditCardId;
       } else if (lastLoggedAccountId) {
