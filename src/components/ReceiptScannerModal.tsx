@@ -138,6 +138,7 @@ export const ReceiptScannerModal: React.FC<ReceiptScannerModalProps> = ({
   const [newCardType, setNewCardType] = useState<'credit' | 'checking'>('credit');
   const [linkedSuccessMsg, setLinkedSuccessMsg] = useState('');
   const [showCardPickerModal, setShowCardPickerModal] = useState(false);
+  const [editingDescIdx, setEditingDescIdx] = useState<number | null>(null);
 
   const resetScanner = () => {
     setCapturedImage(null);
@@ -155,6 +156,7 @@ export const ReceiptScannerModal: React.FC<ReceiptScannerModalProps> = ({
     setNewCardName('');
     setLinkedSuccessMsg('');
     setShowCardPickerModal(false);
+    setEditingDescIdx(null);
   };
 
   const handleClose = () => {
@@ -163,10 +165,13 @@ export const ReceiptScannerModal: React.FC<ReceiptScannerModalProps> = ({
   };
 
   const handleImageSelected = async (image: CapturedImage) => {
+    console.log(`[ReceiptScanner] 📸 Image selected: ${image.fileName || 'receipt.jpg'} (URI: ${image.uri ? image.uri.slice(0, 50) : 'none'})`);
     setCapturedImage(image);
     setIsProcessing(true);
     try {
+      console.log('[ReceiptScanner] 🚀 Starting recognizeReceipt...');
       const result = await recognizeReceipt(image.base64, { rawUri: image.uri });
+      console.log(`[ReceiptScanner] ✅ Recognition finished! Success: ${result.success}, Items: ${result.items?.length || 0}, Total: $${result.totalAmount}`);
       populateFromRecognition(result);
 
       const hasAnyExtractedData = (result.totalAmount && result.totalAmount > 0) || (result.items && result.items.length > 0);
@@ -174,7 +179,7 @@ export const ReceiptScannerModal: React.FC<ReceiptScannerModalProps> = ({
         const errorMsg =
           (result.warning && !result.warning.includes('FormDataPart') && !result.warning.includes('Network request'))
             ? result.warning
-            : 'Could not clearly read details from this receipt image. You can manually enter the total and items below, or try retaking the photo closer to the receipt.';
+            : 'Could not clearly read structured details from this receipt image. You can manually enter the total and items.';
         if (Platform.OS === 'web') {
           alert(errorMsg);
         } else {
@@ -960,15 +965,35 @@ export const ReceiptScannerModal: React.FC<ReceiptScannerModalProps> = ({
                   {items.map((item, idx) =>
                     isCompactScreen ? (
                       <View key={item.id || idx} style={styles.compactItemCard}>
-                        {/* Row 1: Full-width Description */}
-                        <TextInput
-                          style={styles.compactDescInput}
-                          textAlign="left"
-                          value={item.description}
-                          onChangeText={val => handleItemChange(idx, 'description', val)}
-                          placeholder="Item description"
-                          placeholderTextColor="#94a3b8"
-                        />
+                        {/* Row 1: Full-width Description - Guaranteed to show START with tail ellipsis */}
+                        {editingDescIdx === idx ? (
+                          <TextInput
+                            style={styles.compactDescInput}
+                            textAlign="left"
+                            value={item.description}
+                            onChangeText={val => handleItemChange(idx, 'description', val)}
+                            onBlur={() => setEditingDescIdx(null)}
+                            placeholder="Item description"
+                            placeholderTextColor="#94a3b8"
+                            autoFocus
+                            selectTextOnFocus
+                          />
+                        ) : (
+                          <TouchableOpacity
+                            style={styles.compactDescDisplay}
+                            onPress={() => setEditingDescIdx(idx)}
+                            activeOpacity={0.8}
+                          >
+                            <Text
+                              style={styles.compactDescText}
+                              numberOfLines={1}
+                              ellipsizeMode="tail"
+                            >
+                              {item.description || 'Item description'}
+                            </Text>
+                            <Text style={styles.descEditPencil}>✏️</Text>
+                          </TouchableOpacity>
+                        )}
 
                         {/* Row 2: Amount, Tax, Assignee, Delete */}
                         <View style={styles.compactRowBottom}>
@@ -1000,7 +1025,7 @@ export const ReceiptScannerModal: React.FC<ReceiptScannerModalProps> = ({
                             <Text style={[styles.taxCheckmark, item.isTaxed ? styles.taxTextActive : styles.taxTextInactive]}>
                               {item.isTaxed
                                 ? item.taxAmount && item.taxAmount > 0
-                                  ? `☑ +$${item.taxAmount.toFixed(2)}`
+                                ? `☑ +$${item.taxAmount.toFixed(2)}`
                                   : '☑ Taxed'
                                 : '☐ Tax'}
                             </Text>
@@ -1028,14 +1053,35 @@ export const ReceiptScannerModal: React.FC<ReceiptScannerModalProps> = ({
                       </View>
                     ) : (
                       <View key={item.id || idx} style={styles.itemRow}>
-                        {/* 1. Description */}
-                        <TextInput
-                          style={styles.itemDescInput}
-                          textAlign="left"
-                          value={item.description}
-                          onChangeText={val => handleItemChange(idx, 'description', val)}
-                          placeholder="Item description"
-                        />
+                        {/* 1. Description - Guaranteed to show START with tail ellipsis */}
+                        {editingDescIdx === idx ? (
+                          <TextInput
+                            style={styles.itemDescInput}
+                            textAlign="left"
+                            value={item.description}
+                            onChangeText={val => handleItemChange(idx, 'description', val)}
+                            onBlur={() => setEditingDescIdx(null)}
+                            placeholder="Item description"
+                            placeholderTextColor="#94a3b8"
+                            autoFocus
+                            selectTextOnFocus
+                          />
+                        ) : (
+                          <TouchableOpacity
+                            style={styles.itemDescDisplay}
+                            onPress={() => setEditingDescIdx(idx)}
+                            activeOpacity={0.8}
+                          >
+                            <Text
+                              style={styles.itemDescText}
+                              numberOfLines={1}
+                              ellipsizeMode="tail"
+                            >
+                              {item.description || 'Item description'}
+                            </Text>
+                            <Text style={styles.descEditPencil}>✏️</Text>
+                          </TouchableOpacity>
+                        )}
 
                         {/* 2. Amount */}
                         <View style={styles.itemAmountWrapper}>
@@ -2175,5 +2221,47 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
     color: '#ffffff',
+  },
+  compactDescDisplay: {
+    width: '100%',
+    height: 38,
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderRadius: 6,
+    paddingHorizontal: 10,
+    marginBottom: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  compactDescText: {
+    flex: 1,
+    fontSize: 13,
+    color: '#0f172a',
+    textAlign: 'left',
+  },
+  itemDescDisplay: {
+    flex: 1,
+    height: 38,
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderRadius: 6,
+    paddingHorizontal: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  itemDescText: {
+    flex: 1,
+    fontSize: 13,
+    color: '#0f172a',
+    textAlign: 'left',
+  },
+  descEditPencil: {
+    fontSize: 11,
+    color: '#94a3b8',
+    marginLeft: 6,
   },
 });

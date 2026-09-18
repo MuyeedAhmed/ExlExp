@@ -44,6 +44,8 @@ export interface ReceiptRecognitionResult {
   confidence?: number;
   source?: string;
   warning?: string;
+  rawText?: string;
+  rawTextLines?: string[];
 }
 
 /**
@@ -106,18 +108,24 @@ export const DEFAULT_AWS_RECEIPT_URL = '';
  * Extracts all valid price candidates from a line of receipt text
  * Handles: $14.99, $ 14.99, 14.99, 14 . 99, 14,99
  */
-export function extractPricesFromLine(line: string): { full: string; value: number; index: number; length: number }[] {
-  const regex = /\$?\s*([0-9]{1,5})\s*[.,]\s*([0-9]{2})(?![0-9])/g;
-  const matches: { full: string; value: number; index: number; length: number }[] = [];
+export function extractPricesFromLine(line: string): { full: string; value: number; index: number; length: number; isNegative?: boolean }[] {
+  // Matches -$14.99, $14.99-, 14.99-, -14.99, 14.99, $ 14 . 99
+  const regex = /(-)?\$?\s*([0-9]{1,5})\s*[.,]\s*([0-9]{2})(-)?(?![0-9])/g;
+  const matches: { full: string; value: number; index: number; length: number; isNegative?: boolean }[] = [];
   let m: RegExpExecArray | null;
   while ((m = regex.exec(line)) !== null) {
-    const val = parseFloat(`${m[1]}.${m[2]}`);
+    const isExplicitMinus = Boolean(m[1] || m[4]);
+    const isKeywordDiscount = ((/\b(discount|savings|coupon|rebate|refund)\b/i.test(line) || line.trim().startsWith('/')) && !/\b(total|subtotal|tax|balance)\b/i.test(line));
+    const isNeg = isExplicitMinus || isKeywordDiscount;
+    let val = parseFloat(`${m[2]}.${m[3]}`);
     if (!isNaN(val)) {
+      if (isNeg && val > 0) val = -val;
       matches.push({
         full: m[0],
         value: val,
         index: m.index,
         length: m[0].length,
+        isNegative: isNeg,
       });
     }
   }
@@ -225,9 +233,9 @@ export async function extractTextFromImageMobile(base64Image: string, rawUri?: s
     for (const { engine, isTable } of engines) {
       for (const apiKey of OCR_SPACE_KEYS) {
         try {
-          console.info(`[ReceiptOCR] Native uploadAsync (Engine ${engine}, key ${apiKey.slice(0, 4)}...)...`);
+          console.log(`[ReceiptOCR] 📡 Native uploadAsync (Engine ${engine}, key ${apiKey.slice(0, 4)}...)...`);
           const { uploadAsync, FileSystemUploadType } = await import('expo-file-system/legacy');
-          const uploadResult = await uploadAsync('https://api.ocr.space/parse/image', rawUri, {
+          const uploadPromise = uploadAsync('https://api.ocr.space/parse/image', rawUri, {
             httpMethod: 'POST',
             uploadType: FileSystemUploadType.MULTIPART,
             fieldName: 'file',
@@ -244,18 +252,26 @@ export async function extractTextFromImageMobile(base64Image: string, rawUri?: s
             },
           });
 
+          const timeoutPromise = new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error('uploadAsync timeout after 14s')), 14000)
+          );
+
+          const uploadResult = await Promise.race([uploadPromise, timeoutPromise]);
+
+          console.log(`[ReceiptOCR] Native uploadAsync status: ${uploadResult.status}`);
+
           if (uploadResult.status === 200 && uploadResult.body) {
             const data = JSON.parse(uploadResult.body);
             const text = data?.ParsedResults?.[0]?.ParsedText || '';
             if (!data?.IsErroredOnProcessing && text.trim().length > 0) {
-              console.info(`[ReceiptOCR] Native uploadAsync Engine ${engine} succeeded, characters: ${text.length}`);
+              console.log(`[ReceiptOCR] ✅ Native uploadAsync Engine ${engine} succeeded, characters: ${text.length}`);
               return text;
             }
             const errMsg = Array.isArray(data?.ErrorMessage)
               ? data.ErrorMessage.join(', ')
               : (data?.ErrorMessage || data?.error || '');
             if (errMsg) {
-              console.warn(`[ReceiptOCR] Native uploadAsync Engine ${engine} warning:`, errMsg);
+              console.log(`[ReceiptOCR] ⚠️ Native uploadAsync Engine ${engine} warning: ${errMsg}`);
               lastOcrErrorMessage = errMsg;
               if (errMsg.toLowerCase().includes('limit') || errMsg.toLowerCase().includes('forbidden') || errMsg.toLowerCase().includes('key')) {
                 continue;
@@ -263,7 +279,7 @@ export async function extractTextFromImageMobile(base64Image: string, rawUri?: s
             }
           }
         } catch (nativeErr: any) {
-          console.warn('[ReceiptOCR] Native uploadAsync error, trying standard fetch:', nativeErr?.message || nativeErr);
+          console.log(`[ReceiptOCR] ⚠️ Native uploadAsync error (${nativeErr?.message || nativeErr}), falling back to fetch...`);
           break; // Fall through to standard fetch loop
         }
       }
@@ -291,11 +307,11 @@ export async function extractTextFromImageMobile(base64Image: string, rawUri?: s
   for (const { engine, isTable } of engines) {
     for (const apiKey of OCR_SPACE_KEYS) {
       try {
-        console.info(`[ReceiptOCR] Running OCR fetch (Engine ${engine}, key ${apiKey.slice(0, 4)}...)...`);
+        console.log(`[ReceiptOCR] 📡 Running OCR fetch (Engine ${engine}, key ${apiKey.slice(0, 4)}...)...`);
         const formData = buildStringFormData(apiKey, engine, isTable);
 
         const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 20000);
+        const timeout = setTimeout(() => controller.abort(), 15000);
 
         const response = await fetch('https://api.ocr.space/parse/image', {
           method: 'POST',
@@ -304,11 +320,13 @@ export async function extractTextFromImageMobile(base64Image: string, rawUri?: s
         });
         clearTimeout(timeout);
 
+        console.log(`[ReceiptOCR] Fetch response status: ${response.status}`);
+
         if (response.ok) {
           const data = await response.json();
           const text = data?.ParsedResults?.[0]?.ParsedText || '';
           if (!data?.IsErroredOnProcessing && text.trim().length > 0) {
-            console.info(`[ReceiptOCR] Engine ${engine} succeeded, characters: ${text.length}`);
+            console.log(`[ReceiptOCR] ✅ Engine ${engine} succeeded, characters: ${text.length}`);
             return text;
           }
 
@@ -317,18 +335,18 @@ export async function extractTextFromImageMobile(base64Image: string, rawUri?: s
             : (data?.ErrorMessage || data?.error || '');
 
           if (errMsg) {
-            console.warn(`[ReceiptOCR] Engine ${engine} warning:`, errMsg);
+            console.log(`[ReceiptOCR] ⚠️ Engine ${engine} warning: ${errMsg}`);
             lastOcrErrorMessage = errMsg;
             if (errMsg.toLowerCase().includes('limit') || errMsg.toLowerCase().includes('forbidden') || errMsg.toLowerCase().includes('key')) {
               continue;
             }
           }
         } else {
-          console.warn(`[ReceiptOCR] HTTP ${response.status} from OCR service`);
+          console.log(`[ReceiptOCR] ⚠️ HTTP ${response.status} from OCR service`);
           lastOcrErrorMessage = `HTTP ${response.status} from OCR service`;
         }
       } catch (err: any) {
-        console.warn(`[ReceiptOCR] Engine ${engine} attempt failed:`, err?.message || err);
+        console.log(`[ReceiptOCR] ⚠️ Engine ${engine} attempt failed: ${err?.message || err}`);
         lastOcrErrorMessage = err?.message || 'Network request failed';
       }
     }
@@ -554,6 +572,57 @@ export function extractMerchant(ocrLines: string[], fullText: string): string {
 }
 
 /**
+ * Cleans item description by stripping department codes, SKU/UPC prefixes, and tax flags
+ */
+export function cleanItemDescription(desc: string): string {
+  return desc
+    // Remove Costco department code prefix + item number: e.g. "E 1029384 ", "A 3049586 "
+    .replace(/^[EAFNDY]\s+\d{4,8}\s+/i, '')
+    // Remove standalone SKU/UPC prefix: e.g. "1029384 ", "001234567890 "
+    .replace(/^\d{4,14}\s+/, '')
+    // Remove leading symbols and bullet punctuation: "* ", "- ", "# ", "/ "
+    .replace(/^[\d*#\-./\\|]+\s+/, '')
+    // Remove trailing tax flags like " Y", " N", " T", " F", " A", " B"
+    .replace(/\s+[tfbaynTFBYAN]$/, '')
+    // Remove trailing barcode / SKU / long serial numbers: e.g. " 1230981240973407320498234098234", " #1029384"
+    .replace(/\s+#?\d{4,}$/, '')
+    // Remove trailing symbols
+    .replace(/[\s*#\-./\\|]+$/, '')
+    .trim();
+}
+
+/**
+ * Detects noise lines like dates, timestamps, member IDs, register metadata, phone numbers
+ */
+export function isReceiptNoiseLine(line: string): boolean {
+  const l = line.toLowerCase();
+  // Dates and timestamps like "09/08/2026 14:32:00" or "09/08/2026 14:32 1234 12 345 678"
+  if (/\b\d{1,2}[-/]\d{1,2}[-/]\d{2,4}\b/.test(line) && !/^(total|subtotal|tax)/i.test(l)) return true;
+  // Membership / POS cashier / lane metadata
+  if (/^(member|membership|warehouse|store\s*#|lane|terminal|operator|op#|te#|tr#|cashier|reg#)\b/i.test(l)) return true;
+  // Items count line e.g. "TOTAL NUMBER OF ITEMS SOLD = 4" or "ITEMS SOLD: 4"
+  if (/items?\s*sold/i.test(l)) return true;
+  // Telephone / fax
+  if (/\b(tel|phone|fax)\b/i.test(l) || /\b\d{3}[-.\s]\d{3}[-.\s]\d{4}\b/.test(line)) return true;
+  // Common receipt footer boilerplate
+  if (/customer\s*copy|merchant\s*copy|duplicate|survey|return\s*policy|thank\s*you|visit\s*again/i.test(l)) return true;
+  return false;
+}
+
+/**
+ * Detects bottom-of-receipt payment summary and tender lines to prevent them from becoming fake items
+ */
+export function isPaymentOrSummaryLine(line: string): boolean {
+  const l = line.toLowerCase();
+  return (
+    /\b(tendered|change|cash tendered|approved|balance due|amount charged|amount due|total paid|total due|auth\b|approval\b|acct\b|account\b|chip\b|aid:\b|tran\b)/i.test(l) ||
+    /\b(visa|mastercard|amex|american\s*express|discover)\b/i.test(l) ||
+    /^(amount|purchase|paid|payment|cash|debit|credit)\b/i.test(l) ||
+    /\b(approved\s*-\s*purchase|items?\s*sold|change\s*due)\b/i.test(l)
+  );
+}
+
+/**
  * Intelligent Document AI Parser for Receipt Text
  */
 export function parseReceiptText(ocrText: string): ReceiptRecognitionResult {
@@ -589,8 +658,12 @@ export function parseReceiptText(ocrText: string): ReceiptRecognitionResult {
     }
   }
 
-  const authMatch = ocrText.match(/(?:auth|approval|appr)[\s:#]*([a-zA-Z0-9]{4,8})\b/i);
-  const authCode = authMatch ? authMatch[1] : undefined;
+  // Avoid matching "APPROVED" as "OVED" auth code
+  const authMatch = ocrText.match(/(?:auth(?:orization)?\s*(?:#|code|no\.?)?|appr(?:oval)?\s*(?:#|code|no\.?))\s*[:#]?\s*([a-zA-Z0-9]{4,8})\b/i) ||
+    ocrText.match(/\bauth(?:orization)?\s*[:#]\s*([a-zA-Z0-9]{4,8})\b/i) ||
+    ocrText.match(/(?:auth|approval|appr)[\s:#]+([a-zA-Z0-9]{4,8})\b/i);
+  const rawAuth = authMatch ? authMatch[1] : undefined;
+  const authCode = (rawAuth && !/^(?:oved|oval|purchase|code)$/i.test(rawAuth)) ? rawAuth : undefined;
 
   let detectedCardText = 'Payment Card';
   if (cardType && last4) detectedCardText = `${cardType} ending in ${last4}`;
@@ -605,16 +678,13 @@ export function parseReceiptText(ocrText: string): ReceiptRecognitionResult {
   const items: ReceiptItem[] = [];
   const allDetectedPrices: number[] = [];
 
-  const totalRegex = /\b(total|grand\s*total|balance\s*due|amount\s*due|final\s*total|amount\s*charged|total\s*sale|total\s*paid|total\s*due|amt\s*due)\b/i;
-  const subtotalRegex = /\b(sub\s*total|subtotal|net\s*amount)\b/i;
-  const taxRegex = /\b(tax|sales\s*tax|hst|gst|vat)\b/i;
-  const tipRegex = /\b(tip|gratuity)\b/i;
-
-  const ignoreKeywords = [
-    'change', 'cash', 'cash tendered', 'approved', 'account',
-    'visa', 'mastercard', 'amex', 'discover', 'auth', 'balance',
-    'subtotal', 'tax', 'total', 'tip', 'thank you', 'visit again', 'welcome'
-  ];
+  const isTotalLine = (lineLower: string) => {
+    if (/\b(sub\s*total|items?\s*sold|savings|discount|tax)\b/i.test(lineLower)) return false;
+    return /\b(total|grand\s*total|balance\s*due|amount\s*due|final\s*total|amount\s*charged|total\s*sale|total\s*paid|total\s*due|amt\s*due)\b/i.test(lineLower);
+  };
+  const isSubtotalLine = (lineLower: string) => /\b(sub\s*total|subtotal|net\s*amount)\b/i.test(lineLower);
+  const isTaxLine = (lineLower: string) => /\b(tax|sales\s*tax|hst|gst|vat)\b/i.test(lineLower) && !/\btaxable\b/i.test(lineLower);
+  const isTipLine = (lineLower: string) => /\b(tip|gratuity)\b/i.test(lineLower);
 
   for (let i = 0; i < ocrLines.length; i++) {
     const line = ocrLines[i];
@@ -622,8 +692,13 @@ export function parseReceiptText(ocrText: string): ReceiptRecognitionResult {
     const pricesOnLine = extractPricesFromLine(line);
     pricesOnLine.forEach(p => allDetectedPrices.push(p.value));
 
+    // Skip noise / metadata lines
+    if (isReceiptNoiseLine(line)) {
+      continue;
+    }
+
     // Check Total
-    if (totalRegex.test(lineLower) && !subtotalRegex.test(lineLower)) {
+    if (isTotalLine(lineLower)) {
       if (pricesOnLine.length > 0) {
         totalAmount = pricesOnLine[pricesOnLine.length - 1].value;
       } else {
@@ -642,7 +717,7 @@ export function parseReceiptText(ocrText: string): ReceiptRecognitionResult {
     }
 
     // Check Subtotal
-    if (subtotalRegex.test(lineLower)) {
+    if (isSubtotalLine(lineLower)) {
       if (pricesOnLine.length > 0) {
         subtotal = pricesOnLine[pricesOnLine.length - 1].value;
       } else if (i + 1 < ocrLines.length) {
@@ -653,7 +728,7 @@ export function parseReceiptText(ocrText: string): ReceiptRecognitionResult {
     }
 
     // Check Tax
-    if (taxRegex.test(lineLower)) {
+    if (isTaxLine(lineLower)) {
       if (pricesOnLine.length > 0) {
         tax = pricesOnLine[pricesOnLine.length - 1].value;
       } else if (i + 1 < ocrLines.length) {
@@ -664,24 +739,49 @@ export function parseReceiptText(ocrText: string): ReceiptRecognitionResult {
     }
 
     // Check Tip
-    if (tipRegex.test(lineLower)) {
+    if (isTipLine(lineLower)) {
       if (pricesOnLine.length > 0) {
         tip = pricesOnLine[pricesOnLine.length - 1].value;
       }
       continue;
     }
 
-    if (ignoreKeywords.some(kw => lineLower.includes(kw))) {
+    // Check Payment Summary Lines (e.g. AMOUNT: $49.31, CHANGE 0.00, TOTAL PAID 49.31)
+    if (isPaymentOrSummaryLine(lineLower)) {
+      // If total was never found above, a payment confirmation like AMOUNT: $49.31 can rescue it
+      if (totalAmount === undefined && /^(amount|total paid|payment|amount charged|balance due)\b/i.test(lineLower) && pricesOnLine.length > 0) {
+        totalAmount = pricesOnLine[pricesOnLine.length - 1].value;
+      }
       continue;
     }
 
     // Case 1: Line contains item description and price
     if (pricesOnLine.length > 0) {
       const lastPrice = pricesOnLine[pricesOnLine.length - 1];
-      let desc = line.substring(0, lastPrice.index).trim();
-      desc = desc.replace(/^[\d*#\-.]+\s+/, '').replace(/[\s*#\-.]+$/, '').trim();
-      const isTaxedFlag = /\s+[tT]$/.test(desc) || (/\b[tT]\b/.test(line) && !/total|subtotal|tax|tip/i.test(line));
-      desc = desc.replace(/\s+[tfbaTFBA]$/, '').trim();
+      const isDiscount = lastPrice.isNegative || lineLower.includes('discount') || lineLower.includes('savings') || lineLower.includes('coupon') || line.trim().startsWith('/');
+
+      // Fold discount into previous item if possible
+      if (isDiscount) {
+        const discountVal = Math.abs(lastPrice.value);
+        if (items.length > 0) {
+          const prev = items[items.length - 1];
+          prev.amount = Math.max(0, Math.round((prev.amount - discountVal) * 100) / 100);
+          prev.rawAmount = prev.amount;
+          prev.description += ` (-$${discountVal.toFixed(2)})`;
+          continue;
+        }
+      }
+
+      let desc = cleanItemDescription(line.substring(0, lastPrice.index).trim());
+      const afterPriceText = line.substring(lastPrice.index + lastPrice.length).trim();
+      let isTaxedFlag = false;
+      if (/\b[yYtTaA]\b/.test(afterPriceText) || /\s+[yYtTaA]$/.test(line)) {
+        isTaxedFlag = true;
+      } else if (/\b[nNfFeE]\b/.test(afterPriceText) || /\s+[nNfFeE]$/.test(line)) {
+        isTaxedFlag = false;
+      } else {
+        isTaxedFlag = /\b[tT]\b/.test(line) && !/total|subtotal|tax|tip/i.test(line);
+      }
 
       if (desc.length >= 2 && /[a-zA-Z]/.test(desc)) {
         let qty = 1;
@@ -707,27 +807,29 @@ export function parseReceiptText(ocrText: string): ReceiptRecognitionResult {
       // Case 2: Price is on this line, but description was on PREVIOUS line
       if (desc.length < 2 && i > 0) {
         const prevLine = ocrLines[i - 1];
-        const prevLower = prevLine.toLowerCase();
         if (
           extractPricesFromLine(prevLine).length === 0 &&
-          !totalRegex.test(prevLower) &&
-          !subtotalRegex.test(prevLower) &&
-          !taxRegex.test(prevLower) &&
-          !ignoreKeywords.some(kw => prevLower.includes(kw)) &&
+          !isTotalLine(prevLine.toLowerCase()) &&
+          !isSubtotalLine(prevLine.toLowerCase()) &&
+          !isTaxLine(prevLine.toLowerCase()) &&
+          !isReceiptNoiseLine(prevLine) &&
+          !isPaymentOrSummaryLine(prevLine) &&
           /[a-zA-Z]/.test(prevLine)
         ) {
-          const cleanPrev = prevLine.replace(/^[\d*#\-.]+\s+/, '').trim();
-          items.push({
-            id: `item-${items.length + 1}`,
-            description: cleanPrev,
-            amount: lastPrice.value,
-            rawAmount: lastPrice.value,
-            quantity: 1,
-            unitPrice: lastPrice.value,
-            category: 'Grocery',
-            isTaxed: isTaxedFlag,
-          });
-          continue;
+          const cleanPrev = cleanItemDescription(prevLine);
+          if (cleanPrev.length >= 2) {
+            items.push({
+              id: `item-${items.length + 1}`,
+              description: cleanPrev,
+              amount: lastPrice.value,
+              rawAmount: lastPrice.value,
+              quantity: 1,
+              unitPrice: lastPrice.value,
+              category: 'Grocery',
+              isTaxed: isTaxedFlag,
+            });
+            continue;
+          }
         }
       }
     } else {
@@ -735,23 +837,28 @@ export function parseReceiptText(ocrText: string): ReceiptRecognitionResult {
       if (i + 1 < ocrLines.length) {
         const nextLine = ocrLines[i + 1];
         const nextPrices = extractPricesFromLine(nextLine);
-        if (nextPrices.length === 1 && /[a-zA-Z]/.test(line)) {
+        if (nextPrices.length === 1 && /[a-zA-Z]/.test(line) && !isReceiptNoiseLine(line) && !isPaymentOrSummaryLine(line)) {
           const nextRemainder = nextLine.replace(nextPrices[0].full, '').trim();
-          const isTaxedFlag = /\s+[tT]$/.test(nextRemainder) || (/\b[tT]\b/.test(nextLine) && !/total|subtotal|tax|tip/i.test(nextLine));
-          if (nextRemainder.length < 3 && /[a-zA-Z]/.test(line)) {
-            const cleanDesc = line.replace(/^[\d*#\-.]+\s+/, '').trim();
-            items.push({
-              id: `item-${items.length + 1}`,
-              description: cleanDesc,
-              amount: nextPrices[0].value,
-              rawAmount: nextPrices[0].value,
-              quantity: 1,
-              unitPrice: nextPrices[0].value,
-              category: 'Grocery',
-              isTaxed: isTaxedFlag,
-            });
-            i++; // skip next line
-            continue;
+          let isTaxedFlag = false;
+          if (/\b[yYtTaA]\b/.test(nextRemainder) || /\s+[yYtTaA]$/.test(nextLine)) isTaxedFlag = true;
+          else if (/\b[nNfFeE]\b/.test(nextRemainder) || /\s+[nNfFeE]$/.test(nextLine)) isTaxedFlag = false;
+
+          if (nextRemainder.length < 4 && /[a-zA-Z]/.test(line)) {
+            const cleanDesc = cleanItemDescription(line);
+            if (cleanDesc.length >= 2) {
+              items.push({
+                id: `item-${items.length + 1}`,
+                description: cleanDesc,
+                amount: nextPrices[0].value,
+                rawAmount: nextPrices[0].value,
+                quantity: 1,
+                unitPrice: nextPrices[0].value,
+                category: 'Grocery',
+                isTaxed: isTaxedFlag,
+              });
+              i++; // skip next line
+              continue;
+            }
           }
         }
       }
@@ -821,6 +928,8 @@ export function parseReceiptText(ocrText: string): ReceiptRecognitionResult {
     tip: tip ?? 0,
     confidence: 0.96,
     source: 'Receipt-OCR',
+    rawText: ocrText,
+    rawTextLines: ocrLines,
   };
 }
 
@@ -850,9 +959,30 @@ export async function recognizeReceipt(
     console.warn('[ReceiptRecognition] OCR error:', ocrErr);
   }
 
+  // User diagnostic logging: Print exact OCR output line by line
+  console.log('================== [ReceiptOCR Raw Output] ==================');
+  console.log(`[ReceiptOCR] Characters detected: ${clientOcrText ? clientOcrText.length : 0}`);
+  if (clientOcrText && clientOcrText.trim().length > 0) {
+    const lines = clientOcrText.split('\n');
+    console.log(`[ReceiptOCR] Total lines: ${lines.length}`);
+    lines.forEach((l, idx) => {
+      console.log(`[OCR L${String(idx + 1).padStart(2, '0')}] ${l}`);
+    });
+  } else {
+    console.log('[ReceiptOCR] (No text was extracted by OCR engine)');
+  }
+  console.log('=============================================================');
+
   // 2. If client OCR succeeded, parse it immediately with Document AI parser
   if (clientOcrText && clientOcrText.trim().length > 0) {
     const parsed = parseReceiptText(clientOcrText);
+    console.log(`[ReceiptOCR] 🎯 Parsed Merchant: ${parsed.merchant}`);
+    console.log(`[ReceiptOCR] 🎯 Parsed Total: $${parsed.totalAmount}`);
+    console.log(`[ReceiptOCR] 🎯 Parsed Subtotal: $${parsed.subtotal}, Tax: $${parsed.tax}`);
+    console.log(`[ReceiptOCR] 🎯 Extracted Items count: ${parsed.items.length}`);
+    parsed.items.forEach((it, idx) => {
+      console.log(`[ReceiptOCR]    ${idx + 1}. ${it.description} -> $${it.amount} (taxed: ${it.isTaxed})`);
+    });
     if (parsed.totalAmount > 0 || (parsed.items && parsed.items.length > 0)) {
       return parsed;
     }
@@ -881,7 +1011,10 @@ export async function recognizeReceipt(
       if (response.ok) {
         const data = await response.json();
         if (data && data.success && data.totalAmount > 0) {
-          return normalizeRecognitionResult(data);
+          const res = normalizeRecognitionResult(data);
+          res.rawText = res.rawText || clientOcrText;
+          res.rawTextLines = res.rawTextLines || (clientOcrText ? clientOcrText.split('\n') : []);
+          return res;
         }
       }
     } catch (err) {
@@ -907,6 +1040,8 @@ export async function recognizeReceipt(
     confidence: 0,
     source: 'No-Text-Detected',
     warning: lastOcrErrorMessage || undefined,
+    rawText: clientOcrText,
+    rawTextLines: clientOcrText ? clientOcrText.split('\n') : [],
   };
 }
 
@@ -943,5 +1078,7 @@ function normalizeRecognitionResult(data: any): ReceiptRecognitionResult {
     confidence: data.confidence || 0.95,
     source: data.source || 'AWS-SageMaker-Lambda',
     warning: data.warning,
+    rawText: data.rawText,
+    rawTextLines: data.rawTextLines,
   };
 }
