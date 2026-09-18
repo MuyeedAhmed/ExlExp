@@ -111,6 +111,51 @@ const getYesterdayString = () => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 };
 
+const getInitialTransferAccounts = (defAccId?: string, allCards: CreditCard[] = []) => {
+  const activeCards = allCards.filter(c => !isClosedCard(c) && !c.isHidden);
+  const depositAccs = activeCards.filter(c => c.isChecking || c.isSaving || c.isBrokerage);
+
+  let sourceId = '';
+  let targetId = '';
+  let ccBillPay = false;
+
+  if (defAccId) {
+    const defCard = activeCards.find(c => c.id === defAccId);
+    if (defCard) {
+      if (defCard.isChecking || defCard.isSaving || defCard.isBrokerage) {
+        // Default account is a deposit account -> use it as Source
+        sourceId = defCard.id;
+        const targetCard = defCard.isBrokerage
+          ? activeCards.find(c => c.id !== sourceId && (c.isChecking || c.isSaving))
+          : activeCards.find(c => c.id !== sourceId);
+        targetId = targetCard?.id || '';
+        if (targetCard && !targetCard.isChecking && !targetCard.isSaving && !targetCard.isBrokerage) {
+          ccBillPay = true;
+        }
+      } else {
+        // Default account is a credit card -> use it as Target for Bill Pay!
+        targetId = defCard.id;
+        sourceId = depositAccs[0]?.id || '';
+        ccBillPay = true;
+      }
+    }
+  }
+
+  if (!sourceId) {
+    sourceId = depositAccs[0]?.id || activeCards[0]?.id || '';
+  }
+  if (!targetId) {
+    const sourceCard = activeCards.find(c => c.id === sourceId);
+    if (sourceCard?.isBrokerage) {
+      targetId = activeCards.find(c => c.id !== sourceId && (c.isChecking || c.isSaving))?.id || '';
+    } else {
+      targetId = activeCards.find(c => c.id !== sourceId)?.id || '';
+    }
+  }
+
+  return { sourceId, targetId, ccBillPay };
+};
+
 const getCardTypeStyles = (card?: CreditCard) => {
   if (!card) {
     return {
@@ -271,14 +316,17 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = React.memo(({
   });
   const lastAppliedDefaultAccountIdRef = useRef<string | null>(defaultAccountId || null);
 
-  // Sync selectedCardId when defaultAccountId changes externally
+  // Sync account selection when defaultAccountId changes externally
   useEffect(() => {
     if (defaultAccountId && defaultAccountId !== lastAppliedDefaultAccountIdRef.current && !editingExpense) {
       lastAppliedDefaultAccountIdRef.current = defaultAccountId;
       const cardExists = cards.some(c => c.id === defaultAccountId && !isClosedCard(c) && !c.isHidden);
       if (cardExists) {
         setSelectedCardId(defaultAccountId);
-        setLogType('transaction');
+        const { sourceId, targetId, ccBillPay } = getInitialTransferAccounts(defaultAccountId, cards);
+        setSelectedSourceCardId(sourceId);
+        setSelectedTargetCardId(targetId);
+        setIsCcBillPay(ccBillPay);
       }
     }
   }, [defaultAccountId, editingExpense, cards]);
@@ -315,10 +363,16 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = React.memo(({
   const [rewardValue, setRewardValue] = useState('');
 
   // Transfer States (Account -> Account)
-  const [selectedSourceCardId, setSelectedSourceCardId] = useState('');
-  const [selectedTargetCardId, setSelectedTargetCardId] = useState('');
+  const [selectedSourceCardId, setSelectedSourceCardId] = useState<string>(() => {
+    return getInitialTransferAccounts(defaultAccountId, cards).sourceId;
+  });
+  const [selectedTargetCardId, setSelectedTargetCardId] = useState<string>(() => {
+    return getInitialTransferAccounts(defaultAccountId, cards).targetId;
+  });
   const [transferDetails, setTransferDetails] = useState('');
-  const [isCcBillPay, setIsCcBillPay] = useState(false);
+  const [isCcBillPay, setIsCcBillPay] = useState<boolean>(() => {
+    return getInitialTransferAccounts(defaultAccountId, cards).ccBillPay;
+  });
 
   // Category States
   const [category, setCategory] = useState('Others');
@@ -641,21 +695,21 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = React.memo(({
     setCategory('Others');
 
     // Transfer resets
-    const depositAccs = activeCards.filter(c => c.isChecking || c.isSaving || c.isBrokerage);
+    const { sourceId: initialSource, targetId: initialTarget, ccBillPay: initialCcBillPay } = getInitialTransferAccounts(defaultAccountId, activeCards);
     setSelectedSourceCardId(prevSource => {
-      if (keepCurrentAccount && prevSource && activeCards.some(c => c.id === prevSource)) {
+      if (keepCurrentAccount && prevSource && activeCards.some(c => c.id === prevSource && (c.isChecking || c.isSaving || c.isBrokerage))) {
         return prevSource;
       }
-      return depositAccs[0]?.id || activeCards[0]?.id || '';
+      return initialSource;
     });
     setSelectedTargetCardId(prevTarget => {
       if (keepCurrentAccount && prevTarget && activeCards.some(c => c.id === prevTarget)) {
         return prevTarget;
       }
-      return activeCards.find(c => c.id !== depositAccs[0]?.id)?.id || activeCards[0]?.id || '';
+      return initialTarget;
     });
     setTransferDetails('');
-    setIsCcBillPay(false);
+    setIsCcBillPay(keepCurrentAccount ? isCcBillPay : initialCcBillPay);
   };
 
   const handleSubmit = () => {
@@ -878,6 +932,16 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = React.memo(({
     return activeCards.filter(c => c.id !== selectedSourceCardId);
   }, [cards, selectedSourceCardId]);
 
+  // Ensure selectedTargetCardId is valid when selectedSourceCardId or cards change
+  useEffect(() => {
+    if (logType === 'transfer' && selectedSourceCardId) {
+      const isTargetValid = targetAccountsList.some(c => c.id === selectedTargetCardId);
+      if (!isTargetValid && targetAccountsList.length > 0) {
+        setSelectedTargetCardId(targetAccountsList[0].id);
+      }
+    }
+  }, [logType, selectedSourceCardId, targetAccountsList, selectedTargetCardId]);
+
   return (
     <KeyboardAvoidingView
       style={styles.keyboardAvoidingView}
@@ -955,14 +1019,48 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = React.memo(({
           <View style={styles.logTypeToggleRow}>
             <TouchableOpacity
               style={[styles.logTypeBtn, logType === 'transaction' && styles.activeLogTypeBtn]}
-              onPress={() => !editingExpense && setLogType('transaction')}
+              onPress={() => {
+                if (!editingExpense) {
+                  setLogType('transaction');
+                  const targetCard = cards.find(c => c.id === selectedTargetCardId);
+                  const sourceCard = cards.find(c => c.id === selectedSourceCardId);
+                  if (targetCard && !targetCard.isChecking && !targetCard.isSaving && !targetCard.isBrokerage && !isClosedCard(targetCard) && !targetCard.isHidden) {
+                    setSelectedCardId(targetCard.id);
+                  } else if (sourceCard && !sourceCard.isBrokerage && !isClosedCard(sourceCard) && !sourceCard.isHidden) {
+                    setSelectedCardId(sourceCard.id);
+                  }
+                }
+              }}
               disabled={!!editingExpense}
             >
               <Text style={[styles.logTypeText, logType === 'transaction' && styles.activeLogTypeText]}>Transaction</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.logTypeBtn, logType === 'transfer' && styles.activeLogTypeBtn]}
-              onPress={() => !editingExpense && setLogType('transfer')}
+              onPress={() => {
+                if (!editingExpense) {
+                  setLogType('transfer');
+                  if (selectedCardId) {
+                    const currentCard = cards.find(c => c.id === selectedCardId && !isClosedCard(c) && !c.isHidden);
+                    if (currentCard) {
+                      if (currentCard.isChecking || currentCard.isSaving || currentCard.isBrokerage) {
+                        setSelectedSourceCardId(currentCard.id);
+                        if (selectedTargetCardId === currentCard.id || !selectedTargetCardId) {
+                          const other = cards.find(c => c.id !== currentCard.id && !isClosedCard(c) && !c.isHidden);
+                          if (other) setSelectedTargetCardId(other.id);
+                        }
+                      } else {
+                        setSelectedTargetCardId(currentCard.id);
+                        setIsCcBillPay(true);
+                        const depositAcc = cards.find(c => (c.isChecking || c.isSaving || c.isBrokerage) && !isClosedCard(c) && !c.isHidden);
+                        if (depositAcc && (!selectedSourceCardId || selectedSourceCardId === currentCard.id)) {
+                          setSelectedSourceCardId(depositAcc.id);
+                        }
+                      }
+                    }
+                  }
+                }
+              }}
               disabled={!!editingExpense}
             >
               <Text style={[styles.logTypeText, logType === 'transfer' && styles.activeLogTypeText]}>Transfer</Text>
@@ -985,7 +1083,14 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = React.memo(({
                     <select
                       style={getWebSelectStyle(selectedSourceCard)}
                       value={selectedSourceCardId}
-                      onChange={(e: any) => setSelectedSourceCardId(e.target.value)}
+                      onChange={(e: any) => {
+                        const newSourceId = e.target.value;
+                        setSelectedSourceCardId(newSourceId);
+                        if (selectedTargetCardId === newSourceId) {
+                          const other = cards.find(c => c.id !== newSourceId && !isClosedCard(c) && !c.isHidden);
+                          if (other) setSelectedTargetCardId(other.id);
+                        }
+                      }}
                     >
                       <option value="" disabled>Select Source Account</option>
                       {depositAccounts.map(item => {
@@ -1005,7 +1110,7 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = React.memo(({
                         );
                       })}
                     </select>
-                    <View style={styles.webSelectArrow} pointerEvents="none">
+                    <View style={styles.webSelectArrow}>
                       <Text style={styles.dropdownArrow}>▼</Text>
                     </View>
                   </View>
@@ -1048,7 +1153,14 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = React.memo(({
                     <select
                       style={getWebSelectStyle(selectedTargetCard)}
                       value={selectedTargetCardId}
-                      onChange={(e: any) => setSelectedTargetCardId(e.target.value)}
+                      onChange={(e: any) => {
+                        const newTargetId = e.target.value;
+                        setSelectedTargetCardId(newTargetId);
+                        if (selectedSourceCardId === newTargetId) {
+                          const depositAcc = cards.find(c => (c.isChecking || c.isSaving || c.isBrokerage) && c.id !== newTargetId && !isClosedCard(c) && !c.isHidden);
+                          if (depositAcc) setSelectedSourceCardId(depositAcc.id);
+                        }
+                      }}
                     >
                       <option value="" disabled>Select Target Account</option>
                       {targetAccountsList.map(item => {
@@ -1068,7 +1180,7 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = React.memo(({
                         );
                       })}
                     </select>
-                    <View style={styles.webSelectArrow} pointerEvents="none">
+                    <View style={styles.webSelectArrow}>
                       <Text style={styles.dropdownArrow}>▼</Text>
                     </View>
                   </View>
@@ -1199,7 +1311,7 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = React.memo(({
                         );
                       })}
                     </select>
-                    <View style={styles.webSelectArrow} pointerEvents="none">
+                    <View style={styles.webSelectArrow}>
                       <Text style={styles.dropdownArrow}>▼</Text>
                     </View>
                   </View>
@@ -1248,7 +1360,7 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = React.memo(({
                         </option>
                       ))}
                     </select>
-                    <View style={styles.webSelectArrow} pointerEvents="none">
+                    <View style={styles.webSelectArrow}>
                       <Text style={styles.dropdownArrow}>▼</Text>
                     </View>
                   </View>
@@ -1710,7 +1822,12 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = React.memo(({
                       },
                     ]}
                     onPress={() => {
-                      setSelectedSourceCardId(item.id);
+                      const newSourceId = item.id;
+                      setSelectedSourceCardId(newSourceId);
+                      if (selectedTargetCardId === newSourceId) {
+                        const other = cards.find(c => c.id !== newSourceId && !isClosedCard(c) && !c.isHidden);
+                        if (other) setSelectedTargetCardId(other.id);
+                      }
                       setSourceModalVisible(false);
                     }}
                   >
@@ -1776,7 +1893,12 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = React.memo(({
                       },
                     ]}
                     onPress={() => {
-                      setSelectedTargetCardId(item.id);
+                      const newTargetId = item.id;
+                      setSelectedTargetCardId(newTargetId);
+                      if (selectedSourceCardId === newTargetId) {
+                        const depositAcc = cards.find(c => (c.isChecking || c.isSaving || c.isBrokerage) && c.id !== newTargetId && !isClosedCard(c) && !c.isHidden);
+                        if (depositAcc) setSelectedSourceCardId(depositAcc.id);
+                      }
                       setTargetModalVisible(false);
                     }}
                   >
@@ -2157,6 +2279,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     justifyContent: 'center',
     alignItems: 'center',
+    ...(Platform.OS === 'web' ? ({ pointerEvents: 'none' } as any) : {}),
   },
   cardBadge: {
     paddingHorizontal: 6,

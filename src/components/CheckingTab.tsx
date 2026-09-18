@@ -367,7 +367,7 @@ export const CheckingTab: React.FC<CheckingTabProps> = React.memo(({
           {onNavigateToAdd && (
             <TouchableOpacity
               style={styles.bannerAddLogBtn}
-              onPress={() => onNavigateToAdd()}
+              onPress={() => onNavigateToAdd(brokerageAccounts[0]?.id)}
               activeOpacity={0.8}
             >
               <Text style={styles.bannerAddLogBtnText}>➕ Log Expense</Text>

@@ -1953,7 +1953,7 @@ const styles = StyleSheet.create({
       ? ({
           outlineStyle: 'none',
           textAlign: 'left',
-          direction: 'ltr',
+          writingDirection: 'ltr',
         } as any)
       : {}),
   },
@@ -2022,7 +2022,7 @@ const styles = StyleSheet.create({
       ? ({
           outlineStyle: 'none',
           textAlign: 'left',
-          direction: 'ltr',
+          writingDirection: 'ltr',
         } as any)
       : {}),
   },
